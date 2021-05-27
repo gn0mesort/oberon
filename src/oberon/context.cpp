@@ -1,19 +1,18 @@
 #include "oberon/context.hpp"
 
-#include "oberon/detail/vulkan.hpp"
 
 #include <cstring>
 
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
-#include <array>
 #include <string>
 #include <algorithm>
 #include <iterator>
 
 #include "oberon/types.hpp"
 #include "oberon/memory.hpp"
+
+#include "oberon/detail/graphics.hpp"
 
 namespace {
   static bool sg_has_init_extension_details{ false };
@@ -44,7 +43,7 @@ namespace {
     auto dl = vk::DispatchLoaderDynamic{ };
     dl.init(vkGetInstanceProcAddr);
     auto layers = vk::enumerateInstanceLayerProperties(dl);
-     sg_extension_by_layer[""] = get_extensions("", dl);
+    sg_extension_by_layer[""] = get_extensions("", dl);
     for (const auto& layer : layers)
     {
       auto name = std::string{ layer.layerName };

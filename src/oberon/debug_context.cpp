@@ -6,9 +6,6 @@
 #include <algorithm>
 #include <iterator>
 
-#define VK_USE_PLATFORM_XCB_KHR
-#include <vulkan/vulkan.hpp>
-
 namespace {
   static std::unordered_set<std::string> sg_required_extensions{
     VK_KHR_SURFACE_EXTENSION_NAME,
@@ -17,8 +14,7 @@ namespace {
   };
 
   static std::unordered_set<std::string> sg_optional_extensions{
-    VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME,
-    VK_KHR_DISPLAY_EXTENSION_NAME
+    VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME
   };
 
   static std::array<vk::ValidationFeatureEnableEXT, 3> sg_validation_enable{
@@ -98,6 +94,17 @@ namespace detail {
 
   debug_context::debug_context(const std::unordered_set<std::string_view>& requested_layers) :
   m_impl{ new detail::debug_context_impl{ } } {
+    // X stuff
+    {
+      auto preferred_screen = int{ };
+      m_impl->x_connection = xcb_connect(nullptr, &preferred_screen);
+      if (xcb_connection_has_error(m_impl->x_connection))
+      {
+        // TODO fatal can't connect to X
+      }
+      m_impl->x_screen = detail::screen_of_display(m_impl->x_connection, preferred_screen);
+    }
+
     m_impl->dl.init(vkGetInstanceProcAddr);
     if (auto [result, missing] = debug_context::validate_layers(requested_layers); !result)
     {
@@ -185,5 +192,6 @@ namespace detail {
   debug_context::~debug_context() noexcept {
     m_impl->instance.destroyDebugUtilsMessengerEXT(m_impl->debug_messenger, nullptr, m_impl->dl);
     m_impl->instance.destroy(nullptr, m_impl->dl);
+    xcb_disconnect(m_impl->x_connection);
   }
 }
