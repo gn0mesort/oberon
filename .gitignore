@@ -1,0 +1,9 @@
+# Build and Distribution directories
+build/**
+dist/**
+
+# Object files
+*.o
+
+# clangd cache
+.cache/**
