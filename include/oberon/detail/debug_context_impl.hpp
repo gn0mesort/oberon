@@ -16,6 +16,12 @@ namespace detail {
     vk::DispatchLoaderDynamic dl{ };
     vk::Instance instance{ };
     vk::DebugUtilsMessengerEXT debug_messenger{ };
+    vk::PhysicalDevice physical_device{ };
+    u32 graphics_transfer_queue_family{ };
+    u32 presentation_queue_family{ };
+    vk::Device device{ };
+    vk::Queue graphics_transfer_queue{ };
+    vk::Queue presentation_queue{ };
   };
 }
 }

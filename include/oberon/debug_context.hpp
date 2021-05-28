@@ -30,6 +30,8 @@ namespace detail {
   public:
     static const std::unordered_set<std::string>& required_extensions();
     static const std::unordered_set<std::string>& optional_extensions();
+    static const std::unordered_set<std::string>& required_device_extensions();
+    static const std::unordered_set<std::string>& optional_device_extensions();
 
     debug_context(const std::unordered_set<std::string_view>& requested_layers);
 

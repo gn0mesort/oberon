@@ -13,6 +13,7 @@ project(
 )
 
 oberon_deps = [
+  dependency('xcb'),
   dependency('vulkan')
 ]
 
@@ -24,6 +25,9 @@ oberon_srcs = [
   files(
     'src/oberon/context.cpp',
     'src/oberon/debug_context.cpp'
+  ),
+  files(
+    'src/oberon/detail/graphics.cpp'
   )
 ]
 

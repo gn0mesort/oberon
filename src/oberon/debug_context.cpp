@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <optional>
 
 namespace {
   static std::unordered_set<std::string> sg_required_extensions{
@@ -15,6 +16,13 @@ namespace {
 
   static std::unordered_set<std::string> sg_optional_extensions{
     VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME
+  };
+
+  static std::unordered_set<std::string> sg_required_device_extensions{
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+  };
+
+  static std::unordered_set<std::string> sg_optional_device_extensions{
   };
 
   static std::array<vk::ValidationFeatureEnableEXT, 3> sg_validation_enable{
@@ -33,6 +41,24 @@ namespace {
   ) {
     std::printf("[VK]: %s\n", pCallbackData->pMessage);
     return VK_FALSE;
+  }
+
+  template <typename Dispatch>
+  std::optional<vk::PhysicalDevice> select_device(const std::vector<vk::PhysicalDevice>& pdevs, const Dispatch& dl) {
+    auto org_devs = oberon::detail::organize_physical_devices(std::begin(pdevs), std::end(pdevs), dl);
+    if (!org_devs[vk::PhysicalDeviceType::eDiscreteGpu].empty())
+    {
+      return org_devs[vk::PhysicalDeviceType::eDiscreteGpu].front();
+    }
+    if (!org_devs[vk::PhysicalDeviceType::eIntegratedGpu].empty())
+    {
+      return org_devs[vk::PhysicalDeviceType::eIntegratedGpu].front();
+    }
+    if (!org_devs[vk::PhysicalDeviceType::eCpu].empty())
+    {
+      return org_devs[vk::PhysicalDeviceType::eCpu].front();
+    }
+    return std::nullopt;
   }
 }
 
@@ -90,6 +116,14 @@ namespace detail {
 
   const std::unordered_set<std::string>& debug_context::optional_extensions() {
     return sg_optional_extensions;
+  }
+
+  const std::unordered_set<std::string>& debug_context::required_device_extensions() {
+    return sg_required_device_extensions;
+  }
+
+  const std::unordered_set<std::string>& debug_context::optional_device_extensions() {
+    return sg_optional_device_extensions;
   }
 
   debug_context::debug_context(const std::unordered_set<std::string_view>& requested_layers) :
@@ -187,9 +221,151 @@ namespace detail {
     m_impl->instance = vk::createInstance(instance_info, nullptr, m_impl->dl);
     m_impl->dl.init(m_impl->instance);
     m_impl->debug_messenger = m_impl->instance.createDebugUtilsMessengerEXT(debug_info, nullptr, m_impl->dl);
+
+    {
+      auto pdevs = m_impl->instance.enumeratePhysicalDevices(m_impl->dl);
+      // Filter devices without presentation and graphics support.
+      // This is not queue selection.
+      auto bad_pdevs = std::remove_if(
+        std::begin(pdevs), std::end(pdevs),
+        [this](const vk::PhysicalDevice& pdev) {
+          {
+            auto exts = pdev.enumerateDeviceExtensionProperties(nullptr, m_impl->dl);
+            for (const auto& required_extension : sg_required_device_extensions)
+            {
+              auto pos = std::find_if(
+                std::begin(exts), std::end(exts),
+                [&required_extension](const auto& prop) {
+                  return std::string{ prop.extensionName } == required_extension;
+                }
+              );
+              if (pos == std::end(exts))
+              {
+                return true;
+              }
+            }
+          }
+
+          auto queues = pdev.getQueueFamilyProperties(m_impl->dl);
+          auto has_gfx = false;
+          auto has_pre = false;
+          {
+            auto ctr = u32{ 0 };
+            for (const auto& queue : queues)
+            {
+              // Check graphics support. This implies transfer operation support.
+              if (queue.queueFlags & vk::QueueFlagBits::eGraphics)
+              {
+                has_gfx = true;
+              }
+              // Check presentation support with XCB.
+              if (
+                pdev.getXcbPresentationSupportKHR(ctr, m_impl->x_connection, m_impl->x_screen->root_visual, m_impl->dl)
+              )
+              {
+                has_pre = true;
+              }
+              ++ctr;
+            }
+          }
+          return !(has_gfx && has_pre);
+        }
+      );
+      pdevs.erase(bad_pdevs, std::end(pdevs));
+      
+      switch (pdevs.size())
+      {
+      case 0:
+        // TODO fatal error no suitable device
+      case 1:
+        // Exactly one device so select it.
+        m_impl->physical_device = pdevs.front();
+        break;
+      default:
+        {
+          auto best = select_device(pdevs, m_impl->dl);
+          if (!best.has_value())
+          {
+            // TODO fatal error no suitable device
+          }
+          m_impl->physical_device = *best;
+        }
+      }
+      
+      auto device_info = vk::DeviceCreateInfo{ };
+      auto device_exts = std::vector<cstring>(sg_required_device_extensions.size());
+      std::transform(
+        std::begin(sg_required_device_extensions), std::end(sg_required_device_extensions),
+        std::begin(device_exts),
+        [](const auto& ext) {
+          return ext.c_str();
+        }
+      );
+      device_info.ppEnabledExtensionNames = device_exts.data();
+      device_info.enabledExtensionCount = device_exts.size();
+      auto features = m_impl->physical_device.getFeatures(m_impl->dl);
+      device_info.pEnabledFeatures = &features;
+      
+      // Select queues
+      {
+        auto queue_families = m_impl->physical_device.getQueueFamilyProperties(m_impl->dl);
+        m_impl->graphics_transfer_queue_family = queue_families.size();
+        m_impl->presentation_queue_family = queue_families.size();
+        {
+          auto ctr = u32{ 0 };
+          for (const auto& queue_family : queue_families)
+          {
+            if (m_impl->graphics_transfer_queue_family >= queue_families.size())
+            {
+              if (queue_family.queueFlags & vk::QueueFlagBits::eGraphics)
+              {
+                m_impl->graphics_transfer_queue_family = ctr;
+              }
+            }
+            if (m_impl->presentation_queue_family >= queue_families.size())
+            {
+              auto pres = m_impl->physical_device.getXcbPresentationSupportKHR(
+                ctr,
+                m_impl->x_connection, m_impl->x_screen->root_visual,
+                m_impl->dl
+              );
+              if (pres)
+              {
+                m_impl->presentation_queue_family = ctr;
+              }
+            }
+            ++ctr;
+          }
+        }
+      }
+      auto queue_infos = std::array<vk::DeviceQueueCreateInfo, 2>{ };
+      auto& [gfx_info, pres_info] = queue_infos;
+      auto priority = f32{ 1.0 };
+      gfx_info.pQueuePriorities = &priority;
+      gfx_info.queueCount = 1;
+      gfx_info.queueFamilyIndex = m_impl->graphics_transfer_queue_family;
+      pres_info.pQueuePriorities = &priority;
+      pres_info.queueCount = 1;
+      pres_info.queueFamilyIndex = m_impl->presentation_queue_family;
+
+      device_info.pQueueCreateInfos = queue_infos.data();
+      if (m_impl->graphics_transfer_queue_family == m_impl->presentation_queue_family)
+      {
+        device_info.queueCreateInfoCount = 1;
+      }
+      else
+      {
+        device_info.queueCreateInfoCount = queue_infos.size();
+      }
+
+      m_impl->device = m_impl->physical_device.createDevice(device_info, nullptr, m_impl->dl);
+      m_impl->graphics_transfer_queue = m_impl->device.getQueue(m_impl->graphics_transfer_queue_family, 0, m_impl->dl);
+      m_impl->presentation_queue = m_impl->device.getQueue(m_impl->presentation_queue_family, 0, m_impl->dl);
+    }
   }
 
   debug_context::~debug_context() noexcept {
+    m_impl->device.destroy(nullptr, m_impl->dl);
     m_impl->instance.destroyDebugUtilsMessengerEXT(m_impl->debug_messenger, nullptr, m_impl->dl);
     m_impl->instance.destroy(nullptr, m_impl->dl);
     xcb_disconnect(m_impl->x_connection);
