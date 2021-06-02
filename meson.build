@@ -5,7 +5,7 @@ project(
   license: 'AGPL-3.0',
   default_options: [
     'c_std=c18',
-    'cpp_std=c++17',
+    'cpp_std=c++20',
     'warning_level=3',
     'b_ndebug=if-release',
     'b_pie=true'
@@ -23,6 +23,8 @@ oberon_incs = [
 
 oberon_srcs = [
   files(
+    'src/oberon/errors.cpp',
+    'src/oberon/object.cpp',
     'src/oberon/context.cpp',
     'src/oberon/debug_context.cpp'
   ),

@@ -6,33 +6,11 @@
 #include <algorithm>
 #include <iterator>
 #include <optional>
+#include <memory>
+
+#include "oberon/errors.hpp"
 
 namespace {
-  static std::unordered_set<std::string> sg_required_extensions{
-    VK_KHR_SURFACE_EXTENSION_NAME,
-    VK_KHR_XCB_SURFACE_EXTENSION_NAME,
-    VK_EXT_DEBUG_UTILS_EXTENSION_NAME
-  };
-
-  static std::unordered_set<std::string> sg_optional_extensions{
-    VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME
-  };
-
-  static std::unordered_set<std::string> sg_required_device_extensions{
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
-  };
-
-  static std::unordered_set<std::string> sg_optional_device_extensions{
-  };
-
-  static std::array<vk::ValidationFeatureEnableEXT, 3> sg_validation_enable{
-    vk::ValidationFeatureEnableEXT::eBestPractices,
-    vk::ValidationFeatureEnableEXT::eGpuAssisted,
-    vk::ValidationFeatureEnableEXT::eSynchronizationValidation
-  };
-
-  static std::array<vk::ValidationFeatureDisableEXT, 0> sg_validation_disable{ };
-
   static VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugLog(
     VkDebugUtilsMessageSeverityFlagBitsEXT /* messageSeverity */,
     VkDebugUtilsMessageTypeFlagsEXT /* messageTypes */,
@@ -42,332 +20,401 @@ namespace {
     std::printf("[VK]: %s\n", pCallbackData->pMessage);
     return VK_FALSE;
   }
-
-  template <typename Dispatch>
-  std::optional<vk::PhysicalDevice> select_device(const std::vector<vk::PhysicalDevice>& pdevs, const Dispatch& dl) {
-    auto org_devs = oberon::detail::organize_physical_devices(std::begin(pdevs), std::end(pdevs), dl);
-    if (!org_devs[vk::PhysicalDeviceType::eDiscreteGpu].empty())
-    {
-      return org_devs[vk::PhysicalDeviceType::eDiscreteGpu].front();
-    }
-    if (!org_devs[vk::PhysicalDeviceType::eIntegratedGpu].empty())
-    {
-      return org_devs[vk::PhysicalDeviceType::eIntegratedGpu].front();
-    }
-    if (!org_devs[vk::PhysicalDeviceType::eCpu].empty())
-    {
-      return org_devs[vk::PhysicalDeviceType::eCpu].front();
-    }
-    return std::nullopt;
-  }
 }
 
 namespace oberon {
 namespace detail {
-  void debug_context_dtor::operator()(const ptr<debug_context_impl> impl) const noexcept {
-    delete impl;
-  }
-}
-  std::pair<bool, std::string_view> debug_context::validate_layers(const std::unordered_set<std::string_view>& layers) {
-    for (const auto& layer : layers)
-    {
-      if (!context::has_layer(layer))
-      {
-        return { false, layer };
-      }
-    }
-    return { true, "" };
-  }
-
-  std::pair<bool, std::string_view> debug_context::validate_required_extensions(
-    const std::unordered_set<std::string_view>& layers
+  std::vector<cstring> debug_context_select_layers(
+    debug_context_impl& ctx,
+    const std::unordered_set<std::string_view>& requested_layers
   ) {
-    for (const auto& extension : debug_context::required_extensions())
+    auto vkEnumerateInstanceLayerProperties = ctx.dbgft.vkEnumerateInstanceLayerProperties;
+    auto sz = u32{ 0 };
+    if (auto result = vkEnumerateInstanceLayerProperties(&sz, nullptr); result != VK_SUCCESS)
     {
-      if (!debug_context::has_extension(layers, extension))
+      throw fatal_error{ "Failed to enumerate Vulkan instance layers." };
+    }
+    auto layer_props = std::vector<VkLayerProperties>(sz);
+    if (auto result = vkEnumerateInstanceLayerProperties(&sz, layer_props.data()); result != VK_SUCCESS)
+    {
+      throw fatal_error{ "Failed to enumerate Vulkan instance layers." };
+    }
+    for (const auto& requested_layer : requested_layers)
+    {
+      auto found = false;
+      for (const auto& layer_prop : layer_props)
       {
-        return { false, extension };
+        if (requested_layer == layer_prop.layerName)
+        {
+          found = true;
+        }
+      }
+      if (!found)
+      {
+        throw fatal_error{ "Requested Vulkan layer: \"" + std::string{ requested_layer } + "\" was not found." };
       }
     }
-    return { true, "" };
+    auto layers = std::vector<cstring>(requested_layers.size());
+    for (auto cur = std::begin(layers); const auto& requested_layer : requested_layers)
+    {
+      *cur = requested_layer.data();
+      ++cur;
+    }
+    return layers;
   }
 
-  bool debug_context::has_extension(
-    const std::unordered_set<std::string_view>& layers,
-    const std::string_view& extension_name
+  std::unordered_set<std::string> debug_context_fetch_extensions(debug_context_impl& ctx, const cstring layer) {
+    auto vkEnumerateInstanceExtensionProperties = ctx.dbgft.vkEnumerateInstanceExtensionProperties;
+    auto sz = u32{ 0 };
+    if (auto result = vkEnumerateInstanceExtensionProperties(layer, &sz, nullptr); result != VK_SUCCESS)
+    {
+      throw fatal_error{ "Failed to enumerate Vulkan extensions." };
+    }
+    auto extension_props = std::vector<VkExtensionProperties>(sz);
+    if (auto result = vkEnumerateInstanceExtensionProperties(layer, &sz, extension_props.data()); result != VK_SUCCESS)
+    {
+      throw fatal_error{ "Failed to enumerate Vulkan extensions." };
+    }
+    auto extensions = std::unordered_set<std::string>{ };
+    for (const auto& extension_prop : extension_props)
+    {
+      extensions.insert(extension_prop.extensionName);
+    }
+    return extensions;
+  }
+
+  std::vector<cstring> debug_context_select_extensions(
+    debug_context_impl& ctx,
+    const std::unordered_set<std::string>& available_extensions
   ) {
-    if (context::has_extension(extension_name))
+    auto required_extensions = std::unordered_set<std::string_view>{
+      VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+      VK_KHR_SURFACE_EXTENSION_NAME,
+      VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+    };
+
+    for (const auto& required_extension : required_extensions)
     {
-      return true;
-    }
-    for (const auto& layer : layers)
-    {
-      if (context::layer_has_extension(layer, extension_name))
+      if (!available_extensions.contains(required_extension.data()))
       {
-        return true;
+        throw fatal_error{ "Required Vulkan extension: \"" + std::string{ required_extension } + "\" was not found." };
       }
     }
-    return false;
-  }
 
-  const std::unordered_set<std::string>& debug_context::required_extensions() {
-    return sg_required_extensions;
-  }
-
-  const std::unordered_set<std::string>& debug_context::optional_extensions() {
-    return sg_optional_extensions;
-  }
-
-  const std::unordered_set<std::string>& debug_context::required_device_extensions() {
-    return sg_required_device_extensions;
-  }
-
-  const std::unordered_set<std::string>& debug_context::optional_device_extensions() {
-    return sg_optional_device_extensions;
-  }
-
-  debug_context::debug_context(const std::unordered_set<std::string_view>& requested_layers) :
-  m_impl{ new detail::debug_context_impl{ } } {
-    // X stuff
+    auto enabled_extensions = std::vector<cstring>(required_extensions.size());
+    for (auto cur = std::begin(enabled_extensions); const auto& required_extension : required_extensions)
     {
-      auto preferred_screen = int{ };
-      m_impl->x_connection = xcb_connect(nullptr, &preferred_screen);
-      if (xcb_connection_has_error(m_impl->x_connection))
+      *cur = required_extension.data();
+      ++cur;
+    }
+
+    auto optional_extensions = std::unordered_set<std::string_view>{
+      VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME
+    };
+
+    for (const auto& optional_extension : optional_extensions)
+    {
+      if (available_extensions.contains(optional_extension.data()))
       {
-        // TODO fatal can't connect to X
-      }
-      m_impl->x_screen = detail::screen_of_display(m_impl->x_connection, preferred_screen);
-    }
-
-    m_impl->dl.init(vkGetInstanceProcAddr);
-    if (auto [result, missing] = debug_context::validate_layers(requested_layers); !result)
-    {
-      // TODO fatal error missing layer
-    }
-    if (auto [result, missing] = debug_context::validate_required_extensions(requested_layers); !result)
-    {
-      // TODO fatal error missing extension
-    }
-    auto lyrs = std::vector<cstring>(requested_layers.size());
-    std::transform(
-      std::begin(requested_layers), std::end(requested_layers),
-      std::begin(lyrs),
-      [](const auto str) {
-        return str.data();
-      }
-    );
-    auto exts = std::vector<cstring>{ };
-    std::transform(
-      std::begin(debug_context::required_extensions()), std::end(debug_context::required_extensions()),
-      std::back_inserter(exts),
-      [](const auto& str) {
-        return str.c_str();
-      }
-    );
-    for (const auto& optional_extension : debug_context::optional_extensions())
-    {
-      if (debug_context::has_extension(requested_layers, optional_extension))
-      {
-        exts.push_back(optional_extension.c_str());
-        if (optional_extension == VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME)
-        {
-          m_impl->has_validation_features = true;
-        }
-      }
-    }
-    
-    auto app_info = vk::ApplicationInfo{ };
-    // This probably doesn't matter but shouldn't really be hard coded.
-    app_info.pApplicationName = "";
-    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "";
-    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    // Maybe allow user selection?
-    app_info.apiVersion = VK_API_VERSION_1_2;
-
-    auto instance_chain =
-      vk::StructureChain<vk::InstanceCreateInfo, vk::ValidationFeaturesEXT, vk::DebugUtilsMessengerCreateInfoEXT>{ };
-    auto& debug_info = instance_chain.get<vk::DebugUtilsMessengerCreateInfoEXT>();
-    debug_info.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
-                                 vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo |
-                                 vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-                                 vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
-    debug_info.messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
-                             vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
-                             vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation;
-    debug_info.pfnUserCallback = vkDebugLog;
-
-    // Always do the initialization and simply unlink if not needed?
-    auto& validation_features = instance_chain.get<vk::ValidationFeaturesEXT>();
-    if (m_impl->has_validation_features)
-    {
-      validation_features.pEnabledValidationFeatures = sg_validation_enable.data();
-      validation_features.enabledValidationFeatureCount = sg_validation_enable.size();
-      validation_features.pDisabledValidationFeatures = sg_validation_disable.data();
-      validation_features.disabledValidationFeatureCount = sg_validation_disable.size();
-    }
-    else
-    {
-      instance_chain.unlink<vk::ValidationFeaturesEXT>();
-    }
-
-    auto& instance_info = instance_chain.get<vk::InstanceCreateInfo>();
-    instance_info.pApplicationInfo = &app_info;
-    instance_info.ppEnabledLayerNames = lyrs.data();
-    instance_info.enabledLayerCount = lyrs.size();
-    instance_info.ppEnabledExtensionNames = exts.data();
-    instance_info.enabledExtensionCount = exts.size();
-
-    m_impl->instance = vk::createInstance(instance_info, nullptr, m_impl->dl);
-    m_impl->dl.init(m_impl->instance);
-    m_impl->debug_messenger = m_impl->instance.createDebugUtilsMessengerEXT(debug_info, nullptr, m_impl->dl);
-
-    {
-      auto pdevs = m_impl->instance.enumeratePhysicalDevices(m_impl->dl);
-      // Filter devices without presentation and graphics support.
-      // This is not queue selection.
-      auto bad_pdevs = std::remove_if(
-        std::begin(pdevs), std::end(pdevs),
-        [this](const vk::PhysicalDevice& pdev) {
-          {
-            auto exts = pdev.enumerateDeviceExtensionProperties(nullptr, m_impl->dl);
-            for (const auto& required_extension : sg_required_device_extensions)
-            {
-              auto pos = std::find_if(
-                std::begin(exts), std::end(exts),
-                [&required_extension](const auto& prop) {
-                  return std::string{ prop.extensionName } == required_extension;
-                }
-              );
-              if (pos == std::end(exts))
-              {
-                return true;
-              }
-            }
-          }
-
-          auto queues = pdev.getQueueFamilyProperties(m_impl->dl);
-          auto has_gfx = false;
-          auto has_pre = false;
-          {
-            auto ctr = u32{ 0 };
-            for (const auto& queue : queues)
-            {
-              // Check graphics support. This implies transfer operation support.
-              if (queue.queueFlags & vk::QueueFlagBits::eGraphics)
-              {
-                has_gfx = true;
-              }
-              // Check presentation support with XCB.
-              if (
-                pdev.getXcbPresentationSupportKHR(ctr, m_impl->x_connection, m_impl->x_screen->root_visual, m_impl->dl)
-              )
-              {
-                has_pre = true;
-              }
-              ++ctr;
-            }
-          }
-          return !(has_gfx && has_pre);
-        }
-      );
-      pdevs.erase(bad_pdevs, std::end(pdevs));
-      
-      switch (pdevs.size())
-      {
-      case 0:
-        // TODO fatal error no suitable device
-      case 1:
-        // Exactly one device so select it.
-        m_impl->physical_device = pdevs.front();
-        break;
-      default:
-        {
-          auto best = select_device(pdevs, m_impl->dl);
-          if (!best.has_value())
-          {
-            // TODO fatal error no suitable device
-          }
-          m_impl->physical_device = *best;
-        }
-      }
-      
-      auto device_info = vk::DeviceCreateInfo{ };
-      auto device_exts = std::vector<cstring>(sg_required_device_extensions.size());
-      std::transform(
-        std::begin(sg_required_device_extensions), std::end(sg_required_device_extensions),
-        std::begin(device_exts),
-        [](const auto& ext) {
-          return ext.c_str();
-        }
-      );
-      device_info.ppEnabledExtensionNames = device_exts.data();
-      device_info.enabledExtensionCount = device_exts.size();
-      auto features = m_impl->physical_device.getFeatures(m_impl->dl);
-      device_info.pEnabledFeatures = &features;
-      
-      // Select queues
-      {
-        auto queue_families = m_impl->physical_device.getQueueFamilyProperties(m_impl->dl);
-        m_impl->graphics_transfer_queue_family = queue_families.size();
-        m_impl->presentation_queue_family = queue_families.size();
-        {
-          auto ctr = u32{ 0 };
-          for (const auto& queue_family : queue_families)
-          {
-            if (m_impl->graphics_transfer_queue_family >= queue_families.size())
-            {
-              if (queue_family.queueFlags & vk::QueueFlagBits::eGraphics)
-              {
-                m_impl->graphics_transfer_queue_family = ctr;
-              }
-            }
-            if (m_impl->presentation_queue_family >= queue_families.size())
-            {
-              auto pres = m_impl->physical_device.getXcbPresentationSupportKHR(
-                ctr,
-                m_impl->x_connection, m_impl->x_screen->root_visual,
-                m_impl->dl
-              );
-              if (pres)
-              {
-                m_impl->presentation_queue_family = ctr;
-              }
-            }
-            ++ctr;
-          }
-        }
-      }
-      auto queue_infos = std::array<vk::DeviceQueueCreateInfo, 2>{ };
-      auto& [gfx_info, pres_info] = queue_infos;
-      auto priority = f32{ 1.0 };
-      gfx_info.pQueuePriorities = &priority;
-      gfx_info.queueCount = 1;
-      gfx_info.queueFamilyIndex = m_impl->graphics_transfer_queue_family;
-      pres_info.pQueuePriorities = &priority;
-      pres_info.queueCount = 1;
-      pres_info.queueFamilyIndex = m_impl->presentation_queue_family;
-
-      device_info.pQueueCreateInfos = queue_infos.data();
-      if (m_impl->graphics_transfer_queue_family == m_impl->presentation_queue_family)
-      {
-        device_info.queueCreateInfoCount = 1;
+        ctx.optional_extensions[optional_extension] = true;
+        enabled_extensions.push_back(optional_extension.data());
       }
       else
       {
-        device_info.queueCreateInfoCount = queue_infos.size();
+        ctx.optional_extensions[optional_extension] = false;
       }
+    }
+    return enabled_extensions;
+  }
 
-      m_impl->device = m_impl->physical_device.createDevice(device_info, nullptr, m_impl->dl);
-      m_impl->graphics_transfer_queue = m_impl->device.getQueue(m_impl->graphics_transfer_queue_family, 0, m_impl->dl);
-      m_impl->presentation_queue = m_impl->device.getQueue(m_impl->presentation_queue_family, 0, m_impl->dl);
+  void debug_context_load_instance_extension_pfns(debug_context_impl& ctx) {
+    ctx.dbgft.vkCreateDebugUtilsMessengerEXT = OBERON_INSTANCE_FN(ctx, vkCreateDebugUtilsMessengerEXT);
+    ctx.dbgft.vkGetPhysicalDeviceXcbPresentationSupportKHR = 
+      OBERON_INSTANCE_FN(ctx, vkGetPhysicalDeviceXcbPresentationSupportKHR);
+    ctx.dbgft.vkDestroyDebugUtilsMessengerEXT = OBERON_INSTANCE_FN(ctx, vkDestroyDebugUtilsMessengerEXT);
+  }
+
+  std::vector<VkPhysicalDevice> debug_context_fetch_physical_devices(
+    debug_context_impl& ctx,
+    const std::unordered_set<std::string_view>& required_extensions
+  ) {
+    auto vkEnumeratePhysicalDevices = ctx.dbgft.vkEnumeratePhysicalDevices;
+    auto sz = u32{ 0 };
+    if (auto result = vkEnumeratePhysicalDevices(ctx.instance, &sz, nullptr); result != VK_SUCCESS)
+    {
+      throw fatal_error{ "Failed to enumerate available Vulkan devices." };
+    }
+    auto physical_devices = std::vector<VkPhysicalDevice>(sz);
+    if (auto result = vkEnumeratePhysicalDevices(ctx.instance, &sz, physical_devices.data()); result != VK_SUCCESS)
+    {
+      throw fatal_error{ "Failed to enumerate available Vulkan devices." };
+    }
+    // Filtering only against required extensions because swapchain is required and, in my opinion, a device
+    // that supports VK_KHR_swapchain should always have a valid presentation queue family.
+    // I'm not certain that the extension or standard guarantees this property but it would be supremely bizarre
+    // for it not to be guaranteed.
+    // Ditto for physical devices that support VK_KHR_swapchain and presentation but not graphics.
+    // Does a magical unicorn compute and presentation only device exist?
+    auto filter_point = std::remove_if(
+      std::begin(physical_devices), std::end(physical_devices),
+      [&ctx, &required_extensions](const auto& physical_device) {
+        auto vkEnumerateDeviceExtensionProperties = ctx.dbgft.vkEnumerateDeviceExtensionProperties;
+        auto available_extensions = std::unordered_set<std::string_view>{ };
+        auto sz = u32{ 0 };
+        if (
+          auto result = vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &sz, nullptr);
+          result != VK_SUCCESS
+        )
+        {
+          return true;
+        }
+        auto extensions = std::vector<VkExtensionProperties>(sz);
+        if (
+          auto result = vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &sz, extensions.data());
+          result != VK_SUCCESS
+        )
+        {
+          return true;
+        }
+        for (const auto& extension : extensions)
+        {
+          available_extensions.insert(extension.extensionName);
+        }
+        for (const auto& required_extension : required_extensions)
+        {
+          if (!available_extensions.contains(required_extension))
+          {
+            return true;
+          }
+        }
+        return false;
+      }
+    );
+    physical_devices.erase(filter_point, std::end(physical_devices));
+    std::sort(
+      std::begin(physical_devices),
+      std::end(physical_devices),
+      [&ctx](const auto& a, const auto& b) {
+        auto vkGetPhysicalDeviceProperties = ctx.dbgft.vkGetPhysicalDeviceProperties;
+        auto props = std::array<VkPhysicalDeviceProperties, 2>{ };
+        auto scores = std::array<u32, 2>{ };
+        auto& [a_props, b_props] = props;
+        auto& [a_score, b_score] = scores;
+        vkGetPhysicalDeviceProperties(a, &a_props);
+        vkGetPhysicalDeviceProperties(b, &b_props);
+        for (auto score = std::begin(scores); auto& prop : props)
+        {
+          // Preference discrete cards.
+          switch(prop.deviceType)
+          {
+          case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            *score = 10;
+            break;
+          case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            *score = 9;
+            break;
+          case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            *score = 8;
+            break;
+          case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            *score = 7;
+            break;
+          default:
+            *score = 0;
+          }
+          ++score;
+        }
+        return a_score < b_score;
+      }
+    );
+    return physical_devices;
+  }
+
+  void debug_context_select_physical_device_queue_families(debug_context_impl& ctx) {
+    auto vkGetPhysicalDeviceQueueFamilyProperties = ctx.dbgft.vkGetPhysicalDeviceQueueFamilyProperties;
+    auto vkGetPhysicalDeviceXcbPresentationSupportKHR = ctx.dbgft.vkGetPhysicalDeviceXcbPresentationSupportKHR;
+    auto sz = u32{ 0 };
+    vkGetPhysicalDeviceQueueFamilyProperties(ctx.physical_device, &sz, nullptr);
+    auto queue_families = std::vector<VkQueueFamilyProperties>(sz);
+    vkGetPhysicalDeviceQueueFamilyProperties(ctx.physical_device, &sz, queue_families.data());
+    // Based on my previous reasoning (about the swapchain extension) all available devices should support graphics
+    // and present. If this isn't the case this will need to change.
+    auto has_gfx = false; // Graphics implies transfer.
+    auto has_pres = false;
+    for (auto i = u32{ 0 }; i < queue_families.size(); ++i)
+    {
+      auto supports_present =
+        vkGetPhysicalDeviceXcbPresentationSupportKHR(
+          ctx.physical_device, i,
+          ctx.x_connection, ctx.x_screen->root_visual
+        );
+      auto supports_graphics = queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
+      if (supports_present && supports_graphics)
+      {
+        ctx.graphics_transfer_queue_family = i;
+        ctx.presentation_queue_family = i;
+        has_gfx = true;
+        has_pres = true;
+        break;
+      }
+      if (supports_present && !has_pres)
+      {
+        ctx.presentation_queue_family = i;
+        has_pres = true;
+      }
+      if (supports_graphics && !has_gfx)
+      {
+        ctx.graphics_transfer_queue_family = i;
+        has_gfx = true;
+      }
     }
   }
 
+  void debug_context_fill_queue_create_info(
+    u32 queue_family_index,
+    VkDeviceQueueCreateInfo& queue_info, float& priority
+  ) {
+    std::memset(&queue_info, 0, sizeof(VkDeviceQueueCreateInfo));
+    queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queue_info.pQueuePriorities = &priority;
+    queue_info.queueFamilyIndex = queue_family_index;
+    queue_info.queueCount = 1;
+  }
+}
+  debug_context::debug_context(
+    const std::string_view& application_name,
+    const u16 application_version_major,
+    const u16 application_version_minor,
+    const u16 application_version_patch,
+    const std::unordered_set<std::string_view>& requested_layers
+  ) : context{ new detail::debug_context_impl{ } } {
+    auto q = q_ptr<detail::debug_context_impl>();
+    detail::context_initialize_x(*q, nullptr);
+    detail::context_load_vulkan_library(*q);
+    q->vkft = &q->dbgft; // Function table allocated automatically
+    detail::context_load_global_pfns(*q);
+    auto layers = detail::debug_context_select_layers(*q, requested_layers);
+    auto available_extensions = detail::debug_context_fetch_extensions(*q, nullptr);
+    for (const auto& layer : layers)
+    {
+      available_extensions.merge(detail::debug_context_fetch_extensions(*q, layer));
+    }
+    auto extensions = detail::debug_context_select_extensions(*q, available_extensions);
+    
+    auto debug_info = VkDebugUtilsMessengerCreateInfoEXT{ };
+    std::memset(&debug_info, 0, sizeof(VkDebugUtilsMessengerCreateInfoEXT));
+    debug_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debug_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
+                             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+    debug_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    debug_info.pfnUserCallback = vkDebugLog;
+
+    auto validation_features = VkValidationFeaturesEXT{ };
+
+    auto enabled_features = std::array<VkValidationFeatureEnableEXT, 3>{
+      VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+      VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+      VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+    };
+
+    if (q->optional_extensions[VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME])
+    {
+      std::memset(&validation_features, 0, sizeof(VkValidationFeaturesEXT));
+      validation_features.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+      validation_features.pEnabledValidationFeatures = enabled_features.data();
+      validation_features.enabledValidationFeatureCount = enabled_features.size();
+      debug_info.pNext = &validation_features;
+    }
+
+    detail::context_initialize_vulkan_instance(
+      *q,
+      application_name.data(),
+      VK_MAKE_VERSION(application_version_major, application_version_minor, application_version_patch),
+      layers.data(), layers.size(),
+      extensions.data(), extensions.size(),
+      &debug_info
+    );
+    detail::context_load_instance_pfns(*q);
+    detail::debug_context_load_instance_extension_pfns(*q);
+    {
+      auto vkCreateDebugUtilsMessengerEXT = q->dbgft.vkCreateDebugUtilsMessengerEXT;
+      if (
+          auto result = vkCreateDebugUtilsMessengerEXT(q->instance, &debug_info, nullptr, &q->debug_messenger);
+          result != VK_SUCCESS
+      )
+      {
+        throw fatal_error{ "Failed to create Vulkan debug messenger." };
+      }
+    }
+
+    auto required_device_extensions = std::unordered_set<std::string_view>{ 
+      VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+    auto available_physical_devices = detail::debug_context_fetch_physical_devices(*q, required_device_extensions);
+    // VkQuake does this and therefore it is fine.
+    // This should be the first discrete graphics device that has the required extensions.
+    // There's really no good way to determine which device should be used in a multi-gpu scenario.
+    // Certain factors (like which cards are connected to a monitor for presentation) aren't known.
+    // Luckily, multi-gpu scenarios are not the common case for this kind of application.
+    // Ideally a user configuration can select a device and that device can be selected on successive runs.
+    // TODO user configured device selection.
+    q->physical_device = available_physical_devices.front();
+
+    auto enabled_device_features = VkPhysicalDeviceFeatures{ };
+    {
+      auto vkGetPhysicalDeviceFeatures = q->dbgft.vkGetPhysicalDeviceFeatures;
+      vkGetPhysicalDeviceFeatures(q->physical_device, &enabled_device_features);
+    }
+    debug_context_select_physical_device_queue_families(*q);
+    auto device_extensions = std::vector<cstring>(required_device_extensions.size());
+    for (auto i = u32{ 0 }; const auto& required_device_extension : required_device_extensions)
+    {
+      device_extensions[i++] = required_device_extension.data();
+    }
+    if (q->graphics_transfer_queue_family == q->presentation_queue_family)
+    {
+      auto queue_info = VkDeviceQueueCreateInfo{ };
+      auto priority = 1.0f;
+      detail::debug_context_fill_queue_create_info(q->graphics_transfer_queue_family, queue_info, priority);
+      detail::context_initialize_vulkan_device(
+        *q,
+        device_extensions.data(), device_extensions.size(),
+        &enabled_device_features,
+        &queue_info, 1,
+        nullptr
+      );
+    }
+    else
+    {
+      auto queue_infos = std::array<VkDeviceQueueCreateInfo, 2>{ };
+      auto priorites = std::array<float, 2>{ };
+      auto& [gfx_queue_info, pres_queue_info] = queue_infos;
+      auto& [gfx_priority, pres_priority] = priorites;
+      detail::debug_context_fill_queue_create_info(q->graphics_transfer_queue_family, gfx_queue_info, gfx_priority);
+      detail::debug_context_fill_queue_create_info(q->presentation_queue_family, pres_queue_info, pres_priority);
+      detail::context_initialize_vulkan_device(
+        *q,
+        device_extensions.data(), device_extensions.size(),
+        &enabled_device_features,
+        queue_infos.data(), queue_infos.size(),
+        nullptr
+      );
+    }
+    detail::context_load_device_pfns(*q);
+  }
+
   debug_context::~debug_context() noexcept {
-    m_impl->device.destroy(nullptr, m_impl->dl);
-    m_impl->instance.destroyDebugUtilsMessengerEXT(m_impl->debug_messenger, nullptr, m_impl->dl);
-    m_impl->instance.destroy(nullptr, m_impl->dl);
-    xcb_disconnect(m_impl->x_connection);
+    auto q = q_ptr<detail::debug_context_impl>();
+    detail::context_deinitialize_vulkan_device(*q);
+    {
+      auto vkDestroyDebugUtilsMessengerEXT = q->dbgft.vkDestroyDebugUtilsMessengerEXT;
+      vkDestroyDebugUtilsMessengerEXT(q->instance, q->debug_messenger, nullptr);
+    }
+    detail::context_deinitialize_vulkan_instance(*q);
+    detail::context_deinitialize_x(*q);
   }
 }

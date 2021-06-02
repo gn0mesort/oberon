@@ -3,8 +3,17 @@
 
 #include <string_view>
 
+#include "object.hpp"
+
 namespace oberon {
-  class context {
+namespace detail {
+  struct context_impl;
+}
+  class render_window;
+
+  class context : public object {
+  protected:
+      context(const ptr<detail::context_impl> child_impl);
   public:
     static bool has_layer(const std::string_view& layer_name);
     static bool has_extension(const std::string_view& extension_name);

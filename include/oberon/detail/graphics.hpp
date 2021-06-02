@@ -13,10 +13,44 @@
 #include <vulkan/vulkan.hpp>
 
 #include "../memory.hpp"
+#include "../errors.hpp"
+
+#define VK_GLOBAL_FN(name) \
 
 namespace oberon {
 namespace detail {
   ptr<xcb_screen_t> screen_of_display(const ptr<xcb_connection_t>, const int screen);
+
+  template <typename FunctionPointer>
+  FunctionPointer vk_load_fn(const cstring name) {
+    auto pfn = reinterpret_cast<FunctionPointer>(vkGetInstanceProcAddr(nullptr, name));
+    if (!pfn)
+    {
+      throw fatal_error{ "Failed to load global function: \"" + std::string{ name } + "\"." }; 
+    }
+    return pfn;
+  }
+
+  template <typename FunctionPointer>
+  FunctionPointer vk_load_fn(const VkInstance instance, const cstring name) {
+    auto pfn = reinterpret_cast<FunctionPointer>(vkGetInstanceProcAddr(instance, name));
+    if (!pfn)
+    {
+      throw fatal_error{ "Failed to load instance function: \"" + std::string{ name } + "\"." }; 
+    }
+    return pfn;
+  }
+
+  template <typename FunctionPointer>
+  FunctionPointer vk_load_fn(const VkInstance instance, const VkDevice device, const cstring name) {
+    auto loader = vk_load_fn<PFN_vkGetDeviceProcAddr>(instance, "vkGetDeviceProcAddr");
+    auto pfn = reinterpret_cast<FunctionPointer>(loader(device, name));
+    if (!pfn)
+    {
+      throw fatal_error{ "Failed to load device function: \"" + std::string{ name } + "\"." };
+    }
+    return pfn;
+  }
 
   template <typename ForwardIt, typename Dispatch = VULKAN_HPP_DEFAULT_DISPATCHER>
   std::unordered_map<vk::PhysicalDeviceType, std::vector<vk::PhysicalDevice>> organize_physical_devices(
