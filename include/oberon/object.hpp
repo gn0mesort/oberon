@@ -2,6 +2,7 @@
 #define OBERON_OBJECT_HPP
 
 #include <memory>
+/*
 #if __has_include(<propagate_const>)
   #include <propagate_const>
 #elif __has_include(<experimental/propagate_const>)
@@ -13,6 +14,7 @@
 #else
   #error objects require <propagate_const>
 #endif
+*/
 
 #include "memory.hpp"
 
@@ -25,9 +27,13 @@ namespace detail {
 }
   class object {
   private:
-    std::propagate_const<std::unique_ptr<detail::object_impl, detail::object_dtor>> m_impl{ };
+    std::unique_ptr<detail::object_impl, detail::object_dtor> m_impl{ };
+
+    virtual void v_dispose() noexcept = 0;
   protected:
     object(const ptr<detail::object_impl> child_impl);
+
+    void dispose() noexcept;
 
     ptr<detail::object_impl> d_ptr();
     readonly_ptr<detail::object_impl> d_ptr() const;
@@ -43,6 +49,8 @@ namespace detail {
     }
   public:
     inline virtual ~object() noexcept = 0;
+
+    bool is_disposed() const noexcept;
 
     detail::object_impl& implementation();
     const detail::object_impl& implementation() const;

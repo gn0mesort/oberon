@@ -3,128 +3,452 @@
 #include <cstring>
 
 #include <string>
+#include <vector>
+#include <algorithm>
+
+#include "oberon/debug.hpp"
+#include "oberon/errors.hpp"
 
 namespace oberon {
 namespace detail {
-  void context_initialize_x(context_impl& ctx, const cstring displayname) {
+
+  iresult connect_to_x11(context_impl& ctx, const cstring displayname) noexcept {
+    OBERON_PRECONDITION(!ctx.x11_connection);
+    OBERON_PRECONDITION(!ctx.x11_screen);
     auto default_screen = int{ 0 };
-    ctx.x_connection = xcb_connect(displayname, &default_screen);
-    if (xcb_connection_has_error(ctx.x_connection))
+    ctx.x11_connection = xcb_connect(displayname, &default_screen);
+    if (xcb_connection_has_error(ctx.x11_connection))
     {
-      throw fatal_error{ "Failed to connect to the X server." };
+      return -1;
     }
-    ctx.x_screen = screen_of_display(ctx.x_connection, default_screen);
+    ctx.x11_screen = screen_of_display(ctx.x11_connection, default_screen);
+    OBERON_POSTCONDITION(ctx.x11_connection);
+    OBERON_POSTCONDITION(ctx.x11_screen);
+    return 0;
   }
 
-  void context_load_vulkan_library(context_impl& ctx) {
-    ctx.loader = vkGetInstanceProcAddr;
+  iresult get_instance_extensions(
+    context_impl& ctx,
+    const std::unordered_set<std::string>& layers,
+    const std::unordered_set<std::string>& required_extensions,
+    const std::unordered_set<std::string>& optional_extensions
+  ) noexcept {
+    auto vkEnumerateInstanceExtensionProperties = ctx.vkft.vkEnumerateInstanceExtensionProperties;
+    auto sz = u32{ 0 };
+    OBERON_ASSERT(vkEnumerateInstanceExtensionProperties(nullptr, &sz, nullptr) == VK_SUCCESS);
+    auto extension_props = std::vector<VkExtensionProperties>(sz);
+    OBERON_ASSERT(vkEnumerateInstanceExtensionProperties(nullptr, &sz, std::data(extension_props)) == VK_SUCCESS);
+    for (const auto& layer : layers)
+    {
+      OBERON_ASSERT(vkEnumerateInstanceExtensionProperties(std::data(layer), &sz, nullptr) == VK_SUCCESS);
+      auto offset = std::size(extension_props);
+      extension_props.resize(std::size(extension_props) + sz);
+      auto result = vkEnumerateInstanceExtensionProperties(std::data(layer), &sz, std::data(extension_props) + offset);
+      OBERON_ASSERT(result == VK_SUCCESS);
+    }
+    for (const auto& extension_prop : extension_props)
+    {
+      auto name = extension_prop.extensionName;
+      if (required_extensions.contains(name) || optional_extensions.contains(name))
+      {
+        ctx.instance_extensions.insert(name);
+      }
+    }
+    for (const auto& required_extension : required_extensions)
+    {
+      if (!ctx.instance_extensions.contains(required_extension))
+      {
+        return -1;
+      }
+    }
+    OBERON_POSTCONDITION(std::size(ctx.instance_extensions) >= std::size(required_extensions));
+    return 0;
   }
 
-  void context_load_global_pfns(context_impl& ctx) {
-    ctx.vkft->vkGetInstanceProcAddr = ctx.loader;
-    ctx.vkft->vkEnumerateInstanceVersion = OBERON_GLOBAL_FN(ctx, vkEnumerateInstanceVersion);
-    ctx.vkft->vkEnumerateInstanceLayerProperties = OBERON_GLOBAL_FN(ctx, vkEnumerateInstanceLayerProperties);
-    ctx.vkft->vkEnumerateInstanceExtensionProperties = OBERON_GLOBAL_FN(ctx, vkEnumerateInstanceExtensionProperties);
-    ctx.vkft->vkCreateInstance = OBERON_GLOBAL_FN(ctx, vkCreateInstance);
-  }
-
-  void context_initialize_vulkan_instance(
+  iresult create_vulkan_instance(
     context_impl& ctx,
     const cstring application_name,
     const u32 application_version,
-    const readonly_ptr<cstring> layers,
-    const u32 layer_count,
-    const readonly_ptr<cstring> extensions,
-    const u32 extension_count,
+    const std::unordered_set<std::string>& layers,
     const readonly_ptr<void> next
-  ) {
+  ) noexcept {
+    OBERON_PRECONDITION(!ctx.instance);
+    OBERON_PRECONDITION(ctx.vkft.vkCreateInstance);
+
+    auto vkCreateInstance = ctx.vkft.vkCreateInstance;
+
     auto app_info = VkApplicationInfo{ };
-    std::memset(&app_info, 0, sizeof(VkApplicationInfo));
-    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    OBERON_INIT_VK_STRUCT(app_info, APPLICATION_INFO);
     app_info.pApplicationName = application_name;
     app_info.applicationVersion = application_version;
     app_info.pEngineName = "oberon";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.apiVersion = VK_API_VERSION_1_2;
 
+    auto lyrs = std::vector<cstring>(std::size(layers));
+    for (auto cur = std::begin(lyrs); const auto& layer : layers)
+    {
+      *(cur++) = std::data(layer);
+    }
+
+    auto exts = std::vector<cstring>(std::size(ctx.instance_extensions));
+    for (auto cur = std::begin(exts); const auto& extension : ctx.instance_extensions)
+    {
+      *(cur++) = std::data(extension);
+    }
+
     auto instance_info = VkInstanceCreateInfo{ };
-    std::memset(&instance_info, 0, sizeof(VkInstanceCreateInfo));
-    instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    OBERON_INIT_VK_STRUCT(instance_info, INSTANCE_CREATE_INFO);
     instance_info.pNext = next;
     instance_info.pApplicationInfo = &app_info;
-    instance_info.ppEnabledLayerNames = layers;
-    instance_info.enabledLayerCount = layer_count;
-    instance_info.ppEnabledExtensionNames = extensions;
-    instance_info.enabledExtensionCount = extension_count;
+    instance_info.ppEnabledLayerNames = std::data(lyrs);
+    instance_info.enabledLayerCount = std::size(lyrs);
+    instance_info.ppEnabledExtensionNames = std::data(exts);
+    instance_info.enabledExtensionCount = std::size(exts);
 
-    auto vkCreateInstance = ctx.vkft->vkCreateInstance;
     if (auto result = vkCreateInstance(&instance_info, nullptr, &ctx.instance); result != VK_SUCCESS)
     {
-      throw fatal_error{ "Failed to create Vulkan instance." };
+      return result;
+    }
+    OBERON_POSTCONDITION(ctx.instance);
+    return 0;
+  }
+
+namespace {
+
+  struct physical_device_info final {
+    VkPhysicalDevice handle{ };
+    VkPhysicalDeviceProperties properties{ };
+    std::unordered_set<std::string> extensions{ };
+    std::vector<VkQueueFamilyProperties> queue_families{ };
+  };
+
+  physical_device_info get_physical_device_info(const context_impl& ctx, const VkPhysicalDevice pdev) {
+    OBERON_PRECONDITION(ctx.instance);
+    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceProperties);
+    OBERON_PRECONDITION(ctx.vkft.vkEnumerateDeviceExtensionProperties);
+    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceQueueFamilyProperties);
+    OBERON_PRECONDITION(pdev);
+    auto vkGetPhysicalDeviceProperties = ctx.vkft.vkGetPhysicalDeviceProperties;
+    auto vkEnumerateDeviceExtensionProperties = ctx.vkft.vkEnumerateDeviceExtensionProperties;
+    auto vkGetPhysicalDeviceQueueFamilyProperties = ctx.vkft.vkGetPhysicalDeviceQueueFamilyProperties;
+    auto result = physical_device_info{ };
+    result.handle = pdev;
+    vkGetPhysicalDeviceProperties(result.handle, &result.properties);
+    auto sz = u32{ 0 };
+    OBERON_ASSERT(vkEnumerateDeviceExtensionProperties(result.handle, nullptr, &sz, nullptr) == VK_SUCCESS);
+    auto exts = std::vector<VkExtensionProperties>(sz);
+    OBERON_ASSERT(vkEnumerateDeviceExtensionProperties(result.handle, nullptr, &sz, std::data(exts)) == VK_SUCCESS);
+    for (const auto& ext : exts)
+    {
+      result.extensions.insert(ext.extensionName);
+    }
+    vkGetPhysicalDeviceQueueFamilyProperties(result.handle, &sz, nullptr);
+    result.queue_families.resize(sz);
+    vkGetPhysicalDeviceQueueFamilyProperties(result.handle, &sz, std::data(result.queue_families));
+    return result;
+  }
+
+
+  u32 score_physical_device(const physical_device_info& info) noexcept {
+    switch (info.properties.deviceType)
+    {
+    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+      return 10;
+    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+      return 9;
+    case VK_PHYSICAL_DEVICE_TYPE_CPU:
+      return 8;
+    default:
+      return 0;
     }
   }
 
-
-  void context_load_instance_pfns(context_impl& ctx) {
-    ctx.vkft->vkEnumeratePhysicalDevices = OBERON_INSTANCE_FN(ctx, vkEnumeratePhysicalDevices);
-    ctx.vkft->vkEnumerateDeviceExtensionProperties = OBERON_INSTANCE_FN(ctx, vkEnumerateDeviceExtensionProperties);
-    ctx.vkft->vkGetPhysicalDeviceProperties = OBERON_INSTANCE_FN(ctx, vkGetPhysicalDeviceProperties);
-    ctx.vkft->vkGetPhysicalDeviceFeatures = OBERON_INSTANCE_FN(ctx, vkGetPhysicalDeviceFeatures);
-    ctx.vkft->vkGetPhysicalDeviceQueueFamilyProperties =
-      OBERON_INSTANCE_FN(ctx, vkGetPhysicalDeviceQueueFamilyProperties);
-    ctx.vkft->vkCreateDevice = OBERON_INSTANCE_FN(ctx, vkCreateDevice);
-    ctx.vkft->vkGetDeviceProcAddr = OBERON_INSTANCE_FN(ctx, vkGetDeviceProcAddr);
-    ctx.vkft->vkDestroyInstance = OBERON_INSTANCE_FN(ctx, vkDestroyInstance);
+  bool less(const physical_device_info& a, const physical_device_info& b) {
+    return score_physical_device(a) < score_physical_device(b);
   }
 
-  void context_initialize_vulkan_device(
-    context_impl& ctx,
-    const readonly_ptr<cstring> extensions,
-    const u32 extension_count,
-    const readonly_ptr<VkPhysicalDeviceFeatures> features,
-    const readonly_ptr<VkDeviceQueueCreateInfo> queue_infos,
-    const u32 queue_info_count,
-    const readonly_ptr<void> next
-  ) {
-    auto device_info = VkDeviceCreateInfo{ };
-    std::memset(&device_info, 0, sizeof(VkDeviceQueueCreateInfo));
-    device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    device_info.pNext = next;
-    device_info.pEnabledFeatures = features;
-    device_info.ppEnabledExtensionNames = extensions;
-    device_info.enabledExtensionCount = extension_count;
-    device_info.pQueueCreateInfos = queue_infos;
-    device_info.queueCreateInfoCount = queue_info_count;
+}
 
-    auto vkCreateDevice = ctx.vkft->vkCreateDevice;
+  iresult select_physical_device(
+    context_impl& ctx,
+    const std::unordered_set<std::string>& required_extensions,
+    const std::unordered_set<std::string>& optional_extensions
+  ) noexcept {
+    OBERON_PRECONDITION(ctx.instance);
+    OBERON_PRECONDITION(ctx.vkft.vkEnumeratePhysicalDevices);
+    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceXcbPresentationSupportKHR);
+    auto vkEnumeratePhysicalDevices = ctx.vkft.vkEnumeratePhysicalDevices;
+    auto vkGetPhysicalDeviceXcbPresentationSupportKHR = ctx.vkft.vkGetPhysicalDeviceXcbPresentationSupportKHR;
+    auto pdev_infos = std::vector<physical_device_info>{ };
+    {
+      auto sz = u32{ 0 };
+      OBERON_ASSERT(vkEnumeratePhysicalDevices(ctx.instance, &sz, nullptr) == VK_SUCCESS);
+      auto pdevs = std::vector<VkPhysicalDevice>(sz);
+      OBERON_ASSERT(vkEnumeratePhysicalDevices(ctx.instance, &sz, std::data(pdevs)) == VK_SUCCESS);
+      pdev_infos.resize(std::size(pdevs));
+      for (auto cur = std::begin(pdev_infos); const auto& pdev : pdevs)
+      {
+        *(cur++) = get_physical_device_info(ctx, pdev);
+      }
+    }
+    auto filtered_pdev_infos = std::vector<physical_device_info>{ };
+    for (const auto& pdev_info : pdev_infos)
+    {
+      auto has_extensions = true;
+      for (const auto& required_extension : required_extensions)
+      {
+        has_extensions = has_extensions && pdev_info.extensions.contains(required_extension);
+      }
+      auto has_graphics = false;
+      auto has_presentation = false;
+      for (auto index = u32{ 0 }; const auto& queue_family : pdev_info.queue_families)
+      {
+        has_graphics = has_graphics || (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT);
+        auto current_has_presentation =
+          vkGetPhysicalDeviceXcbPresentationSupportKHR(
+            pdev_info.handle, index,
+            ctx.x11_connection, ctx.x11_screen->root_visual
+          );
+        has_presentation = has_presentation || current_has_presentation;
+        ++index;
+      }
+      if (has_extensions && has_graphics && has_presentation)
+      {
+        filtered_pdev_infos.push_back(pdev_info);
+      }
+    }
+    if (std::size(filtered_pdev_infos) < 1)
+    {
+      return -1;
+    }
+    std::sort(std::begin(filtered_pdev_infos), std::end(filtered_pdev_infos), less);
+    ctx.physical_device = std::begin(filtered_pdev_infos)->handle;
+    for (const auto& extension : std::begin(filtered_pdev_infos)->extensions)
+    {
+      if (required_extensions.contains(extension) || optional_extensions.contains(extension))
+      {
+        ctx.device_extensions.insert(extension);
+      }
+    }
+    OBERON_POSTCONDITION(ctx.physical_device);
+    OBERON_POSTCONDITION(std::size(ctx.device_extensions) >= std::size(required_extensions));
+    return 0;
+  }
+
+  iresult select_physical_device_queue_families(context_impl& ctx) noexcept {
+    OBERON_PRECONDITION(ctx.physical_device);
+    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceQueueFamilyProperties);
+    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceXcbPresentationSupportKHR);
+    auto vkGetPhysicalDeviceQueueFamilyProperties = ctx.vkft.vkGetPhysicalDeviceQueueFamilyProperties;
+    auto vkGetPhysicalDeviceXcbPresentationSupportKHR = ctx.vkft.vkGetPhysicalDeviceXcbPresentationSupportKHR;
+
+    auto sz = u32{ 0 };
+    vkGetPhysicalDeviceQueueFamilyProperties(ctx.physical_device, &sz, nullptr);
+    auto queue_families = std::vector<VkQueueFamilyProperties>(sz);
+    vkGetPhysicalDeviceQueueFamilyProperties(ctx.physical_device, &sz, std::data(queue_families));
+    ctx.graphics_transfer_queue_family = std::size(queue_families);
+    ctx.presentation_queue_family = std::size(queue_families);
+
+    for (auto index = u32{ 0 }; const auto& queue_family : queue_families)
+    {
+      auto has_graphics = queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT;
+      auto has_presentation =
+        vkGetPhysicalDeviceXcbPresentationSupportKHR(
+          ctx.physical_device,
+          index,
+          ctx.x11_connection,
+          ctx.x11_screen->root_visual
+        );
+      if (has_graphics && has_presentation)
+      {
+        ctx.graphics_transfer_queue_family = index;
+        ctx.presentation_queue_family = index;
+        break;
+      }
+      if (has_graphics && ctx.graphics_transfer_queue_family >= std::size(queue_families))
+      {
+        ctx.graphics_transfer_queue_family = index;
+      }
+      if (has_presentation && ctx.presentation_queue_family >= std::size(queue_families))
+      {
+        ctx.presentation_queue_family = index;
+      }
+      ++index;
+    }
+    OBERON_POSTCONDITION(ctx.graphics_transfer_queue_family < std::size(queue_families));
+    OBERON_POSTCONDITION(ctx.presentation_queue_family < std::size(queue_families));
+    return 0;
+  }
+
+  iresult create_vulkan_device(context_impl& ctx, const readonly_ptr<void> next) noexcept {
+    OBERON_PRECONDITION(!ctx.device);
+    OBERON_PRECONDITION(!ctx.graphics_transfer_queue);
+    OBERON_PRECONDITION(!ctx.presentation_queue);
+    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceFeatures);
+    OBERON_PRECONDITION(ctx.vkft.vkCreateDevice);
+    OBERON_PRECONDITION(ctx.physical_device);
+
+    auto vkGetPhysicalDeviceFeatures = ctx.vkft.vkGetPhysicalDeviceFeatures;
+    auto vkCreateDevice = ctx.vkft.vkCreateDevice;
+
+    auto device_info = VkDeviceCreateInfo{ };
+    OBERON_INIT_VK_STRUCT(device_info, DEVICE_CREATE_INFO);
+    device_info.pNext = next;
+    auto features = VkPhysicalDeviceFeatures{ };
+    vkGetPhysicalDeviceFeatures(ctx.physical_device, &features);
+    device_info.pEnabledFeatures = &features;
+
+    auto exts = std::vector<cstring>(std::size(ctx.device_extensions));
+    for (auto cur = std::begin(exts); const auto& device_extension : ctx.device_extensions)
+    {
+      *(cur++) = std::data(device_extension);
+    }
+
+    device_info.ppEnabledExtensionNames = std::data(exts);
+    device_info.enabledExtensionCount = std::size(exts);
+
+    auto queue_infos = std::array<VkDeviceQueueCreateInfo, 2>{ };
+    auto priorities = std::array<float, 2>{ 1.0f, 1.0f };
+    device_info.pQueueCreateInfos = std::data(queue_infos);
+    if (ctx.graphics_transfer_queue_family == ctx.presentation_queue_family)
+    {
+      device_info.queueCreateInfoCount = 1;
+      auto& main_queue_info = *std::begin(queue_infos);
+      OBERON_INIT_VK_STRUCT(main_queue_info, DEVICE_QUEUE_CREATE_INFO);
+      main_queue_info.queueFamilyIndex = ctx.graphics_transfer_queue_family;
+      main_queue_info.pQueuePriorities = std::data(priorities);
+      main_queue_info.queueCount = 1;
+    }
+    else
+    {
+      device_info.queueCreateInfoCount = std::size(queue_infos);
+      auto& [ graphics_queue_info, presentation_queue_info ] = queue_infos;
+      auto& [ graphics_priority, presentation_priority ] = priorities;
+      OBERON_INIT_VK_STRUCT(graphics_queue_info, DEVICE_QUEUE_CREATE_INFO);
+      graphics_queue_info.queueFamilyIndex = ctx.graphics_transfer_queue_family;
+      graphics_queue_info.pQueuePriorities = &graphics_priority;
+      graphics_queue_info.queueCount = 1;
+      OBERON_INIT_VK_STRUCT(presentation_queue_info, DEVICE_QUEUE_CREATE_INFO);
+      presentation_queue_info.queueFamilyIndex = ctx.presentation_queue_family;
+      presentation_queue_info.pQueuePriorities = &presentation_priority;
+      presentation_queue_info.queueCount = 1;
+    }
+
     if (auto result = vkCreateDevice(ctx.physical_device, &device_info, nullptr, &ctx.device); result != VK_SUCCESS)
     {
-      throw fatal_error{ "Failed to create Vulkan device." };
+      return result;
     }
+    OBERON_POSTCONDITION(ctx.device);
+    return 0;
   }
 
-  void context_load_device_pfns(context_impl& ctx) {
-    ctx.vkft->vkDestroyDevice = OBERON_DEVICE_FN(ctx, vkDestroyDevice);
+  iresult get_device_queues(context_impl& ctx) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkGetDeviceQueue);
+    auto vkGetDeviceQueue = ctx.vkft.vkGetDeviceQueue;
+    vkGetDeviceQueue(ctx.device, ctx.graphics_transfer_queue_family, 0, &ctx.graphics_transfer_queue);
+    vkGetDeviceQueue(ctx.device, ctx.presentation_queue_family, 0, &ctx.presentation_queue);
+    OBERON_POSTCONDITION(ctx.graphics_transfer_queue);
+    OBERON_POSTCONDITION(ctx.presentation_queue);
+    return 0;
   }
 
-  void context_deinitialize_vulkan_device(context_impl& ctx) {
-    auto vkDestroyDevice = ctx.vkft->vkDestroyDevice;
+  iresult destroy_vulkan_device(context_impl& ctx) noexcept {
+    OBERON_PRECONDITION(ctx.instance);
+    if (!ctx.device)
+    {
+      return 0;
+    }
+    OBERON_ASSERT(ctx.vkft.vkDestroyDevice);
+    auto vkDestroyDevice = ctx.vkft.vkDestroyDevice;
     vkDestroyDevice(ctx.device, nullptr);
-    ctx.device = VK_NULL_HANDLE;
+    ctx.device = nullptr;
+    OBERON_POSTCONDITION(!ctx.device);
+    return 0;
   }
 
-  void context_deinitialize_vulkan_instance(context_impl& ctx) {
-    auto vkDestroyInstance = ctx.vkft->vkDestroyInstance;
+  iresult destroy_vulkan_instance(context_impl& ctx) noexcept {
+    if (!ctx.instance)
+    {
+      return 0;
+    }
+    OBERON_ASSERT(ctx.vkft.vkDestroyInstance);
+    auto vkDestroyInstance = ctx.vkft.vkDestroyInstance;
     vkDestroyInstance(ctx.instance, nullptr);
-    ctx.instance = VK_NULL_HANDLE;
+    ctx.instance = nullptr;
+    OBERON_POSTCONDITION(!ctx.instance);
+    return 0;
   }
 
-  void context_deinitialize_x(context_impl& ctx) {
-    xcb_disconnect(ctx.x_connection);
-    ctx.x_connection = nullptr;
-    ctx.x_screen = nullptr;
+  iresult disconnect_from_x11(context_impl& ctx) noexcept {
+    xcb_disconnect(ctx.x11_connection);
+    ctx.x11_connection = nullptr;
+    ctx.x11_screen = nullptr;
+    OBERON_POSTCONDITION(!ctx.x11_connection);
+    OBERON_POSTCONDITION(!ctx.x11_screen);
+    return 0;
   }
 }
 
   context::context(const ptr<detail::context_impl> child_impl) : object{ child_impl } { }
+
+  context::context(
+    const std::string& application_name,
+    const u16 application_version_major,
+    const u16 application_version_minor,
+    const u16 application_version_patch
+  ) : object{ new detail::context_impl{ } } {
+    auto q = q_ptr<detail::context_impl>();
+    if (OBERON_IS_IERROR(detail::connect_to_x11(*q, nullptr)))
+    {
+      throw fatal_error{ "Failed to connect to X11 server." };
+    }
+    detail::load_vulkan_pfns(q->vkft);
+    {
+      auto required_extensions = std::unordered_set<std::string>{
+        VK_KHR_SURFACE_EXTENSION_NAME,
+        VK_KHR_XCB_SURFACE_EXTENSION_NAME
+      };
+      if (OBERON_IS_IERROR(detail::get_instance_extensions(*q, { }, required_extensions, { })))
+      {
+        throw fatal_error{ "One or more requested Vulkan instance extensions are not available." };
+      }
+    }
+    {
+      auto name = std::data(application_name);
+      auto ver = VK_MAKE_VERSION(application_version_major, application_version_minor, application_version_patch);
+      if (OBERON_IS_IERROR(detail::create_vulkan_instance(*q, name, ver, { }, nullptr)))
+      {
+        throw fatal_error{ "Failed to create Vulkan instance." };
+      }
+    }
+    detail::load_vulkan_pfns(q->vkft, q->instance);
+    {
+      auto required_extensions = std::unordered_set<std::string>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+      if (OBERON_IS_IERROR(detail::select_physical_device(*q, required_extensions, { })))
+      {
+        throw fatal_error{ "None of the Vulkan physical devices available can be used." };
+      }
+      detail::select_physical_device_queue_families(*q);
+      if (OBERON_IS_IERROR(detail::create_vulkan_device(*q, nullptr)))
+      {
+        throw fatal_error{ "Failed to create Vulkan device." };
+      }
+    }
+    detail::load_vulkan_pfns(q->vkft, q->device);
+    detail::get_device_queues(*q);
+  }
+
+  void context::v_dispose() noexcept {
+    auto q = q_ptr<detail::context_impl>();
+    detail::destroy_vulkan_device(*q);
+    detail::destroy_vulkan_instance(*q);
+    detail::disconnect_from_x11(*q);
+  }
+
+  context::~context() noexcept {
+    dispose();
+  }
+
 }

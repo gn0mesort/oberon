@@ -1,6 +1,9 @@
 #ifndef OBERON_MEMORY_HPP
 #define OBERON_MEMORY_HPP
 
+#include <memory>
+#include <iterator>
+
 #include "types.hpp"
 
 namespace oberon {
@@ -15,10 +18,6 @@ namespace oberon {
 
   using cstring = basic_cstring<char>;
   using wcstring = basic_cstring<wchar>;
-
-#if defined(__WIN32)
-  using tcstring = basic_cstring<TCHAR>;
-#endif
 }
 
 #endif

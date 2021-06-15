@@ -7,6 +7,13 @@
 
 #include <type_traits>
 
+// Check if an iresult is an error (e.g. less than 0)
+#define OBERON_IS_IERROR(x) ((x) < 0)
+// Check if an iresult is a status (e.g. greater than 0)
+#define OBERON_IS_ISTATUS(x) ((x) > 0)
+// Check if an iresult is a passing return (e.g. equal to 0)
+#define OBERON_IS_IPASS(x) ((x) == 0)
+
 namespace oberon {
   using  u8 = std::uint8_t;
   using u16 = std::uint16_t;
@@ -53,6 +60,9 @@ namespace oberon {
 
   using uptr = std::uintptr_t;
   using iptr = std::intptr_t;
+
+  // C-Style integer errors
+  using iresult = imax;
 }
 
 #endif

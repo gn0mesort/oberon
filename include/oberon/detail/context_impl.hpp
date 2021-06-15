@@ -3,51 +3,50 @@
 
 #include "../context.hpp"
 
+#include <unordered_set>
+
 #include "object_impl.hpp"
 
-#include "graphics.hpp"
+#include "x11.hpp"
+#include "vulkan.hpp"
 #include "vulkan_function_table.hpp"
 
 namespace oberon {
 namespace detail {
-  struct context_impl : public object_impl { 
-    ptr<xcb_connection_t> x_connection{ };
-    ptr<xcb_screen_t> x_screen{ };
+  struct context_impl : public object_impl {
+    ptr<xcb_connection_t> x11_connection{ };
+    ptr<xcb_screen_t> x11_screen{ };
 
-    PFN_vkGetInstanceProcAddr loader{ };
-    ptr<vulkan_function_table> vkft{ };
+    vulkan_function_table vkft{ };
+    std::unordered_set<std::string> instance_extensions{ };
+    std::unordered_set<std::string> device_extensions{ };
+
     VkInstance instance{ };
     VkPhysicalDevice physical_device{ };
-    u32 graphics_transfer_queue_family{ };
+    u32 graphics_transfer_queue_family{  };
     u32 presentation_queue_family{ };
     VkDevice device{ };
     VkQueue graphics_transfer_queue{ };
     VkQueue presentation_queue{ };
 
-    inline virtual ~context_impl() noexcept = 0;
+    virtual ~context_impl() noexcept = default;
   };
 
-  context_impl::~context_impl() noexcept { }
 
   /**
    * @post ctx.x_connection is a valid pointer to an xcb_connection_t.
    * @post ctx.x_screen is a valid pointer to the default screen associated with the xcb_connection_t pointed to by
    *       ctx.x_connection.
    */
-  void context_initialize_x(context_impl& ctx, const cstring displayname);
+  iresult connect_to_x11(context_impl& ctx, const cstring displayname) noexcept;
 
-  /**
-   * @post ctx.loader is a valid pointer to an implementation of vkGetInstanceProcAddr().
-   */
-  void context_load_vulkan_library(context_impl& ctx);
+  iresult get_instance_extensions(
+    context_impl& ctx,
+    const std::unordered_set<std::string>& layers,
+    const std::unordered_set<std::string>& required_extensions,
+    const std::unordered_set<std::string>& optional_extensions
+  ) noexcept;
 
-  /**
-   * @pre ctx.vkft is a valid pointer to an implementation of vulkan_function_table.
-   *
-   * @post ctx.vkft contains valid pointers to implementations of the 5 globally available Vulkan functions.
-   */
-  void context_load_global_pfns(context_impl& ctx);
- 
   /**
    * @pre ctx contains a vulkan_function_table with at least the global Vulkan functions.
    * @pre application_version is a 32-bit integer containing version data as-if packed by VK_MAKE_VERSION().
@@ -61,24 +60,21 @@ namespace detail {
    *
    * @post ctx.instance is a valid Vulkan handle that references a VkInstance.
    */
-  void context_initialize_vulkan_instance(
+  iresult create_vulkan_instance(
     context_impl& ctx,
     const cstring application_name,
     const u32 application_version,
-    const readonly_ptr<cstring> layers,
-    const u32 layer_count,
-    const readonly_ptr<cstring> extensions,
-    const u32 extension_count,
+    const std::unordered_set<std::string>& layers,
     const readonly_ptr<void> next
-  );
+  ) noexcept;
 
-  /**
-   * @pre ctx contains a vulkan_function_table with at least the global Vulkan functions.
-   * @pre ctx contains a valid VkInstance handle.
-   *
-   * @post ctx contains a vulkan_function_table with at least the required Vulkan instance functions loaded.
-   */
-  void context_load_instance_pfns(context_impl& ctx);
+  iresult select_physical_device(
+    context_impl& ctx,
+    const std::unordered_set<std::string>& required_extensions,
+    const std::unordered_set<std::string>& optional_extensions
+  ) noexcept;
+
+  iresult select_physical_device_queue_families(context_impl& ctx) noexcept;
 
   /**
    * @pre ctx contains a vulkan_function_table initialized with at least the required Vulkan instance functions.
@@ -98,81 +94,9 @@ namespace detail {
    *
    * @post ctx contains a valid VkDevice handle.
    */
-  void context_initialize_vulkan_device(
-    context_impl& ctx,
-    const readonly_ptr<cstring> extensions,
-    const u32 extension_count,
-    const readonly_ptr<VkPhysicalDeviceFeatures> features,
-    const readonly_ptr<VkDeviceQueueCreateInfo> queue_infos,
-    const u32 queue_info_count,
-    const readonly_ptr<void> next
-  );
+  iresult create_vulkan_device(context_impl& ctx, const readonly_ptr<void> next) noexcept;
 
-  /**
-   * @pre ctx contains a vulkan_function_table with at least the required Vulkan instance functions loaded.
-   * @pre ctx contains a valid VkDevice handle.
-   *
-   * @post ctx contains a vulkan_function_table with at least the required Vulkan device functions loaded.
-   */
-  void context_load_device_pfns(context_impl& ctx);
-
-#define OBERON_GLOBAL_FN(ctx, name) \
-  (context_load_global_fn<PFN_##name>((ctx), (#name)))
-
-  /**
-   * @pre ctx contains a valid vkGetInstanceProcAddr implementation pointer.
-   */
-  template <typename FunctionPointer>
-  FunctionPointer context_load_global_fn(const context_impl& ctx, const cstring name) {
-    auto pfn = reinterpret_cast<FunctionPointer>(ctx.loader(nullptr, name));
-    if (!pfn)
-    {
-      throw fatal_error{ "Failed to load global function: \"" + std::string{ name } + "\"." };
-    }
-    return pfn;
-  }
-
-#define OBERON_INSTANCE_FN(ctx, name) \
-  (context_load_instance_fn<PFN_##name>((ctx), (#name)))
-
-  /**
-   * @pre ctx contains a valid vkGetInstanceProcAddr implementation pointer.
-   * @pre ctx contains a valid VkInstance handle.
-   */
-  template <typename FunctionPointer>
-  FunctionPointer context_load_instance_fn(const context_impl& ctx, const cstring name) {
-    if (!ctx.instance)
-    {
-      throw fatal_error{ "Cannot load function because the Vulkan instance is not valid." };
-    }
-    auto pfn = reinterpret_cast<FunctionPointer>(ctx.loader(ctx.instance, name));
-    if (!pfn)
-    {
-      throw fatal_error{ "Failed to load instance function: \"" + std::string{ name } + "\"." }; 
-    }
-    return pfn;
-  }
-
-#define OBERON_DEVICE_FN(ctx, name) \
-  (context_load_device_fn<PFN_##name>((ctx), (#name)))
-
-  /**
-   * @pre ctx contains a vulkan_function_table with at least the required Vulkan instance functions loaded.
-   * @pre ctx contains a valid VkDevice handle.
-   */
-  template <typename FunctionPointer>
-  FunctionPointer context_load_device_fn(const context_impl& ctx, const cstring name) {
-    if (!ctx.device)
-    {
-      throw fatal_error{ "Cannot load function because the Vulkan device is not valid." };
-    }
-    auto pfn = reinterpret_cast<FunctionPointer>(ctx.vkft->vkGetDeviceProcAddr(ctx.device, name));
-    if (!pfn)
-    {
-      throw fatal_error{ "Failed to load device function: \"" + std::string{ name } + "\"." };
-    }
-    return pfn;
-  }
+  iresult get_device_queues(context_impl& ctx) noexcept;
 
   /**
    * @pre ctx contains a vulkan_function_table with at least the required Vulkan device functions loaded.
@@ -180,7 +104,7 @@ namespace detail {
    *
    * @post ctx does not contain a valid VkDevice handle.
    */
-  void context_deinitialize_vulkan_device(context_impl& ctx);
+  iresult destroy_vulkan_device(context_impl& ctx) noexcept;
 
   /**
    * @pre ctx contains a vulkan_function_table with at least the required Vulkan instance functions loaded.
@@ -188,7 +112,7 @@ namespace detail {
    *
    * @post ctx does not contain a valid VkInstance handle.
    */
-  void context_deinitialize_vulkan_instance(context_impl& ctx);
+  iresult destroy_vulkan_instance(context_impl& ctx) noexcept;
 
   /**
    * @pre ctx contains a valid X11 connection pointer.
@@ -197,7 +121,7 @@ namespace detail {
    * @post ctx does not contain a valid X11 connection pointer.
    * @post ctx does not contain a valid X11 screen pointer.
    */
-  void context_deinitialize_x(context_impl& ctx);
+  iresult disconnect_from_x11(context_impl& ctx) noexcept;
 }
 }
 
