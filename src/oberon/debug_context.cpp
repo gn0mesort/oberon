@@ -86,7 +86,7 @@ namespace {
       OBERON_INIT_VK_STRUCT(validation_features, VALIDATION_FEATURES_EXT);
       validation_features.pEnabledValidationFeatures = std::data(enabled_validation_features);
       validation_features.enabledValidationFeatureCount = std::size(enabled_validation_features);
-      debug_info.pNext = &validation_features;
+      validation_features.pNext = &debug_info;
     }
     return 0;
   }
@@ -158,13 +158,21 @@ namespace {
     {
       auto name = std::data(application_name);
       auto ver = VK_MAKE_VERSION(application_version_major, application_version_minor, application_version_patch);
-      if (OBERON_IS_IERROR(detail::create_vulkan_instance(*q, name, ver, requested_layers, &debug_info)))
+      auto next = readonly_ptr<void>{ nullptr };
+      if (validation_features.pNext)
+      {
+        next = &validation_features;
+      }
+      else
+      {
+        next = &debug_info;
+      }
+      if (OBERON_IS_IERROR(detail::create_vulkan_instance(*q, name, ver, requested_layers, next)))
       {
         throw fatal_error{ "Failed to create Vulkan instance." };
       }
     }
     detail::load_vulkan_pfns(q->vkft, q->instance);
-    debug_info.pNext = nullptr;
     if (OBERON_IS_IERROR(detail::create_debug_messenger(*q, debug_info)))
     {
       throw fatal_error{ "Failed to create Vulkan debug messenger." };

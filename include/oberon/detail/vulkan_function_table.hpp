@@ -7,6 +7,7 @@
 
 namespace oberon {
 namespace detail {
+
   // Simple struct to hold a variety of Vulkan function pointers.
   // Previously, I was under the impression that Vulkan extensions would, generally, mutually exclude similar
   // extensions. For example, I was under the impression that VK_KHR_xcb_surface and VK_KHR_xlib_surface mutually
@@ -40,9 +41,39 @@ namespace detail {
     PFN_vkDestroyDevice vkDestroyDevice{ };
   };
 
+  /**
+   * Load global Vulkan function pointers.
+   *
+   * @param vkft A vulkan_function_table to store global function pointers into.
+   *
+   * @return 0 in all valid cases.
+   */
   iresult load_vulkan_pfns(vulkan_function_table& vkft) noexcept;
+
+  /**
+   * Load instance level Vulkan function pointers.
+   *
+   * Function pointers for extensions can be null after this function returns.
+   *
+   * @param vkft A vulkan_function_table to store instance level function pointers into.
+   * @param instance A valid Vulkan instance handle.
+   *
+   * @return 0 in all valid cases.
+   */
   iresult load_vulkan_pfns(vulkan_function_table& vkft, const VkInstance instance) noexcept;
+
+  /**
+   * Load device level Vulkan function pointers.
+   *
+   * Function pointers for extensions can be null after this function returns.
+   *
+   * @param vkft A vulkan_function_table to store device level function pointers into.
+   * @param device A valid Vulkan device handle.
+   *
+   * @return 0 in all valid cases.
+   */
   iresult load_vulkan_pfns(vulkan_function_table& vkft, const VkDevice device) noexcept;
+
 }
 }
 

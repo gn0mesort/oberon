@@ -123,7 +123,12 @@ namespace {
     std::vector<VkQueueFamilyProperties> queue_families{ };
   };
 
-  physical_device_info get_physical_device_info(const context_impl& ctx, const VkPhysicalDevice pdev) {
+  physical_device_info get_physical_device_info(
+      const context_impl& ctx,
+      const VkPhysicalDevice pdev,
+      const std::unordered_set<std::string>& required_extensions,
+      const std::unordered_set<std::string>& optional_extensions
+    ) {
     OBERON_PRECONDITION(ctx.instance);
     OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceProperties);
     OBERON_PRECONDITION(ctx.vkft.vkEnumerateDeviceExtensionProperties);
@@ -141,7 +146,10 @@ namespace {
     OBERON_ASSERT(vkEnumerateDeviceExtensionProperties(result.handle, nullptr, &sz, std::data(exts)) == VK_SUCCESS);
     for (const auto& ext : exts)
     {
-      result.extensions.insert(ext.extensionName);
+      if (required_extensions.contains(ext.extensionName) || optional_extensions.contains(ext.extensionName))
+      {
+        result.extensions.insert(ext.extensionName);
+      }
     }
     vkGetPhysicalDeviceQueueFamilyProperties(result.handle, &sz, nullptr);
     result.queue_families.resize(sz);
@@ -164,7 +172,7 @@ namespace {
     }
   }
 
-  bool less(const physical_device_info& a, const physical_device_info& b) {
+  bool physical_device_less(const physical_device_info& a, const physical_device_info& b) {
     return score_physical_device(a) < score_physical_device(b);
   }
 
@@ -187,11 +195,13 @@ namespace {
       auto pdevs = std::vector<VkPhysicalDevice>(sz);
       OBERON_ASSERT(vkEnumeratePhysicalDevices(ctx.instance, &sz, std::data(pdevs)) == VK_SUCCESS);
       pdev_infos.resize(std::size(pdevs));
+      // This probably only runs once on most systems.
       for (auto cur = std::begin(pdev_infos); const auto& pdev : pdevs)
       {
-        *(cur++) = get_physical_device_info(ctx, pdev);
+        *(cur++) = get_physical_device_info(ctx, pdev, required_extensions, optional_extensions);
       }
     }
+    // Ditto this loop too.
     auto filtered_pdev_infos = std::vector<physical_device_info>{ };
     for (const auto& pdev_info : pdev_infos)
     {
@@ -222,15 +232,9 @@ namespace {
     {
       return -1;
     }
-    std::sort(std::begin(filtered_pdev_infos), std::end(filtered_pdev_infos), less);
+    std::sort(std::begin(filtered_pdev_infos), std::end(filtered_pdev_infos), physical_device_less);
     ctx.physical_device = std::begin(filtered_pdev_infos)->handle;
-    for (const auto& extension : std::begin(filtered_pdev_infos)->extensions)
-    {
-      if (required_extensions.contains(extension) || optional_extensions.contains(extension))
-      {
-        ctx.device_extensions.insert(extension);
-      }
-    }
+    ctx.device_extensions = std::begin(filtered_pdev_infos)->extensions;
     OBERON_POSTCONDITION(ctx.physical_device);
     OBERON_POSTCONDITION(std::size(ctx.device_extensions) >= std::size(required_extensions));
     return 0;

@@ -20,6 +20,7 @@ namespace detail {
   }
 
   iresult load_vulkan_pfns(vulkan_function_table& vkft, const VkInstance instance) noexcept {
+    OBERON_PRECONDITION(instance);
     // Instance
     OBERON_VK_PFN(vkft, instance, vkEnumeratePhysicalDevices, true);
     OBERON_VK_PFN(vkft, instance, vkEnumerateDeviceExtensionProperties, true);
@@ -37,6 +38,7 @@ namespace detail {
   }
 
   iresult load_vulkan_pfns(vulkan_function_table& vkft, const VkDevice device) noexcept {
+    OBERON_PRECONDITION(device);
     OBERON_VK_PFN(vkft, device, vkGetDeviceQueue, true);
     OBERON_VK_PFN(vkft, device, vkDestroyDevice, true);
     return 0;
