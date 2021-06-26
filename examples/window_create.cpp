@@ -25,9 +25,15 @@ int main() {
       while (ctx.poll_events(ev))
       {
         window.notify(ev);
-        if (ev.type == oberon::event_type::window_resize)
+        if (ev.type == oberon::event_type::window_configure)
         {
-          std::printf("Window %" PRIdMAX " was resized to %zux%zu\n", window.id(), window.width(), window.height());
+          std::printf(
+            "Window %" PRIdMAX " ( %zu, %zu, %zu, %zu, %s )\n",
+            ev.window_id,
+            ev.data.window_configure.bounds.position.x, ev.data.window_configure.bounds.position.y,
+            ev.data.window_configure.bounds.size.width, ev.data.window_configure.bounds.size.height,
+            ev.data.window_configure.override_wm_redirection ? "true" : "false"
+          );
         }
       }
     }

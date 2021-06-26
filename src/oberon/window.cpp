@@ -32,8 +32,7 @@ namespace detail {
                         XCB_EVENT_MASK_BUTTON_RELEASE |
                         XCB_EVENT_MASK_ENTER_WINDOW |
                         XCB_EVENT_MASK_FOCUS_CHANGE |
-                        XCB_EVENT_MASK_PROPERTY_CHANGE |
-                        XCB_EVENT_MASK_RESIZE_REDIRECT;
+                        XCB_EVENT_MASK_PROPERTY_CHANGE;
       auto value_array = std::array<u32, 3>{ ctx.x11_screen->black_pixel, false, static_cast<u32>(event_mask) };
       xcb_create_window(
         ctx.x11_connection,
@@ -77,7 +76,7 @@ namespace detail {
         std::data(ctx.application_name)
       );
     }
-    window.size = bounds.size;
+    window.bounds = bounds;
     OBERON_POSTCONDITION(window.x11_window);
     return 0;
   }
@@ -209,7 +208,9 @@ namespace {
     else
     {
       auto& capabilities = window.surface_capabilities;
-      auto actual_extent = VkExtent2D{ static_cast<u32>(window.size.width), static_cast<u32>(window.size.height) };
+      auto actual_extent = VkExtent2D{
+        static_cast<u32>(window.bounds.size.width), static_cast<u32>(window.bounds.size.height)
+      };
       swapchain_info.imageExtent.width =
         std::clamp(actual_extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
       swapchain_info.imageExtent.height =
@@ -274,9 +275,19 @@ namespace {
     return 0;
   }
 
-  iresult handle_x11_resize(window_impl& window, const events::window_resize_data& resize) noexcept {
+  iresult handle_x11_configure(window_impl& window, const events::window_configure_data& configure) noexcept {
     OBERON_PRECONDITION(window.x11_window);
-    window.size = resize.size;
+    if (configure.bounds.size.width != window.bounds.size.width ||
+        configure.bounds.size.height != window.bounds.size.height)
+    {
+      //TODO resized: recreate swapchain etc.
+    }
+    if (configure.bounds.position.x != window.bounds.position.x ||
+        configure.bounds.position.y != window.bounds.position.y)
+    {
+      //TODO repositioned: probably just ignore. Positions don't seem super meaningful.
+    }
+    window.bounds = configure.bounds;
     return 0;
   }
 
@@ -388,7 +399,7 @@ namespace {
 
   const extent_2d& window::size() const {
     auto q = q_ptr<detail::window_impl>();
-    return q->size;
+    return q->bounds.size;
   }
 
   usize window::width() const {
@@ -410,8 +421,8 @@ namespace {
       return this->notify(ev.data.window_expose);
     case event_type::window_message:
       return this->notify(ev.data.window_message);
-    case event_type::window_resize:
-      return this->notify(ev.data.window_resize);
+    case event_type::window_configure:
+      return this->notify(ev.data.window_configure);
     default:
       return *this;
     }
@@ -429,9 +440,9 @@ namespace {
     return *this;
   }
 
-  window& window::notify(const events::window_resize_data& resize) {
+  window& window::notify(const events::window_configure_data& configure) {
     auto q = q_ptr<detail::window_impl>();
-    detail::handle_x11_resize(*q, resize);
+    detail::handle_x11_configure(*q, configure);
     return *this;
   }
 /*

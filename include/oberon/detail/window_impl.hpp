@@ -20,7 +20,7 @@ namespace detail {
     xcb_atom_t x11_wm_protocols_atom{ };
     xcb_atom_t x11_delete_atom{ };
 
-    extent_2d size{ };
+    bounding_rect bounds{ };
 
     VkSurfaceKHR surface{ };
     VkSurfaceCapabilitiesKHR surface_capabilities{ };
@@ -44,7 +44,7 @@ namespace detail {
   iresult display_x11_window(const context_impl& ctx, window_impl& window) noexcept;
   iresult handle_x11_expose(window_impl& window, const events::window_expose_data& expose) noexcept;
   iresult handle_x11_message(window_impl& window, const events::window_message_data& message) noexcept;
-  iresult handle_x11_resize(window_impl& window, const events::window_resize_data& resize) noexcept;
+  iresult handle_x11_resize(window_impl& window, const events::window_configure_data& configure) noexcept;
   /*
   iresult translate_x11_message(
     const window_impl& window,

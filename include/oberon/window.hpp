@@ -14,7 +14,7 @@ namespace events {
 
   struct window_expose_data;
   struct window_message_data;
-  struct window_resize_data;
+  struct window_configure_data;
 
 }
 
@@ -47,7 +47,7 @@ namespace events {
     window& notify(const event& ev);
     window& notify(const events::window_expose_data& expose);
     window& notify(const events::window_message_data& message);
-    window& notify(const events::window_resize_data& resize);
+    window& notify(const events::window_configure_data& configure);
     // window_message translate_message(const events::window_message_data& message) const;
   };
 

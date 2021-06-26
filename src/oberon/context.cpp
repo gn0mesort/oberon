@@ -397,13 +397,16 @@ namespace {
         std::memcpy(std::data(ev.data.window_message.content), client_message_ev->data.data8, 20);
       }
       break;
-    case XCB_RESIZE_REQUEST:
+    case XCB_CONFIGURE_NOTIFY:
       {
-        auto resize_ev = reinterpret_cast<ptr<xcb_resize_request_event_t>>(x11_ev);
-        ev.type = event_type::window_resize;
-        ev.window_id = resize_ev->window;
-        ev.data.window_resize.size.width = resize_ev->width;
-        ev.data.window_resize.size.height = resize_ev->height;
+        auto configure_ev = reinterpret_cast<ptr<xcb_configure_notify_event_t>>(x11_ev);
+        ev.type = event_type::window_configure;
+        ev.window_id = configure_ev->window;
+        ev.data.window_configure.override_wm_redirection = configure_ev->override_redirect;
+        ev.data.window_configure.bounds.position.x = configure_ev->x;
+        ev.data.window_configure.bounds.position.y = configure_ev->y;
+        ev.data.window_configure.bounds.size.width = configure_ev->width;
+        ev.data.window_configure.bounds.size.height = configure_ev->height;
       }
     }
     std::free(x11_ev);

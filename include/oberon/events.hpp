@@ -17,8 +17,9 @@ namespace events {
     std::array<u8, 20> content{ };
   };
 
-  struct window_resize_data final {
-    extent_2d size{ };
+  struct window_configure_data final {
+    bool override_wm_redirection{ };
+    bounding_rect bounds{ };
   };
 }
 
@@ -26,7 +27,7 @@ namespace events {
     empty,
     window_expose,
     window_message,
-    window_resize
+    window_configure
   };
 
   struct event final {
@@ -36,7 +37,7 @@ namespace events {
       events::empty_data empty;
       events::window_expose_data window_expose;
       events::window_message_data window_message;
-      events::window_resize_data window_resize;
+      events::window_configure_data window_configure;
     } data;
   };
 
