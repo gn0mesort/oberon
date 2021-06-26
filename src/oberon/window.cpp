@@ -240,7 +240,7 @@ namespace {
     if (auto result = vkCreateSwapchainKHR(ctx.device, &swapchain_info, nullptr, &window.swapchain);
         result != VK_SUCCESS)
     {
-      return -1;
+      return result;
     }
     {
       auto sz = u32{ 0 };
@@ -269,7 +269,10 @@ namespace {
       {
         image_view_info.image = swapchain_image;
         auto& image_view = *(cur++);
-        OBERON_ASSERT(vkCreateImageView(ctx.device, &image_view_info, nullptr, &image_view) == VK_SUCCESS);
+        if (auto result = vkCreateImageView(ctx.device, &image_view_info, nullptr, &image_view); result == VK_SUCCESS)
+        {
+          return result;
+        }
       }
     }
     OBERON_POSTCONDITION(window.swapchain);
