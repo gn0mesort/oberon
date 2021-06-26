@@ -50,6 +50,8 @@ namespace detail {
     OBERON_VK_PFN(vkft, device, vkGetDeviceQueue, true);
     OBERON_VK_PFN(vkft, device, vkDeviceWaitIdle, true);
     OBERON_VK_PFN(vkft, device, vkDestroyDevice, true);
+    OBERON_VK_PFN(vkft, device, vkCreateImageView, true);
+    OBERON_VK_PFN(vkft, device, vkDestroyImageView, true);
     // VK_KHR_swapchain
     OBERON_VK_PFN(vkft, device, vkCreateSwapchainKHR, false);
     OBERON_VK_PFN(vkft, device, vkGetSwapchainImagesKHR, false);

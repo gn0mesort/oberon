@@ -32,6 +32,7 @@ namespace detail {
     VkSurfaceFormatKHR current_surface_format{ VK_FORMAT_UNDEFINED, VK_COLOR_SPACE_MAX_ENUM_KHR };
     VkSwapchainKHR swapchain{ };
     std::vector<VkImage> swapchain_images{ };
+    std::vector<VkImageView> swapchain_image_views{ };
 
     virtual ~window_impl() noexcept = default;
   };

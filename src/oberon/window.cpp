@@ -161,10 +161,12 @@ namespace {
     OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceSurfaceSupportKHR);
     OBERON_PRECONDITION(ctx.vkft.vkCreateSwapchainKHR);
     OBERON_PRECONDITION(ctx.vkft.vkGetSwapchainImagesKHR);
+    OBERON_PRECONDITION(ctx.vkft.vkCreateImageView);
 
     auto vkGetPhysicalDeviceSurfaceSupportKHR = ctx.vkft.vkGetPhysicalDeviceSurfaceSupportKHR;
     auto vkCreateSwapchainKHR = ctx.vkft.vkCreateSwapchainKHR;
     auto vkGetSwapchainImagesKHR = ctx.vkft.vkGetSwapchainImagesKHR;
+    auto vkCreateImageView = ctx.vkft.vkCreateImageView;
 
     // Recheck surface support. This is dumb but required by Vulkan.
     {
@@ -248,8 +250,32 @@ namespace {
       result = vkGetSwapchainImagesKHR(ctx.device, window.swapchain, &sz, std::data(window.swapchain_images));
       OBERON_ASSERT(result == VK_SUCCESS);
     }
+    {
+      window.swapchain_image_views.resize(std::size(window.swapchain_images));
+      auto image_view_info = VkImageViewCreateInfo{ };
+      OBERON_INIT_VK_STRUCT(image_view_info, IMAGE_VIEW_CREATE_INFO);
+      image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      image_view_info.format = window.current_surface_format.format;
+      image_view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+      image_view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+      image_view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+      image_view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+      image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      image_view_info.subresourceRange.baseArrayLayer = 0;
+      image_view_info.subresourceRange.layerCount = 1;
+      image_view_info.subresourceRange.baseMipLevel = 0;
+      image_view_info.subresourceRange.levelCount = 1;
+      for (auto cur = std::begin(window.swapchain_image_views); const auto& swapchain_image : window.swapchain_images)
+      {
+        image_view_info.image = swapchain_image;
+        auto& image_view = *(cur++);
+        OBERON_ASSERT(vkCreateImageView(ctx.device, &image_view_info, nullptr, &image_view) == VK_SUCCESS);
+      }
+    }
     OBERON_POSTCONDITION(window.swapchain);
-    OBERON_PRECONDITION(std::size(window.swapchain_images) > 0);
+    OBERON_POSTCONDITION(std::size(window.swapchain_images) > 0);
+    OBERON_POSTCONDITION(std::size(window.swapchain_image_views) > 0);
+    OBERON_POSTCONDITION(std::size(window.swapchain_images) == std::size(window.swapchain_image_views));
     return 0;
   }
 
@@ -286,26 +312,12 @@ namespace {
         configure.bounds.position.y != window.bounds.position.y)
     {
       //TODO repositioned: probably just ignore. Positions don't seem super meaningful.
+      // The reported positions are influenced by the window manager theme for instance. Themes with chunkier window
+      // decorations have larger offsets from 0 on either axis.
     }
     window.bounds = configure.bounds;
     return 0;
   }
-
-/*
-  iresult translate_x11_message(
-    const window_impl& window,
-    const std::array<u8, 20>& message,
-    window_message& translated
-  ) noexcept {
-    OBERON_PRECONDITION(window.x11_window);
-    OBERON_PRECONDITION(window.x11_delete_atom != XCB_ATOM_NONE);
-    if (window.x11_delete_atom == reinterpret_cast<readonly_ptr<xcb_atom_t>>(std::data(message))[0])
-    {
-      translated = window_message::close;
-    }
-    return 0;
-  }
-*/
 
   iresult hide_x11_window(const context_impl& ctx, window_impl& window) noexcept {
     OBERON_PRECONDITION(ctx.x11_connection);
@@ -322,10 +334,21 @@ namespace {
     }
     OBERON_ASSERT(ctx.device);
     OBERON_ASSERT(ctx.vkft.vkDestroySwapchainKHR);
+    OBERON_ASSERT(ctx.vkft.vkDestroyImageView);
+    auto vkDestroyImageView = ctx.vkft.vkDestroyImageView;
     auto vkDestroySwapchainKHR = ctx.vkft.vkDestroySwapchainKHR;
+
+    for (const auto& swapchain_image_view : window.swapchain_image_views)
+    {
+      vkDestroyImageView(ctx.device, swapchain_image_view, nullptr);
+    }
     vkDestroySwapchainKHR(ctx.device, window.swapchain, nullptr);
+    window.swapchain_images.resize(0);
+    window.swapchain_image_views.resize(0);
     window.swapchain = nullptr;
     OBERON_POSTCONDITION(!window.swapchain);
+    OBERON_POSTCONDITION(std::size(window.swapchain_images) == 0);
+    OBERON_POSTCONDITION(std::size(window.swapchain_image_views) == 0);
     return 0;
   }
 
