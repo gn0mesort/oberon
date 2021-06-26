@@ -5,9 +5,12 @@
 
 namespace oberon {
 namespace detail {
+
   struct context_impl;
+
 }
-  class render_window;
+
+  struct event;
 
   class context : public object {
   private:
@@ -23,6 +26,10 @@ namespace detail {
     );
 
     virtual ~context() noexcept;
+
+    const std::string& application_name() const;
+
+    bool poll_events(event& ev);
   };
 
 }

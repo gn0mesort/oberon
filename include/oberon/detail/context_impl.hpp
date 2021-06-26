@@ -4,6 +4,7 @@
 #include "../context.hpp"
 
 #include <unordered_set>
+#include <string>
 
 #include "object_impl.hpp"
 
@@ -13,7 +14,13 @@
 
 namespace oberon {
 namespace detail {
+
   struct context_impl : public object_impl {
+    std::string application_name{ };
+    u16 application_version_major{ };
+    u16 application_version_minor{ };
+    u16 application_version_patch{ };
+
     ptr<xcb_connection_t> x11_connection{ };
     ptr<xcb_screen_t> x11_screen{ };
 
@@ -32,6 +39,11 @@ namespace detail {
     virtual ~context_impl() noexcept = default;
   };
 
+  iresult store_application_info(
+    context_impl& ctx,
+    const std::string& name,
+    const u16 major, const u16 minor, const u16 patch
+  ) noexcept;
 
   /**
    * Connects to the X11 server described by displayname.
@@ -74,11 +86,6 @@ namespace detail {
    * Creates an new Vulkan instance and stores the resulting handle in ctx.
    *
    * @param ctx The context to store the Vulkan instance handle in.
-   * @param application_name An application name for use in instance creation. This can be null and only matters if
-   *                         the Vulkan driver contains application specific optimizations for your your application.
-   * @param application_version A packed Vulkan version number for your application. This should be packed as if by
-   *                            VK_MAKE_VERSION(major, minor, patch). As with the application name this is only
-   *                            relevant for application specific driver optimizations and can safely be set to 0.
    * @param layers A set of Vulkan layers to explicitly load when creating the instance. If this is not empty all of
    *               the contained layer names *must* be validated externally for the current system.
    * @param next An extension pointer chain for use in instance creation. This is used to extend the
@@ -88,8 +95,6 @@ namespace detail {
    */
   iresult create_vulkan_instance(
     context_impl& ctx,
-    const cstring application_name,
-    const u32 application_version,
     const std::unordered_set<std::string>& layers,
     const readonly_ptr<void> next
   ) noexcept;
@@ -156,6 +161,8 @@ namespace detail {
    */
   iresult get_device_queues(context_impl& ctx) noexcept;
 
+  iresult poll_x11_event(context_impl& ctx, event& ev) noexcept;
+
   /**
    * Destroy the Vulkan device stored in ctx.
    *
@@ -192,6 +199,7 @@ namespace detail {
    * @return 0 in all valid cases.
    */
   iresult disconnect_from_x11(context_impl& ctx) noexcept;
+
 }
 }
 

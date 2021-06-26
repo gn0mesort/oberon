@@ -35,10 +35,22 @@ namespace detail {
     PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT{ };
     // VK_KHR_xcb_surface
     PFN_vkGetPhysicalDeviceXcbPresentationSupportKHR vkGetPhysicalDeviceXcbPresentationSupportKHR{ };
+    PFN_vkCreateXcbSurfaceKHR vkCreateXcbSurfaceKHR{ };
+    // VK_KHR_surface
+    PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR vkGetPhysicalDeviceSurfaceCapabilitiesKHR{ };
+    PFN_vkGetPhysicalDeviceSurfaceFormatsKHR vkGetPhysicalDeviceSurfaceFormatsKHR{ };
+    PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfacePresentModesKHR{ };
+    PFN_vkGetPhysicalDeviceSurfaceSupportKHR vkGetPhysicalDeviceSurfaceSupportKHR{ };
+    PFN_vkDestroySurfaceKHR vkDestroySurfaceKHR{ };
 
     // Device
     PFN_vkGetDeviceQueue vkGetDeviceQueue{ };
+    PFN_vkDeviceWaitIdle vkDeviceWaitIdle{ };
     PFN_vkDestroyDevice vkDestroyDevice{ };
+    // VK_KHR_swapchain
+    PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR{ };
+    PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR{ };
+    PFN_vkDestroySwapchainKHR vkDestroySwapchainKHR{ };
   };
 
   /**

@@ -8,14 +8,17 @@
 
 namespace oberon {
 namespace detail {
+
   struct debug_context_impl;
+
 }
+
   class debug_context final : public context {
   private:
     void v_dispose() noexcept override;
   public:
     debug_context(
-      const std::string_view& application_name,
+      const std::string& application_name,
       const u16 application_version_major,
       const u16 application_version_minor,
       const u16 application_version_patch,
@@ -24,6 +27,7 @@ namespace detail {
 
     ~debug_context() noexcept;
   };
+
 }
 
 #endif

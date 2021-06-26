@@ -7,6 +7,7 @@
 #include "memory.hpp"
 
 namespace oberon {
+
   class error {
   public:
     virtual ~error() noexcept = default;
@@ -75,6 +76,7 @@ namespace oberon {
     virtual cstring message() const noexcept override;
     virtual i32 result() const noexcept override;
   };
+
 }
 
 #endif

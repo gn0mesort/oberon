@@ -9,7 +9,9 @@
   #include <experimental/source_location>
 
   namespace std {
+
     using source_location = std::experimental::source_location;
+
   }
 #else
   #error This header requires std::source_location.
@@ -40,7 +42,9 @@
   OBERON_ASSERT(x, msg, __VA_OPT__(,), __VA_ARGS__)
 
 namespace oberon {
+
   void assert(const std::source_location& location, const bool condition, const std::string_view& message_format, ...);
+
 }
 
 #endif

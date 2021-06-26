@@ -14,6 +14,7 @@ project(
 
 oberon_deps = [
   dependency('xcb'),
+  dependency('xcb-randr'),
   dependency('vulkan')
 ]
 
@@ -27,7 +28,8 @@ oberon_srcs = [
     'src/oberon/errors.cpp',
     'src/oberon/object.cpp',
     'src/oberon/context.cpp',
-    'src/oberon/debug_context.cpp'
+    'src/oberon/debug_context.cpp',
+    'src/oberon/window.cpp'
   ),
   files(
     'src/oberon/detail/vulkan_function_table.cpp',

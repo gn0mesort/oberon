@@ -1,1 +1,2 @@
-executable('debug_context_create', files('debug_context_create.cpp'), dependencies:oberon_dep)
+executable('window_create', files('window_create.cpp'), dependencies:oberon_dep)
+

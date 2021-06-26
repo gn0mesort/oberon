@@ -3,8 +3,6 @@
 
 #include "../debug_context.hpp"
 
-#include <unordered_set>
-
 #include "context_impl.hpp"
 #include "../debug.hpp"
 

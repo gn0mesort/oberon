@@ -2,6 +2,7 @@
 
 namespace oberon {
 namespace detail {
+
   // This is basically the canon implementation from
   // https://www.x.org/releases/X11R7.7/doc/libxcb/tutorial/index.html#screenofdisplay
   xcb_screen_t* screen_of_display(xcb_connection_t *const connection, int screen) {
@@ -16,5 +17,6 @@ namespace detail {
     }
     return nullptr;
   }
+
 }
 }

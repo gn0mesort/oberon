@@ -2,11 +2,11 @@
 #define OBERON_MEMORY_HPP
 
 #include <memory>
-#include <iterator>
 
 #include "types.hpp"
 
 namespace oberon {
+
   template <typename Type>
   using ptr = Type*;
 
@@ -18,6 +18,7 @@ namespace oberon {
 
   using cstring = basic_cstring<char>;
   using wcstring = basic_cstring<wchar>;
+
 }
 
 #endif

@@ -8,9 +8,22 @@
 
 #include "oberon/debug.hpp"
 #include "oberon/errors.hpp"
+#include "oberon/events.hpp"
 
 namespace oberon {
 namespace detail {
+
+  iresult store_application_info(
+    context_impl& ctx,
+    const std::string& name,
+    const u16 major, const u16 minor, const u16 patch
+  ) noexcept {
+    ctx.application_name = name;
+    ctx.application_version_major = major;
+    ctx.application_version_minor = minor;
+    ctx.application_version_patch = patch;
+    return 0;
+  }
 
   iresult connect_to_x11(context_impl& ctx, const cstring displayname) noexcept {
     OBERON_PRECONDITION(!ctx.x11_connection);
@@ -67,8 +80,6 @@ namespace detail {
 
   iresult create_vulkan_instance(
     context_impl& ctx,
-    const cstring application_name,
-    const u32 application_version,
     const std::unordered_set<std::string>& layers,
     const readonly_ptr<void> next
   ) noexcept {
@@ -79,8 +90,10 @@ namespace detail {
 
     auto app_info = VkApplicationInfo{ };
     OBERON_INIT_VK_STRUCT(app_info, APPLICATION_INFO);
-    app_info.pApplicationName = application_name;
-    app_info.applicationVersion = application_version;
+    app_info.pApplicationName = std::data(ctx.application_name);
+    auto ver =
+      VK_MAKE_VERSION(ctx.application_version_major, ctx.application_version_minor, ctx.application_version_patch);
+    app_info.applicationVersion = ver;
     app_info.pEngineName = "oberon";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.apiVersion = VK_API_VERSION_1_2;
@@ -358,12 +371,51 @@ namespace {
     return 0;
   }
 
+  iresult poll_x11_event(context_impl& ctx, event& ev) noexcept {
+    OBERON_PRECONDITION(ctx.x11_connection);
+    OBERON_PRECONDITION(!xcb_connection_has_error(ctx.x11_connection));
+    auto x11_ev = xcb_poll_for_event(ctx.x11_connection);
+    if (!x11_ev)
+    {
+      ev.type = event_type::empty;
+      return 0;
+    }
+    switch (x11_ev->response_type & 0x7f) // ~0x80
+    {
+    case XCB_EXPOSE:
+      {
+        auto expose_ev = reinterpret_cast<ptr<xcb_expose_event_t>>(x11_ev);
+        ev.type = event_type::window_expose;
+        ev.window_id = expose_ev->window;
+      }
+      break;
+    case XCB_CLIENT_MESSAGE:
+      {
+        auto client_message_ev = reinterpret_cast<ptr<xcb_client_message_event_t>>(x11_ev);
+        ev.type = event_type::window_message;
+        ev.window_id = client_message_ev->window;
+        std::memcpy(std::data(ev.data.window_message.content), client_message_ev->data.data8, 20);
+      }
+      break;
+    case XCB_RESIZE_REQUEST:
+      {
+        auto resize_ev = reinterpret_cast<ptr<xcb_resize_request_event_t>>(x11_ev);
+        ev.type = event_type::window_resize;
+        ev.window_id = resize_ev->window;
+        ev.data.window_resize.size.width = resize_ev->width;
+        ev.data.window_resize.size.height = resize_ev->height;
+      }
+    }
+    std::free(x11_ev);
+    return 0;
+  }
+
   iresult destroy_vulkan_device(context_impl& ctx) noexcept {
-    OBERON_PRECONDITION(ctx.instance);
     if (!ctx.device)
     {
       return 0;
     }
+    OBERON_ASSERT(ctx.instance);
     OBERON_ASSERT(ctx.vkft.vkDestroyDevice);
     auto vkDestroyDevice = ctx.vkft.vkDestroyDevice;
     vkDestroyDevice(ctx.device, nullptr);
@@ -393,6 +445,7 @@ namespace {
     OBERON_POSTCONDITION(!ctx.x11_screen);
     return 0;
   }
+
 }
 
   context::context(const ptr<detail::context_impl> child_impl) : object{ child_impl } { }
@@ -404,6 +457,11 @@ namespace {
     const u16 application_version_patch
   ) : object{ new detail::context_impl{ } } {
     auto q = q_ptr<detail::context_impl>();
+    detail::store_application_info(
+      *q,
+      application_name,
+      application_version_major, application_version_minor, application_version_patch
+    );
     if (OBERON_IS_IERROR(detail::connect_to_x11(*q, nullptr)))
     {
       throw fatal_error{ "Failed to connect to X11 server." };
@@ -420,9 +478,7 @@ namespace {
       }
     }
     {
-      auto name = std::data(application_name);
-      auto ver = VK_MAKE_VERSION(application_version_major, application_version_minor, application_version_patch);
-      if (OBERON_IS_IERROR(detail::create_vulkan_instance(*q, name, ver, { }, nullptr)))
+      if (OBERON_IS_IERROR(detail::create_vulkan_instance(*q, { }, nullptr)))
       {
         throw fatal_error{ "Failed to create Vulkan instance." };
       }
@@ -453,6 +509,17 @@ namespace {
 
   context::~context() noexcept {
     dispose();
+  }
+
+  bool context::poll_events(event& ev) {
+    auto q = q_ptr<detail::context_impl>();
+    poll_x11_event(*q, ev);
+    return ev.type != event_type::empty;
+  }
+
+  const std::string& context::application_name() const {
+    auto q = q_ptr<detail::context_impl>();
+    return q->application_name;
   }
 
 }

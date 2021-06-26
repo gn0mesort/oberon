@@ -5,11 +5,13 @@
 
 namespace oberon {
 namespace detail {
+
   struct object_impl {
     inline virtual ~object_impl() noexcept = 0;
   };
 
   object_impl::~object_impl() noexcept { }
+
 }
 }
 

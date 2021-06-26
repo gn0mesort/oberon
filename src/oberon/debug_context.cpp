@@ -4,11 +4,8 @@
 #include <cstring>
 
 #include <vector>
-#include <concepts>
 #include <algorithm>
 #include <iterator>
-#include <optional>
-#include <memory>
 
 #include "oberon/errors.hpp"
 
@@ -123,13 +120,18 @@ namespace {
 
 }
   debug_context::debug_context(
-    const std::string_view& application_name,
+    const std::string& application_name,
     const u16 application_version_major,
     const u16 application_version_minor,
     const u16 application_version_patch,
     const std::unordered_set<std::string>& requested_layers
   ) : context{ new detail::debug_context_impl{ } } {
     auto q = q_ptr<detail::debug_context_impl>();
+    detail::store_application_info(
+      *q,
+      application_name,
+      application_version_major, application_version_minor, application_version_patch
+    );
     detail::connect_to_x11(*q, nullptr);
     detail::load_vulkan_pfns(q->vkft);
     if (OBERON_IS_IERROR(detail::validate_requested_layers(*q, requested_layers)))
@@ -156,8 +158,6 @@ namespace {
     auto validation_features = VkValidationFeaturesEXT{ };
     preload_debugging_context(*q, debug_info, validation_features);
     {
-      auto name = std::data(application_name);
-      auto ver = VK_MAKE_VERSION(application_version_major, application_version_minor, application_version_patch);
       auto next = readonly_ptr<void>{ nullptr };
       if (validation_features.pNext)
       {
@@ -167,7 +167,7 @@ namespace {
       {
         next = &debug_info;
       }
-      if (OBERON_IS_IERROR(detail::create_vulkan_instance(*q, name, ver, requested_layers, next)))
+      if (OBERON_IS_IERROR(detail::create_vulkan_instance(*q, requested_layers, next)))
       {
         throw fatal_error{ "Failed to create Vulkan instance." };
       }
