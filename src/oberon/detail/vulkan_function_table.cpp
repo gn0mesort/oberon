@@ -32,6 +32,7 @@ namespace detail {
     OBERON_VK_PFN(vkft, instance, vkDestroyInstance, true);
     // VK_EXT_debug_utils
     OBERON_VK_PFN(vkft, instance, vkCreateDebugUtilsMessengerEXT, false);
+    OBERON_VK_PFN(vkft, instance, vkSubmitDebugUtilsMessageEXT, false);
     OBERON_VK_PFN(vkft, instance, vkDestroyDebugUtilsMessengerEXT, false);
     // VK_KHR_xcb_surface
     OBERON_VK_PFN(vkft, instance, vkGetPhysicalDeviceXcbPresentationSupportKHR, false);

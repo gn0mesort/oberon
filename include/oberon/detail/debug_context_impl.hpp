@@ -60,6 +60,12 @@ namespace detail {
     const VkDebugUtilsMessengerCreateInfoEXT& debug_info
   ) noexcept;
 
+  iresult send_debug_message(
+    const debug_context_impl& ctx,
+    const VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+    const std::string& message
+  ) noexcept;
+
   /**
    * Destroy a VkDebugUtilsMessengerEXT stored in ctx.
    *

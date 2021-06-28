@@ -17,7 +17,7 @@ namespace {
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* /* pUserData */
   ) {
-    std::printf("[VK]: %s\n", pCallbackData->pMessage);
+    std::printf("[%s]: %s\n", pCallbackData->pMessageIdName, pCallbackData->pMessage);
     return VK_FALSE;
   }
 
@@ -102,6 +102,21 @@ namespace {
       return result;
     }
     OBERON_POSTCONDITION(ctx.debug_messenger);
+    return 0;
+  }
+
+  iresult send_debug_message(
+    const debug_context_impl& ctx,
+    const VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+    const std::string& message
+  ) noexcept {
+    OBERON_PRECONDITION(ctx.vkft.vkSubmitDebugUtilsMessageEXT);
+    auto vkSubmitDebugUtilsMessageEXT = ctx.vkft.vkSubmitDebugUtilsMessageEXT;
+    auto callback_data = VkDebugUtilsMessengerCallbackDataEXT{ };
+    OBERON_INIT_VK_STRUCT(callback_data, DEBUG_UTILS_MESSENGER_CALLBACK_DATA_EXT);
+    callback_data.pMessageIdName = "Library message";
+    callback_data.pMessage = std::data(message);
+    vkSubmitDebugUtilsMessageEXT(ctx.instance, severity, VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT, &callback_data);
     return 0;
   }
 

@@ -9,7 +9,9 @@ namespace detail {
   }
 }
 
-  object::object(const ptr<detail::object_impl> child_impl) : m_impl{ child_impl } { }
+  object::object(const ptr<detail::object_impl> child_impl) : m_impl{ child_impl } {
+    OBERON_ASSERT(child_impl);
+  }
 
   void object::dispose() noexcept {
     if (!is_disposed())
@@ -25,21 +27,25 @@ namespace detail {
 
   ptr<detail::object_impl> object::d_ptr() {
     OBERON_PRECONDITION(!is_disposed());
+    OBERON_PRECONDITION(m_impl.get());
     return m_impl.get();
   }
 
   readonly_ptr<detail::object_impl> object::d_ptr() const {
     OBERON_PRECONDITION(!is_disposed());
+    OBERON_PRECONDITION(m_impl.get());
     return m_impl.get();
   }
 
   detail::object_impl& object::implementation() {
     OBERON_PRECONDITION(!is_disposed());
+    OBERON_PRECONDITION(m_impl.get());
     return *m_impl;
   }
 
   const detail::object_impl& object::implementation() const {
     OBERON_PRECONDITION(!is_disposed());
+    OBERON_PRECONDITION(m_impl.get());
     return *m_impl;
   }
 }

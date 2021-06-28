@@ -27,6 +27,7 @@ oberon_srcs = [
     'src/oberon/debug.cpp',
     'src/oberon/errors.cpp',
     'src/oberon/object.cpp',
+    'src/oberon/child_object.cpp',
     'src/oberon/context.cpp',
     'src/oberon/debug_context.cpp',
     'src/oberon/window.cpp'

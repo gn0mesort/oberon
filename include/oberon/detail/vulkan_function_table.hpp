@@ -32,6 +32,7 @@ namespace detail {
     PFN_vkDestroyInstance vkDestroyInstance{ };
     // VK_EXT_debug_utils
     PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT{ };
+    PFN_vkSubmitDebugUtilsMessageEXT vkSubmitDebugUtilsMessageEXT{ };
     PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT{ };
     // VK_KHR_xcb_surface
     PFN_vkGetPhysicalDeviceXcbPresentationSupportKHR vkGetPhysicalDeviceXcbPresentationSupportKHR{ };

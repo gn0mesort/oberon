@@ -1,7 +1,7 @@
 #ifndef OBERON_WINDOW_HPP
 #define OBERON_WINDOW_HPP
 
-#include "object.hpp"
+#include "child_object.hpp"
 
 namespace oberon {
 namespace detail {
@@ -23,16 +23,14 @@ namespace events {
   struct extent_2d;
   struct event;
 
-  class window : public object {
+  class window : public child_object {
   private:
     void v_dispose() noexcept override;
   protected:
-    ptr<detail::context_impl> m_parent{ };
-
-    window(const ptr<detail::window_impl> child_impl);
+    window(const context& ctx, const ptr<detail::window_impl> child_impl);
   public:
-    window(context& ctx);
-    window(context& ctx, const bounding_rect& bounds);
+    window(const context& ctx);
+    window(const context& ctx, const bounding_rect& bounds);
 
     virtual ~window() noexcept;
 

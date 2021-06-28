@@ -382,31 +382,33 @@ namespace {
 
   void window::v_dispose() noexcept {
     auto q = q_ptr<detail::window_impl>();
-    detail::hide_x11_window(*m_parent, *q);
-    detail::destroy_vulkan_swapchain(*m_parent, *q);
-    detail::destroy_vulkan_surface(*m_parent, *q);
-    detail::destroy_x11_window(*m_parent, *q);
+    auto parent = parent_q_ptr<detail::context_impl>();
+    detail::hide_x11_window(*parent, *q);
+    detail::destroy_vulkan_swapchain(*parent, *q);
+    detail::destroy_vulkan_surface(*parent, *q);
+    detail::destroy_x11_window(*parent, *q);
   }
 
-  window::window(const ptr<detail::window_impl> child_impl) : object{ child_impl } { }
+  window::window(const context& ctx, const ptr<detail::window_impl> child_impl) : child_object{ child_impl, &ctx } { }
 
-  window::window(context& ctx) : object{ new detail::window_impl{ } } {
+  window::window(const context& ctx) : child_object{ new detail::window_impl{ }, &ctx } {
   }
 
-  window::window(context& ctx, const bounding_rect& bounds) : object{ new detail::window_impl{ } } {
+  window::window(const context& ctx, const bounding_rect& bounds) :
+  child_object{ new detail::window_impl{ }, &ctx } {
     auto q = q_ptr<detail::window_impl>();
-    m_parent = &reinterpret_cast<detail::context_impl&>(ctx.implementation());
-    detail::create_x11_window(*m_parent, *q, bounds);
-    if (OBERON_IS_IERROR(detail::create_vulkan_surface(*m_parent, *q)))
+    auto parent = parent_q_ptr<detail::context_impl>();
+    detail::create_x11_window(*parent, *q, bounds);
+    if (OBERON_IS_IERROR(detail::create_vulkan_surface(*parent, *q)))
     {
       throw fatal_error{ "Failed to create Vulkan window surface." };
     }
-    detail::retrieve_vulkan_surface_info(*m_parent, *q);
-    if (OBERON_IS_IERROR(detail::create_vulkan_swapchain(*m_parent, *q)))
+    detail::retrieve_vulkan_surface_info(*parent, *q);
+    if (OBERON_IS_IERROR(detail::create_vulkan_swapchain(*parent, *q)))
     {
       throw fatal_error{ "Failed to create Vulkan window swapchain." };
     }
-    detail::display_x11_window(*m_parent, *q);
+    detail::display_x11_window(*parent, *q);
   }
 
   window::~window() noexcept {
