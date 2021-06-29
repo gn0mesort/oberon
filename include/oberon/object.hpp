@@ -21,8 +21,6 @@ namespace detail {
   protected:
     object(const ptr<detail::object_impl> child_impl);
 
-    void dispose() noexcept;
-
     ptr<detail::object_impl> d_ptr();
     readonly_ptr<detail::object_impl> d_ptr() const;
 
@@ -39,6 +37,7 @@ namespace detail {
     inline virtual ~object() noexcept = 0;
 
     bool is_disposed() const noexcept;
+    void dispose() noexcept;
 
     detail::object_impl& implementation();
     const detail::object_impl& implementation() const;
