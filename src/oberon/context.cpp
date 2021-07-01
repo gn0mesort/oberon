@@ -10,6 +10,8 @@
 #include "oberon/errors.hpp"
 #include "oberon/events.hpp"
 
+#include "oberon/detail/window_impl.hpp"
+
 namespace oberon {
 namespace detail {
 
@@ -371,6 +373,16 @@ namespace {
     return 0;
   }
 
+  iresult add_window_to_context(const context_impl& ctx, const umax id, const ptr<window> win) noexcept {
+    ctx.windows[id] = win;
+    return 0;
+  }
+
+  iresult remove_window_from_context(const context_impl& ctx, const umax id) noexcept {
+    ctx.windows.erase(id);
+    return 0;
+  }
+
   iresult poll_x11_event(context_impl& ctx, event& ev) noexcept {
     OBERON_PRECONDITION(ctx.x11_connection);
     OBERON_PRECONDITION(!xcb_connection_has_error(ctx.x11_connection));
@@ -382,35 +394,45 @@ namespace {
     }
     switch (x11_ev->response_type & 0x7f) // ~0x80
     {
-    case XCB_EXPOSE:
-      {
-        auto expose_ev = reinterpret_cast<ptr<xcb_expose_event_t>>(x11_ev);
-        ev.type = event_type::window_expose;
-        ev.window_id = expose_ev->window;
-      }
-      break;
     case XCB_CLIENT_MESSAGE:
       {
         auto client_message_ev = reinterpret_cast<ptr<xcb_client_message_event_t>>(x11_ev);
-        ev.type = event_type::window_message;
-        ev.window_id = client_message_ev->window;
-        std::memcpy(std::data(ev.data.window_message.content), client_message_ev->data.data8, 20);
+        ev.window_ptr = ctx.windows.at(client_message_ev->window);
+        auto& win_impl = reference_cast<detail::window_impl>(ev.window_ptr->implementation());
+        switch (detail::handle_x11_message(win_impl, client_message_ev))
+        {
+        case WINDOW_MESSAGE_HIDE:
+          ev.type = event_type::window_hide;
+          break;
+        default:
+          goto err;
+        }
       }
       break;
     case XCB_CONFIGURE_NOTIFY:
       {
         auto configure_ev = reinterpret_cast<ptr<xcb_configure_notify_event_t>>(x11_ev);
         ev.type = event_type::window_configure;
-        ev.window_id = configure_ev->window;
-        ev.data.window_configure.override_wm_redirection = configure_ev->override_redirect;
-        ev.data.window_configure.bounds.position.x = configure_ev->x;
-        ev.data.window_configure.bounds.position.y = configure_ev->y;
-        ev.data.window_configure.bounds.size.width = configure_ev->width;
-        ev.data.window_configure.bounds.size.height = configure_ev->height;
+        ev.window_ptr = ctx.windows.at(configure_ev->window);
+        auto& win_impl = reference_cast<detail::window_impl>(ev.window_ptr->implementation());
+        auto result = detail::handle_x11_configure(win_impl, configure_ev);
+        if (OBERON_IS_IERROR(result))
+        {
+          goto err;
+        }
+        ev.data.window_configure.bounds = win_impl.bounds;
+        ev.data.window_configure.was_repositioned = result & WINDOW_CONFIGURE_REPOSITION_BIT;
+        ev.data.window_configure.was_resized = result & WINDOW_CONFIGURE_RESIZE_BIT;
       }
+      break;
+    default:
+      break;
     }
     std::free(x11_ev);
     return 0;
+  err:
+    std::free(x11_ev);
+    return -1;
   }
 
   iresult destroy_vulkan_device(context_impl& ctx) noexcept {
@@ -515,8 +537,8 @@ namespace {
   }
 
   bool context::poll_events(event& ev) {
-    auto& q = reference_cast<detail::context_impl>(implementation());
-    poll_x11_event(q, ev);
+    auto& ctx = reference_cast<detail::context_impl>(implementation());
+    poll_x11_event(ctx, ev);
     return ev.type != event_type::empty;
   }
 

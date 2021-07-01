@@ -9,6 +9,10 @@
 #include <oberon/window.hpp>
 #include <oberon/renderer_3d.hpp>
 
+oberon::cstring to_string(const bool b) {
+  return b ? "true" : "false";
+}
+
 int main() {
   try
   {
@@ -22,20 +26,26 @@ int main() {
     auto ev = oberon::event{ };
     std::printf("Created window %" PRIdMAX ".\n", win.id());
     std::printf("Initial window size %zux%zu.\n", win.width(), win.height());
-    while (!win.should_close())
+    auto quit = false;
+    while (!quit)
     {
       while (ctx.poll_events(ev))
       {
-        win.notify(ev);
-        if (ev.type == oberon::event_type::window_configure)
+        switch (ev.type)
         {
+        case oberon::event_type::window_configure:
           std::printf(
-            "Window %" PRIdMAX " ( %zu, %zu, %zu, %zu, %s )\n",
-            ev.window_id,
+            "Window reconfigured: { bounds: { position: { %zd, %zd }, size: { %zu, %zu } }, %s, %s }\n",
             ev.data.window_configure.bounds.position.x, ev.data.window_configure.bounds.position.y,
             ev.data.window_configure.bounds.size.width, ev.data.window_configure.bounds.size.height,
-            ev.data.window_configure.override_wm_redirection ? "true" : "false"
+            to_string(ev.data.window_configure.was_repositioned), to_string(ev.data.window_configure.was_resized)
           );
+          break;
+        case oberon::event_type::window_hide:
+          quit = true;
+          break;
+        default:
+          break;
         }
       }
     }

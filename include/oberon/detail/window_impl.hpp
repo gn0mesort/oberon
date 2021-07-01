@@ -14,8 +14,19 @@ namespace oberon {
 namespace detail {
   struct context_impl;
 
+  enum window_messages {
+    WINDOW_MESSAGE_NONE = 0,
+    WINDOW_MESSAGE_HIDE
+  };
+
+  enum window_configure_bits {
+    WINDOW_CONFIGURE_NONE_BIT = 0,
+    WINDOW_CONFIGURE_RESIZE_BIT = 0x01,
+    WINDOW_CONFIGURE_REPOSITION_BIT = 0x02
+  };
+
   struct window_impl : public object_impl {
-    bool was_close_requested{ false };
+    bool is_hidden{ true };
 
     xcb_window_t x11_window{ };
     xcb_atom_t x11_wm_protocols_atom{ };
@@ -32,16 +43,8 @@ namespace detail {
   iresult create_x11_window(const context_impl& ctx, window_impl& window) noexcept;
   iresult create_vulkan_surface(const context_impl& ctx, window_impl& window) noexcept;
   iresult display_x11_window(const context_impl& ctx, window_impl& window) noexcept;
-  iresult handle_x11_expose(window_impl& window, const events::window_expose_data& expose) noexcept;
-  iresult handle_x11_message(window_impl& window, const events::window_message_data& message) noexcept;
-  iresult handle_x11_resize(window_impl& window, const events::window_configure_data& configure) noexcept;
-  /*
-  iresult translate_x11_message(
-    const window_impl& window,
-    const std::array<u8, 20>& message,
-    window_message& translated
-  ) noexcept;
-  */
+  iresult handle_x11_configure(window_impl& window, const ptr<xcb_configure_notify_event_t> ev) noexcept;
+  iresult handle_x11_message(window_impl& window, const ptr<xcb_client_message_event_t> ev) noexcept;
   iresult hide_x11_window(const context_impl& ctx, window_impl& window) noexcept;
   iresult destroy_vulkan_surface(const context_impl& ctx, window_impl& window) noexcept;
   iresult destroy_x11_window(const context_impl& ctx, window_impl& window) noexcept;

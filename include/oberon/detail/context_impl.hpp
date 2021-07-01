@@ -4,6 +4,7 @@
 #include "../context.hpp"
 
 #include <unordered_set>
+#include <unordered_map>
 #include <string>
 
 #include "object_impl.hpp"
@@ -13,6 +14,9 @@
 #include "vulkan_function_table.hpp"
 
 namespace oberon {
+
+  class window;
+
 namespace detail {
 
   struct context_impl : public object_impl {
@@ -35,6 +39,8 @@ namespace detail {
     VkDevice device{ };
     VkQueue graphics_transfer_queue{ };
     VkQueue presentation_queue{ };
+
+    mutable std::unordered_map<umax, ptr<window>> windows{ };
 
     virtual ~context_impl() noexcept = default;
   };
@@ -160,6 +166,10 @@ namespace detail {
    * @return 0 in all valid cases.
    */
   iresult get_device_queues(context_impl& ctx) noexcept;
+
+  iresult add_window_to_context(const context_impl& ctx, const umax id, const ptr<window> win) noexcept;
+
+  iresult remove_window_from_context(const context_impl& ctx, const umax id) noexcept;
 
   iresult poll_x11_event(context_impl& ctx, event& ev) noexcept;
 

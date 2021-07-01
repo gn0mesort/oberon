@@ -106,39 +106,37 @@ namespace detail {
     OBERON_PRECONDITION(!xcb_connection_has_error(ctx.x11_connection));
     xcb_map_window(ctx.x11_connection, window.x11_window);
     xcb_flush(ctx.x11_connection);
+    window.is_hidden = false;
     return 0;
   }
 
-  iresult handle_x11_expose(window_impl& window, const events::window_expose_data& expose) noexcept {
-    return 0;
+
+
+  iresult handle_x11_configure(window_impl& window, const ptr<xcb_configure_notify_event_t> ev) noexcept {
+    OBERON_PRECONDITION(window.x11_window);
+    auto result = iresult{ 0 };
+    if (ev->width != window.bounds.size.width || ev->height != window.bounds.size.height)
+    {
+      result |= WINDOW_CONFIGURE_RESIZE_BIT;
+      window.bounds.size = { ev->width, ev->height };
+    }
+    else if (ev->x != window.bounds.position.x || ev->y != window.bounds.position.y)
+    {
+      result |= WINDOW_CONFIGURE_REPOSITION_BIT;
+      window.bounds.position = { ev->x, ev->y };
+    }
+    return result;
   }
 
-  iresult handle_x11_message(window_impl& window, const events::window_message_data& message) noexcept {
+  iresult handle_x11_message(window_impl& window, const ptr<xcb_client_message_event_t> ev) noexcept {
     OBERON_PRECONDITION(window.x11_window);
     OBERON_PRECONDITION(window.x11_delete_atom != XCB_ATOM_NONE);
-    if (window.x11_delete_atom == reinterpret_cast<readonly_ptr<xcb_atom_t>>(std::data(message.content))[0])
+    if (ev->data.data32[0] == window.x11_delete_atom)
     {
-      window.was_close_requested = true;
+      window.is_hidden = true;
+      return WINDOW_MESSAGE_HIDE;
     }
-    return 0;
-  }
-
-  iresult handle_x11_configure(window_impl& window, const events::window_configure_data& configure) noexcept {
-    OBERON_PRECONDITION(window.x11_window);
-    if (configure.bounds.size.width != window.bounds.size.width ||
-        configure.bounds.size.height != window.bounds.size.height)
-    {
-      //TODO resized: recreate swapchain etc.
-    }
-    if (configure.bounds.position.x != window.bounds.position.x ||
-        configure.bounds.position.y != window.bounds.position.y)
-    {
-      //TODO repositioned: probably just ignore. Positions don't seem super meaningful.
-      // The reported positions are influenced by the window manager theme for instance. Themes with chunkier window
-      // decorations have larger offsets from 0 on either axis.
-    }
-    window.bounds = configure.bounds;
-    return 0;
+    return -1;
   }
 
   iresult hide_x11_window(const context_impl& ctx, window_impl& window) noexcept {
@@ -146,6 +144,7 @@ namespace detail {
     OBERON_PRECONDITION(!xcb_connection_has_error(ctx.x11_connection));
     xcb_unmap_window(ctx.x11_connection, window.x11_window);
     xcb_flush(ctx.x11_connection);
+    window.is_hidden = true;
     return 0;
   }
 
@@ -175,11 +174,12 @@ namespace detail {
 }
 
   void window::v_dispose() noexcept {
-    auto& q = reference_cast<detail::window_impl>(implementation());
-    auto& parent_q = reference_cast<detail::context_impl>(parent().implementation());
-    detail::hide_x11_window(parent_q, q);
-    detail::destroy_vulkan_surface(parent_q, q);
-    detail::destroy_x11_window(parent_q, q);
+    auto& win = reference_cast<detail::window_impl>(implementation());
+    auto& ctx = reference_cast<detail::context_impl>(parent().implementation());
+    detail::hide_x11_window(ctx, win);
+    detail::destroy_vulkan_surface(ctx, win);
+    detail::remove_window_from_context(ctx, win.x11_window);
+    detail::destroy_x11_window(ctx, win);
   }
 
   window::window(const context& ctx, const ptr<detail::window_impl> impl) : object{ impl, &ctx } { }
@@ -188,14 +188,15 @@ namespace detail {
   }
 
   window::window(const context& ctx, const bounding_rect& bounds) : object{ new detail::window_impl{ }, &ctx } {
-    auto& q = reference_cast<detail::window_impl>(implementation());
-    auto& parent_q = reference_cast<detail::context_impl>(parent().implementation());
-    detail::create_x11_window(parent_q, q, bounds);
-    if (OBERON_IS_IERROR(detail::create_vulkan_surface(parent_q, q)))
+    auto& win = reference_cast<detail::window_impl>(implementation());
+    auto& ctx_impl = reference_cast<detail::context_impl>(parent().implementation());
+    detail::create_x11_window(ctx_impl, win, bounds);
+    detail::add_window_to_context(ctx_impl, win.x11_window, this);
+    if (OBERON_IS_IERROR(detail::create_vulkan_surface(ctx_impl, win)))
     {
       throw fatal_error{ "Failed to create Vulkan window surface." };
     }
-    detail::display_x11_window(parent_q, q);
+    detail::display_x11_window(ctx_impl, win);
   }
 
   window::~window() noexcept {
@@ -203,18 +204,38 @@ namespace detail {
   }
 
   imax window::id() const {
-    auto& q = reference_cast<detail::window_impl>(implementation());
-    return q.x11_window;
+    auto& win = reference_cast<detail::window_impl>(implementation());
+    return win.x11_window;
   }
 
-  bool window::should_close() const {
-    auto& q = reference_cast<detail::window_impl>(implementation());
-    return q.was_close_requested;
+  bool window::is_hidden() const {
+    auto& win = reference_cast<detail::window_impl>(implementation());
+    return win.is_hidden;
+  }
+
+  window& window::show() {
+    auto& win = reference_cast<detail::window_impl>(implementation());
+    auto& ctx = reference_cast<detail::context_impl>(parent().implementation());
+    if (win.is_hidden)
+    {
+      detail::display_x11_window(ctx, win);
+    }
+    return *this;
+  }
+
+  window& window::hide() {
+    auto& win = reference_cast<detail::window_impl>(implementation());
+    auto& ctx = reference_cast<detail::context_impl>(parent().implementation());
+    if (win.is_hidden)
+    {
+      detail::hide_x11_window(ctx, win);
+    }
+    return *this;
   }
 
   const extent_2d& window::size() const {
-    auto& q = reference_cast<detail::window_impl>(implementation());
-    return q.bounds.size;
+    auto& win = reference_cast<detail::window_impl>(implementation());
+    return win.bounds.size;
   }
 
   usize window::width() const {
@@ -224,7 +245,7 @@ namespace detail {
   usize window::height() const {
     return size().height;
   }
-
+/*
   window& window::notify(const event& ev) {
     if (ev.window_id != id())
     {
@@ -260,7 +281,7 @@ namespace detail {
     detail::handle_x11_configure(q, configure);
     return *this;
   }
-/*
+
   window_message window::translate_message(const events::window_message_data& message) const {
     auto q = q_ptr<detail::window_impl>();
     auto result = window_message{ };

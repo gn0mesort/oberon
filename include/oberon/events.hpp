@@ -4,39 +4,40 @@
 #include <array>
 
 #include "types.hpp"
+#include "memory.hpp"
 #include "bounds.hpp"
 
 namespace oberon {
+
+  class window;
+
 namespace events {
 
   struct empty_data final { };
 
-  struct window_expose_data final { };
-
-  struct window_message_data final {
-    std::array<u8, 20> content{ };
-  };
-
   struct window_configure_data final {
-    bool override_wm_redirection{ };
     bounding_rect bounds{ };
+    bool was_resized{ false };
+    bool was_repositioned{ false };
   };
+
+  struct window_hide_data final {
+  };
+
 }
 
   enum class event_type {
     empty,
-    window_expose,
-    window_message,
+    window_hide,
     window_configure
   };
 
   struct event final {
-    imax window_id{ };
+    ptr<window> window_ptr{ };
     event_type type{ };
     union {
       events::empty_data empty;
-      events::window_expose_data window_expose;
-      events::window_message_data window_message;
+      events::window_hide_data window_hide;
       events::window_configure_data window_configure;
     } data;
   };

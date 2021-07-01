@@ -17,14 +17,14 @@ namespace oberon {
   };
 
   struct offset_2d final {
-    usize x{ };
-    usize y{ };
+    isize x{ };
+    isize y{ };
   };
 
   struct offset_3d final {
-    usize x{ };
-    usize y{ };
-    usize z{ };
+    isize x{ };
+    isize y{ };
+    isize z{ };
   };
 
   struct bounding_rect final {

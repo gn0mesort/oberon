@@ -35,16 +35,18 @@ namespace events {
 
     imax id() const;
 
-    bool should_close() const;
+    bool is_hidden() const;
+    window& show();
+    window& hide();
 
     const extent_2d& size() const;
     usize width() const;
     usize height() const;
-
+/*
     window& notify(const event& ev);
     window& notify(const events::window_expose_data& expose);
     window& notify(const events::window_message_data& message);
-    window& notify(const events::window_configure_data& configure);
+    window& notify(const events::window_configure_data& configure);*/
     // window_message translate_message(const events::window_message_data& message) const;
   };
 
