@@ -65,6 +65,33 @@ namespace oberon {
   // C-Style integer errors
   using iresult = imax;
 
+  // Reference casts such that reference_cast<To>(from) returns a correctly
+  // qualified reference of the type To.
+  template <typename To, typename From>
+  constexpr To& reference_cast(From& from) {
+      return static_cast<To&>(from);
+  }
+
+  template <typename To, typename From>
+  constexpr const To& reference_cast(const From& from) {
+      return static_cast<const To&>(from);
+  }
+
+  template <typename To, typename From>
+  constexpr volatile To& reference_cast(volatile From& from) {
+      return static_cast<volatile To&>(from);
+  }
+
+  template <typename To, typename From>
+  constexpr const volatile To& reference_cast(const volatile From& from) {
+      return static_cast<const volatile To&>(from);
+  }
+
+  template <typename To, typename From>
+  constexpr To&& reference_cast(From&& from) {
+      return static_cast<To&&>(from);
+  }
+
 }
 
 #endif

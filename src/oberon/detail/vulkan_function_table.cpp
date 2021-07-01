@@ -53,6 +53,10 @@ namespace detail {
     OBERON_VK_PFN(vkft, device, vkDestroyDevice, true);
     OBERON_VK_PFN(vkft, device, vkCreateImageView, true);
     OBERON_VK_PFN(vkft, device, vkDestroyImageView, true);
+    OBERON_VK_PFN(vkft, device, vkCreateRenderPass, true);
+    OBERON_VK_PFN(vkft, device, vkDestroyRenderPass, true);
+    OBERON_VK_PFN(vkft, device, vkCreateFramebuffer, true);
+    OBERON_VK_PFN(vkft, device, vkDestroyFramebuffer, true);
     // VK_KHR_swapchain
     OBERON_VK_PFN(vkft, device, vkCreateSwapchainKHR, false);
     OBERON_VK_PFN(vkft, device, vkGetSwapchainImagesKHR, false);

@@ -141,15 +141,15 @@ namespace {
     const u16 application_version_patch,
     const std::unordered_set<std::string>& requested_layers
   ) : context{ new detail::debug_context_impl{ } } {
-    auto q = q_ptr<detail::debug_context_impl>();
+    auto& q = reference_cast<detail::debug_context_impl>(implementation());
     detail::store_application_info(
-      *q,
+      q,
       application_name,
       application_version_major, application_version_minor, application_version_patch
     );
-    detail::connect_to_x11(*q, nullptr);
-    detail::load_vulkan_pfns(q->vkft);
-    if (OBERON_IS_IERROR(detail::validate_requested_layers(*q, requested_layers)))
+    detail::connect_to_x11(q, nullptr);
+    detail::load_vulkan_pfns(q.vkft);
+    if (OBERON_IS_IERROR(detail::validate_requested_layers(q, requested_layers)))
     {
       throw fatal_error{ "One or more requested Vulkan instance layers are not available." };
     }
@@ -162,7 +162,7 @@ namespace {
       auto optional_extensions = std::unordered_set<std::string>{
         VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME
       };
-      auto result = detail::get_instance_extensions(*q, requested_layers, required_extensions, optional_extensions);
+      auto result = detail::get_instance_extensions(q, requested_layers, required_extensions, optional_extensions);
       if (OBERON_IS_IERROR(result))
       {
         throw fatal_error{ "One or more required Vulkan instance are not available." };
@@ -171,7 +171,7 @@ namespace {
 
     auto debug_info = VkDebugUtilsMessengerCreateInfoEXT{ };
     auto validation_features = VkValidationFeaturesEXT{ };
-    preload_debugging_context(*q, debug_info, validation_features);
+    preload_debugging_context(q, debug_info, validation_features);
     {
       auto next = readonly_ptr<void>{ nullptr };
       if (validation_features.pNext)
@@ -182,38 +182,38 @@ namespace {
       {
         next = &debug_info;
       }
-      if (OBERON_IS_IERROR(detail::create_vulkan_instance(*q, requested_layers, next)))
+      if (OBERON_IS_IERROR(detail::create_vulkan_instance(q, requested_layers, next)))
       {
         throw fatal_error{ "Failed to create Vulkan instance." };
       }
     }
-    detail::load_vulkan_pfns(q->vkft, q->instance);
-    if (OBERON_IS_IERROR(detail::create_debug_messenger(*q, debug_info)))
+    detail::load_vulkan_pfns(q.vkft, q.instance);
+    if (OBERON_IS_IERROR(detail::create_debug_messenger(q, debug_info)))
     {
       throw fatal_error{ "Failed to create Vulkan debug messenger." };
     }
     {
       auto required_extensions = std::unordered_set<std::string>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-      if (OBERON_IS_IERROR(detail::select_physical_device(*q, required_extensions, { })))
+      if (OBERON_IS_IERROR(detail::select_physical_device(q, required_extensions, { })))
       {
         throw fatal_error{ "None of the Vulkan physical devices available can be used." };
       }
-      detail::select_physical_device_queue_families(*q);
-      if (OBERON_IS_IERROR(detail::create_vulkan_device(*q, nullptr)))
+      detail::select_physical_device_queue_families(q);
+      if (OBERON_IS_IERROR(detail::create_vulkan_device(q, nullptr)))
       {
         throw fatal_error{ "Failed to create Vulkan device." };
       }
     }
-    detail::load_vulkan_pfns(q->vkft, q->device);
-    detail::get_device_queues(*q);
+    detail::load_vulkan_pfns(q.vkft, q.device);
+    detail::get_device_queues(q);
   }
 
   void debug_context::v_dispose() noexcept {
-    auto q = q_ptr<detail::debug_context_impl>();
-    detail::destroy_vulkan_device(*q);
-    detail::destroy_debug_messenger(*q);
-    detail::destroy_vulkan_instance(*q);
-    detail::disconnect_from_x11(*q);
+    auto& q = reference_cast<detail::debug_context_impl>(implementation());
+    detail::destroy_vulkan_device(q);
+    detail::destroy_debug_messenger(q);
+    detail::destroy_vulkan_instance(q);
+    detail::disconnect_from_x11(q);
   }
 
   debug_context::~debug_context() noexcept {

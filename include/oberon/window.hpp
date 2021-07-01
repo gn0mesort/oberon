@@ -1,12 +1,11 @@
 #ifndef OBERON_WINDOW_HPP
 #define OBERON_WINDOW_HPP
 
-#include "child_object.hpp"
+#include "object.hpp"
 
 namespace oberon {
 namespace detail {
 
-  struct context_impl;
   struct window_impl;
 
 }
@@ -23,9 +22,9 @@ namespace events {
   struct extent_2d;
   struct event;
 
-  class window : public child_object {
+  class window : public object {
   private:
-    void v_dispose() noexcept override;
+    virtual void v_dispose() noexcept override;
   protected:
     window(const context& ctx, const ptr<detail::window_impl> child_impl);
   public:

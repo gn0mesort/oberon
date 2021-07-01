@@ -101,187 +101,6 @@ namespace detail {
     return 0;
   }
 
-  iresult retrieve_vulkan_surface_info(const context_impl& ctx, window_impl& window) noexcept {
-    OBERON_PRECONDITION(ctx.physical_device);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceSurfaceFormatsKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceSurfacePresentModesKHR);
-    OBERON_PRECONDITION(window.surface);
-    auto vkGetPhysicalDeviceSurfaceCapabilitiesKHR = ctx.vkft.vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
-    auto vkGetPhysicalDeviceSurfaceFormatsKHR = ctx.vkft.vkGetPhysicalDeviceSurfaceFormatsKHR;
-    auto vkGetPhysicalDeviceSurfacePresentModesKHR = ctx.vkft.vkGetPhysicalDeviceSurfacePresentModesKHR;
-
-    auto result =
-      vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx.physical_device, window.surface, &window.surface_capabilities);
-    OBERON_ASSERT(result == VK_SUCCESS);
-    auto sz = u32{ 0 };
-    result = vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.physical_device, window.surface, &sz, nullptr);
-    OBERON_ASSERT(result == VK_SUCCESS);
-    window.surface_formats.resize(sz);
-    result =
-      vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.physical_device, window.surface, &sz, std::data(window.surface_formats));
-    OBERON_ASSERT(result == VK_SUCCESS);
-    result = vkGetPhysicalDeviceSurfacePresentModesKHR(ctx.physical_device, window.surface, &sz, nullptr);
-    OBERON_ASSERT(result == VK_SUCCESS);
-    window.presentation_modes.resize(sz);
-    auto data = std::data(window.presentation_modes);
-    result = vkGetPhysicalDeviceSurfacePresentModesKHR(ctx.physical_device, window.surface, &sz, data);
-    OBERON_ASSERT(result == VK_SUCCESS);
-
-    return 0;
-  }
-
-namespace {
-
-  VkSurfaceFormatKHR select_surface_format(const std::vector<VkSurfaceFormatKHR>& surface_formats) {
-    auto criteria = [](const VkSurfaceFormatKHR& surface_format) {
-      if (surface_format.format == VK_FORMAT_B8G8R8A8_SRGB &&
-          surface_format.colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR)
-      {
-        return true;
-      }
-      return false;
-    };
-    auto pos = std::find_if(std::begin(surface_formats), std::end(surface_formats), criteria);
-    if (pos == std::end(surface_formats))
-    {
-      return surface_formats.front();
-    }
-    return *pos;
-  }
-
-}
-
-  iresult create_vulkan_swapchain(const context_impl& ctx, window_impl& window) noexcept {
-    OBERON_PRECONDITION(ctx.physical_device);
-    OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(window.surface);
-    OBERON_PRECONDITION(std::size(window.presentation_modes) > 0);
-    OBERON_PRECONDITION(std::size(window.surface_formats) > 0);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceSurfaceSupportKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateSwapchainKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkGetSwapchainImagesKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateImageView);
-
-    auto vkGetPhysicalDeviceSurfaceSupportKHR = ctx.vkft.vkGetPhysicalDeviceSurfaceSupportKHR;
-    auto vkCreateSwapchainKHR = ctx.vkft.vkCreateSwapchainKHR;
-    auto vkGetSwapchainImagesKHR = ctx.vkft.vkGetSwapchainImagesKHR;
-    auto vkCreateImageView = ctx.vkft.vkCreateImageView;
-
-    // Recheck surface support. This is dumb but required by Vulkan.
-    {
-      auto support = VkBool32{ };
-      auto presentation_queue_family = ctx.presentation_queue_family;
-      auto result =
-        vkGetPhysicalDeviceSurfaceSupportKHR(ctx.physical_device, presentation_queue_family, window.surface, &support);
-      OBERON_ASSERT(result == VK_SUCCESS);
-      if (!support)
-      {
-        return -1;
-      }
-    }
-    auto swapchain_info = VkSwapchainCreateInfoKHR{ };
-    OBERON_INIT_VK_STRUCT(swapchain_info, SWAPCHAIN_CREATE_INFO_KHR);
-    swapchain_info.surface = window.surface;
-    swapchain_info.minImageCount = window.surface_capabilities.minImageCount + 1;
-    if (
-      window.surface_capabilities.maxImageCount &&
-      swapchain_info.minImageCount > window.surface_capabilities.maxImageCount
-    )
-    {
-      swapchain_info.minImageCount = window.surface_capabilities.maxImageCount;
-    }
-    // FIFO mode support is required by standard.
-    // This should be selected by user input instead of the library.
-    // Personally I think offer these as FIFO, FIFO Relaxed, Immediate, and Mailbox are better than
-    // Offering them as Vsync, Double/triple buffering, etc.
-    swapchain_info.presentMode = window.current_presentation_mode;
-    // This will probably be finicky.
-    if (window.current_surface_format.format == VK_FORMAT_UNDEFINED)
-    {
-      window.current_surface_format = select_surface_format(window.surface_formats);
-    }
-    swapchain_info.imageFormat = window.current_surface_format.format;
-    swapchain_info.imageColorSpace = window.current_surface_format.colorSpace;
-    if (window.surface_capabilities.currentExtent.width != std::numeric_limits<u32>::max())
-    {
-      swapchain_info.imageExtent = window.surface_capabilities.currentExtent;
-    }
-    else
-    {
-      auto& capabilities = window.surface_capabilities;
-      auto actual_extent = VkExtent2D{
-        static_cast<u32>(window.bounds.size.width), static_cast<u32>(window.bounds.size.height)
-      };
-      swapchain_info.imageExtent.width =
-        std::clamp(actual_extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-      swapchain_info.imageExtent.height =
-        std::clamp(actual_extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-    }
-    // More is for head mounted displays?
-    swapchain_info.imageArrayLayers = 1;
-    swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    if (ctx.graphics_transfer_queue_family == ctx.presentation_queue_family)
-    {
-      swapchain_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    }
-    else
-    {
-      auto queue_family_indices =
-        std::array<u32, 2>{ ctx.graphics_transfer_queue_family, ctx.presentation_queue_family };
-      swapchain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-      swapchain_info.pQueueFamilyIndices = std::data(queue_family_indices);
-      swapchain_info.queueFamilyIndexCount = std::size(queue_family_indices);
-    }
-    swapchain_info.preTransform = window.surface_capabilities.currentTransform;
-    // Should this ever be any other value?
-    swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapchain_info.clipped = true;
-    if (auto result = vkCreateSwapchainKHR(ctx.device, &swapchain_info, nullptr, &window.swapchain);
-        result != VK_SUCCESS)
-    {
-      return result;
-    }
-    {
-      auto sz = u32{ 0 };
-      auto result = vkGetSwapchainImagesKHR(ctx.device, window.swapchain, &sz, nullptr);
-      OBERON_ASSERT(result == VK_SUCCESS);
-      window.swapchain_images.resize(sz);
-      result = vkGetSwapchainImagesKHR(ctx.device, window.swapchain, &sz, std::data(window.swapchain_images));
-      OBERON_ASSERT(result == VK_SUCCESS);
-    }
-    {
-      window.swapchain_image_views.resize(std::size(window.swapchain_images));
-      auto image_view_info = VkImageViewCreateInfo{ };
-      OBERON_INIT_VK_STRUCT(image_view_info, IMAGE_VIEW_CREATE_INFO);
-      image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      image_view_info.format = window.current_surface_format.format;
-      image_view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-      image_view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-      image_view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-      image_view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-      image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      image_view_info.subresourceRange.baseArrayLayer = 0;
-      image_view_info.subresourceRange.layerCount = 1;
-      image_view_info.subresourceRange.baseMipLevel = 0;
-      image_view_info.subresourceRange.levelCount = 1;
-      for (auto cur = std::begin(window.swapchain_image_views); const auto& swapchain_image : window.swapchain_images)
-      {
-        image_view_info.image = swapchain_image;
-        auto& image_view = *(cur++);
-        if (auto result = vkCreateImageView(ctx.device, &image_view_info, nullptr, &image_view); result == VK_SUCCESS)
-        {
-          return result;
-        }
-      }
-    }
-    OBERON_POSTCONDITION(window.swapchain);
-    OBERON_POSTCONDITION(std::size(window.swapchain_images) > 0);
-    OBERON_POSTCONDITION(std::size(window.swapchain_image_views) > 0);
-    OBERON_POSTCONDITION(std::size(window.swapchain_images) == std::size(window.swapchain_image_views));
-    return 0;
-  }
-
   iresult display_x11_window(const context_impl& ctx, window_impl& window) noexcept {
     OBERON_PRECONDITION(ctx.x11_connection);
     OBERON_PRECONDITION(!xcb_connection_has_error(ctx.x11_connection));
@@ -330,31 +149,6 @@ namespace {
     return 0;
   }
 
-  iresult destroy_vulkan_swapchain(const context_impl& ctx, window_impl& window) noexcept {
-    if (!window.swapchain)
-    {
-      return 0;
-    }
-    OBERON_ASSERT(ctx.device);
-    OBERON_ASSERT(ctx.vkft.vkDestroySwapchainKHR);
-    OBERON_ASSERT(ctx.vkft.vkDestroyImageView);
-    auto vkDestroyImageView = ctx.vkft.vkDestroyImageView;
-    auto vkDestroySwapchainKHR = ctx.vkft.vkDestroySwapchainKHR;
-
-    for (const auto& swapchain_image_view : window.swapchain_image_views)
-    {
-      vkDestroyImageView(ctx.device, swapchain_image_view, nullptr);
-    }
-    vkDestroySwapchainKHR(ctx.device, window.swapchain, nullptr);
-    window.swapchain_images.resize(0);
-    window.swapchain_image_views.resize(0);
-    window.swapchain = nullptr;
-    OBERON_POSTCONDITION(!window.swapchain);
-    OBERON_POSTCONDITION(std::size(window.swapchain_images) == 0);
-    OBERON_POSTCONDITION(std::size(window.swapchain_image_views) == 0);
-    return 0;
-  }
-
   iresult destroy_vulkan_surface(const context_impl& ctx, window_impl& window) noexcept {
     if (!window.surface)
     {
@@ -381,34 +175,27 @@ namespace {
 }
 
   void window::v_dispose() noexcept {
-    auto q = q_ptr<detail::window_impl>();
-    auto parent = parent_q_ptr<detail::context_impl>();
-    detail::hide_x11_window(*parent, *q);
-    detail::destroy_vulkan_swapchain(*parent, *q);
-    detail::destroy_vulkan_surface(*parent, *q);
-    detail::destroy_x11_window(*parent, *q);
+    auto& q = reference_cast<detail::window_impl>(implementation());
+    auto& parent_q = reference_cast<detail::context_impl>(parent().implementation());
+    detail::hide_x11_window(parent_q, q);
+    detail::destroy_vulkan_surface(parent_q, q);
+    detail::destroy_x11_window(parent_q, q);
   }
 
-  window::window(const context& ctx, const ptr<detail::window_impl> child_impl) : child_object{ child_impl, &ctx } { }
+  window::window(const context& ctx, const ptr<detail::window_impl> impl) : object{ impl, &ctx } { }
 
-  window::window(const context& ctx) : child_object{ new detail::window_impl{ }, &ctx } {
+  window::window(const context& ctx) : object{ new detail::window_impl{ }, &ctx } {
   }
 
-  window::window(const context& ctx, const bounding_rect& bounds) :
-  child_object{ new detail::window_impl{ }, &ctx } {
-    auto q = q_ptr<detail::window_impl>();
-    auto parent = parent_q_ptr<detail::context_impl>();
-    detail::create_x11_window(*parent, *q, bounds);
-    if (OBERON_IS_IERROR(detail::create_vulkan_surface(*parent, *q)))
+  window::window(const context& ctx, const bounding_rect& bounds) : object{ new detail::window_impl{ }, &ctx } {
+    auto& q = reference_cast<detail::window_impl>(implementation());
+    auto& parent_q = reference_cast<detail::context_impl>(parent().implementation());
+    detail::create_x11_window(parent_q, q, bounds);
+    if (OBERON_IS_IERROR(detail::create_vulkan_surface(parent_q, q)))
     {
       throw fatal_error{ "Failed to create Vulkan window surface." };
     }
-    detail::retrieve_vulkan_surface_info(*parent, *q);
-    if (OBERON_IS_IERROR(detail::create_vulkan_swapchain(*parent, *q)))
-    {
-      throw fatal_error{ "Failed to create Vulkan window swapchain." };
-    }
-    detail::display_x11_window(*parent, *q);
+    detail::display_x11_window(parent_q, q);
   }
 
   window::~window() noexcept {
@@ -416,30 +203,30 @@ namespace {
   }
 
   imax window::id() const {
-    auto q = q_ptr<detail::window_impl>();
-    return q->x11_window;
+    auto& q = reference_cast<detail::window_impl>(implementation());
+    return q.x11_window;
   }
 
   bool window::should_close() const {
-    auto q = q_ptr<detail::window_impl>();
-    return q->was_close_requested;
+    auto& q = reference_cast<detail::window_impl>(implementation());
+    return q.was_close_requested;
   }
 
   const extent_2d& window::size() const {
-    auto q = q_ptr<detail::window_impl>();
-    return q->bounds.size;
+    auto& q = reference_cast<detail::window_impl>(implementation());
+    return q.bounds.size;
   }
 
   usize window::width() const {
-    return this->size().width;
+    return size().width;
   }
 
   usize window::height() const {
-    return this->size().height;
+    return size().height;
   }
 
   window& window::notify(const event& ev) {
-    if (ev.window_id != this->id())
+    if (ev.window_id != id())
     {
       return *this;
     }
@@ -457,20 +244,20 @@ namespace {
   }
 
   window& window::notify(const events::window_expose_data& expose) {
-    auto q = q_ptr<detail::window_impl>();
-    detail::handle_x11_expose(*q, expose);
+    auto& q = reference_cast<detail::window_impl>(implementation());
+    detail::handle_x11_expose(q, expose);
     return *this;
   }
 
   window& window::notify(const events::window_message_data& message) {
-    auto q = q_ptr<detail::window_impl>();
-    detail::handle_x11_message(*q, message);
+    auto& q = reference_cast<detail::window_impl>(implementation());
+    detail::handle_x11_message(q, message);
     return *this;
   }
 
   window& window::notify(const events::window_configure_data& configure) {
-    auto q = q_ptr<detail::window_impl>();
-    detail::handle_x11_configure(*q, configure);
+    auto& q = reference_cast<detail::window_impl>(implementation());
+    detail::handle_x11_configure(q, configure);
     return *this;
   }
 /*

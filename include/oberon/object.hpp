@@ -16,23 +16,12 @@ namespace detail {
   class object {
   private:
     std::unique_ptr<detail::object_impl, detail::object_dtor> m_impl{ };
+    readonly_ptr<object> m_parent{ };
 
     virtual void v_dispose() noexcept = 0;
   protected:
-    object(const ptr<detail::object_impl> child_impl);
-
-    ptr<detail::object_impl> d_ptr();
-    readonly_ptr<detail::object_impl> d_ptr() const;
-
-    template <typename Child>
-    ptr<Child> q_ptr() {
-      return static_cast<ptr<Child>>(d_ptr());
-    }
-
-    template <typename Child>
-    readonly_ptr<Child> q_ptr() const {
-      return static_cast<readonly_ptr<Child>>(d_ptr());
-    }
+    object(const ptr<detail::object_impl> impl);
+    object(const ptr<detail::object_impl> impl, const readonly_ptr<object> parent);
   public:
     inline virtual ~object() noexcept = 0;
 
@@ -41,6 +30,7 @@ namespace detail {
 
     detail::object_impl& implementation();
     const detail::object_impl& implementation() const;
+    const object& parent() const;
   };
 
   object::~object() noexcept { }

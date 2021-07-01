@@ -12,6 +12,7 @@
 
 namespace oberon {
 namespace detail {
+  struct context_impl;
 
   struct window_impl : public object_impl {
     bool was_close_requested{ false };
@@ -23,16 +24,6 @@ namespace detail {
     bounding_rect bounds{ };
 
     VkSurfaceKHR surface{ };
-    VkSurfaceCapabilitiesKHR surface_capabilities{ };
-    std::vector<VkSurfaceFormatKHR> surface_formats{ };
-    std::vector<VkPresentModeKHR> presentation_modes{ };
-    // FIFO is always available if presentation is available.
-    VkPresentModeKHR current_presentation_mode{ VK_PRESENT_MODE_FIFO_KHR };
-    // Treating VK_FORMAT_UNDEFINED as meaning "unset".
-    VkSurfaceFormatKHR current_surface_format{ VK_FORMAT_UNDEFINED, VK_COLOR_SPACE_MAX_ENUM_KHR };
-    VkSwapchainKHR swapchain{ };
-    std::vector<VkImage> swapchain_images{ };
-    std::vector<VkImageView> swapchain_image_views{ };
 
     virtual ~window_impl() noexcept = default;
   };
@@ -40,8 +31,6 @@ namespace detail {
   iresult create_fullscreen_x11_window(const context_impl& ctx, window_impl& window, bounding_rect& bounds) noexcept;
   iresult create_x11_window(const context_impl& ctx, window_impl& window) noexcept;
   iresult create_vulkan_surface(const context_impl& ctx, window_impl& window) noexcept;
-  iresult retrieve_vulkan_surface_info(const context_impl& ctx, window_impl& window) noexcept;
-  iresult create_vulkan_swapchain(const context_impl& ctx, window_impl& window) noexcept;
   iresult display_x11_window(const context_impl& ctx, window_impl& window) noexcept;
   iresult handle_x11_expose(window_impl& window, const events::window_expose_data& expose) noexcept;
   iresult handle_x11_message(window_impl& window, const events::window_message_data& message) noexcept;
@@ -54,7 +43,6 @@ namespace detail {
   ) noexcept;
   */
   iresult hide_x11_window(const context_impl& ctx, window_impl& window) noexcept;
-  iresult destroy_vulkan_swapchain(const context_impl& ctx, window_impl& window) noexcept;
   iresult destroy_vulkan_surface(const context_impl& ctx, window_impl& window) noexcept;
   iresult destroy_x11_window(const context_impl& ctx, window_impl& window) noexcept;
 }

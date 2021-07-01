@@ -48,6 +48,10 @@ namespace detail {
     PFN_vkGetDeviceQueue vkGetDeviceQueue{ };
     PFN_vkDeviceWaitIdle vkDeviceWaitIdle{ };
     PFN_vkCreateImageView vkCreateImageView{ };
+    PFN_vkCreateRenderPass vkCreateRenderPass{ };
+    PFN_vkCreateFramebuffer vkCreateFramebuffer{ };
+    PFN_vkDestroyFramebuffer vkDestroyFramebuffer{ };
+    PFN_vkDestroyRenderPass vkDestroyRenderPass{ };
     PFN_vkDestroyImageView vkDestroyImageView{ };
     PFN_vkDestroyDevice vkDestroyDevice{ };
     // VK_KHR_swapchain

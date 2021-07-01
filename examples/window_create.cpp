@@ -7,6 +7,7 @@
 #include <oberon/bounds.hpp>
 #include <oberon/events.hpp>
 #include <oberon/window.hpp>
+#include <oberon/renderer_3d.hpp>
 
 int main() {
   try
@@ -16,15 +17,16 @@ int main() {
       1, 0, 0,
       { "VK_LAYER_KHRONOS_validation" }
     };
-    auto window = oberon::window{ ctx, { { 0, 0 }, { 320, 240 } } };
+    auto win = oberon::window{ ctx, { { 0, 0 }, { 320, 240 } } };
+    auto rnd = oberon::renderer_3d{ win };
     auto ev = oberon::event{ };
-    std::printf("Created window %" PRIdMAX ".\n", window.id());
-    std::printf("Initial window size %zux%zu.\n", window.width(), window.height());
-    while (!window.should_close())
+    std::printf("Created window %" PRIdMAX ".\n", win.id());
+    std::printf("Initial window size %zux%zu.\n", win.width(), win.height());
+    while (!win.should_close())
     {
       while (ctx.poll_events(ev))
       {
-        window.notify(ev);
+        win.notify(ev);
         if (ev.type == oberon::event_type::window_configure)
         {
           std::printf(
@@ -37,6 +39,9 @@ int main() {
         }
       }
     }
+    rnd.dispose();
+    win.dispose();
+    ctx.dispose();
   }
   catch (const oberon::error& err)
   {

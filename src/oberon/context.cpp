@@ -459,55 +459,55 @@ namespace {
     const u16 application_version_minor,
     const u16 application_version_patch
   ) : object{ new detail::context_impl{ } } {
-    auto q = q_ptr<detail::context_impl>();
+    auto& q = reference_cast<detail::context_impl>(implementation());
     detail::store_application_info(
-      *q,
+      q,
       application_name,
       application_version_major, application_version_minor, application_version_patch
     );
-    if (OBERON_IS_IERROR(detail::connect_to_x11(*q, nullptr)))
+    if (OBERON_IS_IERROR(detail::connect_to_x11(q, nullptr)))
     {
       throw fatal_error{ "Failed to connect to X11 server." };
     }
-    detail::load_vulkan_pfns(q->vkft);
+    detail::load_vulkan_pfns(q.vkft);
     {
       auto required_extensions = std::unordered_set<std::string>{
         VK_KHR_SURFACE_EXTENSION_NAME,
         VK_KHR_XCB_SURFACE_EXTENSION_NAME
       };
-      if (OBERON_IS_IERROR(detail::get_instance_extensions(*q, { }, required_extensions, { })))
+      if (OBERON_IS_IERROR(detail::get_instance_extensions(q, { }, required_extensions, { })))
       {
         throw fatal_error{ "One or more requested Vulkan instance extensions are not available." };
       }
     }
     {
-      if (OBERON_IS_IERROR(detail::create_vulkan_instance(*q, { }, nullptr)))
+      if (OBERON_IS_IERROR(detail::create_vulkan_instance(q, { }, nullptr)))
       {
         throw fatal_error{ "Failed to create Vulkan instance." };
       }
     }
-    detail::load_vulkan_pfns(q->vkft, q->instance);
+    detail::load_vulkan_pfns(q.vkft, q.instance);
     {
       auto required_extensions = std::unordered_set<std::string>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-      if (OBERON_IS_IERROR(detail::select_physical_device(*q, required_extensions, { })))
+      if (OBERON_IS_IERROR(detail::select_physical_device(q, required_extensions, { })))
       {
         throw fatal_error{ "None of the Vulkan physical devices available can be used." };
       }
-      detail::select_physical_device_queue_families(*q);
-      if (OBERON_IS_IERROR(detail::create_vulkan_device(*q, nullptr)))
+      detail::select_physical_device_queue_families(q);
+      if (OBERON_IS_IERROR(detail::create_vulkan_device(q, nullptr)))
       {
         throw fatal_error{ "Failed to create Vulkan device." };
       }
     }
-    detail::load_vulkan_pfns(q->vkft, q->device);
-    detail::get_device_queues(*q);
+    detail::load_vulkan_pfns(q.vkft, q.device);
+    detail::get_device_queues(q);
   }
 
   void context::v_dispose() noexcept {
-    auto q = q_ptr<detail::context_impl>();
-    detail::destroy_vulkan_device(*q);
-    detail::destroy_vulkan_instance(*q);
-    detail::disconnect_from_x11(*q);
+    auto& q = reference_cast<detail::context_impl>(implementation());
+    detail::destroy_vulkan_device(q);
+    detail::destroy_vulkan_instance(q);
+    detail::disconnect_from_x11(q);
   }
 
   context::~context() noexcept {
@@ -515,14 +515,14 @@ namespace {
   }
 
   bool context::poll_events(event& ev) {
-    auto q = q_ptr<detail::context_impl>();
-    poll_x11_event(*q, ev);
+    auto& q = reference_cast<detail::context_impl>(implementation());
+    poll_x11_event(q, ev);
     return ev.type != event_type::empty;
   }
 
   const std::string& context::application_name() const {
-    auto q = q_ptr<detail::context_impl>();
-    return q->application_name;
+    auto& q = reference_cast<detail::context_impl>(implementation());
+    return q.application_name;
   }
 
 }
