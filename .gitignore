@@ -7,3 +7,6 @@ dist/**
 
 # clangd cache
 .cache/**
+
+# ignore python caching
+__pycache__/
