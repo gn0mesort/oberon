@@ -249,6 +249,7 @@ namespace {
     }
     std::sort(std::begin(filtered_pdev_infos), std::end(filtered_pdev_infos), physical_device_less);
     ctx.physical_device = std::begin(filtered_pdev_infos)->handle;
+    ctx.physical_device_properties = std::begin(filtered_pdev_infos)->properties;
     ctx.device_extensions = std::begin(filtered_pdev_infos)->extensions;
     OBERON_POSTCONDITION(ctx.physical_device);
     OBERON_POSTCONDITION(std::size(ctx.device_extensions) >= std::size(required_extensions));
@@ -471,6 +472,28 @@ namespace {
     return 0;
   }
 
+  iresult is_valid_vulkan_vertex_binding(const context_impl& ctx, const u32 binding) noexcept {
+    OBERON_PRECONDITION(ctx.physical_device);
+    return binding < ctx.physical_device_properties.limits.maxVertexInputBindings;
+  }
+
+  iresult is_valid_vulkan_vertex_location(const context_impl& ctx, const u32 location) noexcept {
+    OBERON_PRECONDITION(ctx.physical_device);
+    return location < ctx.physical_device_properties.limits.maxVertexInputAttributes;
+  }
+
+  iresult wait_for_device_idle(const context_impl& ctx) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkDeviceWaitIdle);
+    auto vkDeviceWaitIdle = ctx.vkft.vkDeviceWaitIdle;
+    auto result = vkDeviceWaitIdle(ctx.device);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    return 0;
+  }
+
 }
 
   context::context(const ptr<detail::context_impl> child_impl) : object{ child_impl } { }
@@ -527,6 +550,7 @@ namespace {
 
   void context::v_dispose() noexcept {
     auto& q = reference_cast<detail::context_impl>(implementation());
+    detail::wait_for_device_idle(q);
     detail::destroy_vulkan_device(q);
     detail::destroy_vulkan_instance(q);
     detail::disconnect_from_x11(q);

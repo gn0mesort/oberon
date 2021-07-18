@@ -21,6 +21,10 @@ namespace detail {
     renderer_3d(const window& win);
 
     virtual ~renderer_3d() noexcept;
+
+    renderer_3d& begin_frame();
+    renderer_3d& end_frame();
+    renderer_3d& draw_test_frame();
   };
 
 }

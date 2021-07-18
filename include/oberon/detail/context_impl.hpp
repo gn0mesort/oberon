@@ -34,6 +34,7 @@ namespace detail {
 
     VkInstance instance{ };
     VkPhysicalDevice physical_device{ };
+    VkPhysicalDeviceProperties physical_device_properties{ };
     u32 graphics_transfer_queue_family{  };
     u32 presentation_queue_family{ };
     VkDevice device{ };
@@ -126,7 +127,6 @@ namespace detail {
     const std::unordered_set<std::string>& optional_extensions
   ) noexcept;
 
-
   /**
    * Selects queue families for use in device creation and stores the selected information into ctx.
    *
@@ -210,6 +210,11 @@ namespace detail {
    */
   iresult disconnect_from_x11(context_impl& ctx) noexcept;
 
+  iresult is_valid_vulkan_vertex_binding(const context_impl& ctx, const u32 binding) noexcept;
+
+  iresult is_valid_vulkan_vertex_location(const context_impl& ctx, const u32 location) noexcept;
+
+  iresult wait_for_device_idle(const context_impl& ctx) noexcept;
 }
 }
 

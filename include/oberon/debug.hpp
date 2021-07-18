@@ -24,7 +24,7 @@
   #define OBERON_ASSERT_MSG(x, msg, ...) \
     oberon::assert(std::source_location::current(), (x), (msg) __VA_OPT__(,) __VA_ARGS__)
 #else
-  #define OOBERON_ASSERT(x) (void) ((x))
+  #define OBERON_ASSERT(x) (void) ((x))
 
   #define OBERON_ASSERT_MSG(x, msg, ...) (void) ((x))
 #endif

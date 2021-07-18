@@ -54,10 +54,41 @@ namespace detail {
     PFN_vkDestroyRenderPass vkDestroyRenderPass{ };
     PFN_vkDestroyImageView vkDestroyImageView{ };
     PFN_vkDestroyDevice vkDestroyDevice{ };
+    PFN_vkCreateShaderModule vkCreateShaderModule{ };
+    PFN_vkDestroyShaderModule vkDestroyShaderModule{ };
+    PFN_vkCreatePipelineCache vkCreatePipelineCache{ };
+    PFN_vkDestroyPipelineCache vkDestroyPipelineCache{ };
+    PFN_vkGetPipelineCacheData vkGetPipelineCacheData{ };
+    PFN_vkMergePipelineCaches vkMergePipelineCaches{ };
+    PFN_vkCreatePipelineLayout vkCreatePipelineLayout{ };
+    PFN_vkDestroyPipelineLayout vkDestroyPipelineLayout{ };
+    PFN_vkCreateGraphicsPipelines vkCreateGraphicsPipelines{ };
+    PFN_vkDestroyPipeline vkDestroyPipeline{ };
+    PFN_vkCreateCommandPool vkCreateCommandPool{ };
+    PFN_vkDestroyCommandPool vkDestroyCommandPool{ };
+    PFN_vkResetCommandPool vkResetCommandPool{ };
+    PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers{ };
+    PFN_vkFreeCommandBuffers vkFreeCommandBuffers{ };
+    PFN_vkBeginCommandBuffer vkBeginCommandBuffer{ };
+    PFN_vkEndCommandBuffer vkEndCommandBuffer{ };
+    PFN_vkCmdBeginRenderPass vkCmdBeginRenderPass{ };
+    PFN_vkCmdEndRenderPass vkCmdEndRenderPass{ };
+    PFN_vkCmdBindPipeline vkCmdBindPipeline{ };
+    PFN_vkCmdDraw vkCmdDraw{ };
+    PFN_vkCreateSemaphore vkCreateSemaphore{ };
+    PFN_vkDestroySemaphore vkDestroySemaphore{ };
+    PFN_vkQueueSubmit vkQueueSubmit{ };
+    PFN_vkCreateFence vkCreateFence{ };
+    PFN_vkDestroyFence vkDestroyFence{ };
+    PFN_vkWaitForFences vkWaitForFences{ };
+    PFN_vkResetFences vkResetFences{ };
+    PFN_vkResetCommandBuffer vkResetCommandBuffer{ };
     // VK_KHR_swapchain
     PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR{ };
     PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR{ };
     PFN_vkDestroySwapchainKHR vkDestroySwapchainKHR{ };
+    PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR{ };
+    PFN_vkQueuePresentKHR vkQueuePresentKHR{ };
   };
 
   /**

@@ -57,10 +57,41 @@ namespace detail {
     OBERON_VK_PFN(vkft, device, vkDestroyRenderPass, true);
     OBERON_VK_PFN(vkft, device, vkCreateFramebuffer, true);
     OBERON_VK_PFN(vkft, device, vkDestroyFramebuffer, true);
+    OBERON_VK_PFN(vkft, device, vkCreateShaderModule, true);
+    OBERON_VK_PFN(vkft, device, vkDestroyShaderModule, true);
+    OBERON_VK_PFN(vkft, device, vkCreatePipelineCache, true);
+    OBERON_VK_PFN(vkft, device, vkDestroyPipelineCache, true);
+    OBERON_VK_PFN(vkft, device, vkGetPipelineCacheData, true);
+    OBERON_VK_PFN(vkft, device, vkMergePipelineCaches, true);
+    OBERON_VK_PFN(vkft, device, vkCreatePipelineLayout, true);
+    OBERON_VK_PFN(vkft, device, vkDestroyPipelineLayout, true);
+    OBERON_VK_PFN(vkft, device, vkCreateGraphicsPipelines, true);
+    OBERON_VK_PFN(vkft, device, vkDestroyPipeline, true);
+    OBERON_VK_PFN(vkft, device, vkCreateCommandPool, true);
+    OBERON_VK_PFN(vkft, device, vkDestroyCommandPool, true);
+    OBERON_VK_PFN(vkft, device, vkAllocateCommandBuffers, true);
+    OBERON_VK_PFN(vkft, device, vkFreeCommandBuffers, true);
+    OBERON_VK_PFN(vkft, device, vkBeginCommandBuffer, true);
+    OBERON_VK_PFN(vkft, device, vkEndCommandBuffer, true);
+    OBERON_VK_PFN(vkft, device, vkCmdBeginRenderPass, true);
+    OBERON_VK_PFN(vkft, device, vkCmdEndRenderPass, true);
+    OBERON_VK_PFN(vkft, device, vkCmdBindPipeline, true);
+    OBERON_VK_PFN(vkft, device, vkCmdDraw, true);
+    OBERON_VK_PFN(vkft, device, vkCreateSemaphore, true);
+    OBERON_VK_PFN(vkft, device, vkDestroySemaphore, true);
+    OBERON_VK_PFN(vkft, device, vkQueueSubmit, true);
+    OBERON_VK_PFN(vkft, device, vkResetCommandPool, true);
+    OBERON_VK_PFN(vkft, device, vkCreateFence, true);
+    OBERON_VK_PFN(vkft, device, vkDestroyFence, true);
+    OBERON_VK_PFN(vkft, device, vkWaitForFences, true);
+    OBERON_VK_PFN(vkft, device, vkResetFences, true);
+    OBERON_VK_PFN(vkft, device, vkResetCommandBuffer, true);
     // VK_KHR_swapchain
     OBERON_VK_PFN(vkft, device, vkCreateSwapchainKHR, false);
     OBERON_VK_PFN(vkft, device, vkGetSwapchainImagesKHR, false);
     OBERON_VK_PFN(vkft, device, vkDestroySwapchainKHR, false);
+    OBERON_VK_PFN(vkft, device, vkAcquireNextImageKHR, false);
+    OBERON_VK_PFN(vkft, device, vkQueuePresentKHR, false);
     return 0;
   }
 

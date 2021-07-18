@@ -1,2 +1,2 @@
-executable('window_create', files('window_create.cpp'), dependencies:oberon_dep)
+executable('test_frame', files('test_frame.cpp'), dependencies:oberon_dep)
 

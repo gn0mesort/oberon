@@ -115,7 +115,7 @@ namespace {
     swapchain_info.imageColorSpace = rnd.current_surface_format.colorSpace;
     if (rnd.surface_capabilities.currentExtent.width != std::numeric_limits<u32>::max())
     {
-      swapchain_info.imageExtent = rnd.surface_capabilities.currentExtent;
+      rnd.current_swapchain_extent = rnd.surface_capabilities.currentExtent;
     }
     else
     {
@@ -123,11 +123,12 @@ namespace {
       auto actual_extent = VkExtent2D{
         static_cast<u32>(win.bounds.size.width), static_cast<u32>(win.bounds.size.height)
       };
-      swapchain_info.imageExtent.width =
+      rnd.current_swapchain_extent.width =
         std::clamp(actual_extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-      swapchain_info.imageExtent.height =
+      rnd.current_swapchain_extent.height =
         std::clamp(actual_extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
     }
+    swapchain_info.imageExtent = rnd.current_swapchain_extent;
     // More is for head mounted displays?
     swapchain_info.imageArrayLayers = 1;
     swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -185,10 +186,11 @@ namespace {
         }
       }
     }
+    rnd.in_flight_images.resize(std::size(rnd.swapchain_images), VK_NULL_HANDLE);
     OBERON_POSTCONDITION(rnd.swapchain);
     OBERON_POSTCONDITION(std::size(rnd.swapchain_images) > 0);
-    OBERON_POSTCONDITION(std::size(rnd.swapchain_image_views) > 0);
     OBERON_POSTCONDITION(std::size(rnd.swapchain_images) == std::size(rnd.swapchain_image_views));
+    OBERON_POSTCONDITION(std::size(rnd.in_flight_images) == std::size(rnd.swapchain_images));
     return 0;
   }
 
@@ -244,6 +246,75 @@ namespace {
     return result;
   }
 
+  iresult create_vulkan_command_pools(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkCreateCommandPool);
+    OBERON_PRECONDITION(!rnd.graphics_transfer_command_pool);
+    auto vkCreateCommandPool = ctx.vkft.vkCreateCommandPool;
+    auto command_pool_info = VkCommandPoolCreateInfo{ };
+    OBERON_INIT_VK_STRUCT(command_pool_info, COMMAND_POOL_CREATE_INFO);
+    command_pool_info.queueFamilyIndex = ctx.graphics_transfer_queue_family;
+    command_pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    auto result = vkCreateCommandPool(ctx.device, &command_pool_info, nullptr, &rnd.graphics_transfer_command_pool);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    OBERON_POSTCONDITION(rnd.graphics_transfer_command_pool);
+    return 0;
+  }
+
+  iresult destroy_vulkan_command_pools(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkDestroyCommandPool);
+    auto vkDestroyCommandPool = ctx.vkft.vkDestroyCommandPool;
+    if (rnd.graphics_transfer_command_pool)
+    {
+      vkDestroyCommandPool(ctx.device, rnd.graphics_transfer_command_pool, nullptr);
+      rnd.graphics_transfer_command_pool = nullptr;
+    }
+    OBERON_POSTCONDITION(!rnd.graphics_transfer_command_pool);
+    return 0;
+  }
+
+  iresult create_vulkan_command_buffers(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkAllocateCommandBuffers);
+    OBERON_PRECONDITION(rnd.graphics_transfer_command_pool);
+    OBERON_PRECONDITION(!std::size(rnd.graphics_transfer_command_buffers));
+    auto vkAllocateCommandBuffers = ctx.vkft.vkAllocateCommandBuffers;
+    rnd.graphics_transfer_command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+    auto command_buffer_info = VkCommandBufferAllocateInfo{ };
+    OBERON_INIT_VK_STRUCT(command_buffer_info, COMMAND_BUFFER_ALLOCATE_INFO);
+    command_buffer_info.commandPool = rnd.graphics_transfer_command_pool;
+    command_buffer_info.commandBufferCount = std::size(rnd.graphics_transfer_command_buffers);
+    command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    auto result = vkAllocateCommandBuffers(ctx.device, &command_buffer_info,
+                                           std::data(rnd.graphics_transfer_command_buffers));
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    OBERON_POSTCONDITION(std::size(rnd.graphics_transfer_command_buffers) == MAX_FRAMES_IN_FLIGHT);
+    return 0;
+  }
+
+  iresult destroy_vulkan_command_buffers(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkFreeCommandBuffers);
+    OBERON_PRECONDITION(rnd.graphics_transfer_command_pool);
+    auto vkFreeCommandBuffers = ctx.vkft.vkFreeCommandBuffers;
+    if (std::size(rnd.graphics_transfer_command_buffers))
+    {
+      vkFreeCommandBuffers(ctx.device, rnd.graphics_transfer_command_pool,
+                           std::size(rnd.graphics_transfer_command_buffers),
+                           std::data(rnd.graphics_transfer_command_buffers));
+      rnd.graphics_transfer_command_buffers.resize(0);
+    }
+    OBERON_POSTCONDITION(!std::size(rnd.graphics_transfer_command_buffers));
+    return 0;
+  }
+
   iresult create_vulkan_framebuffers(const context_impl& ctx, const window_impl& win, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(rnd.swapchain);
     OBERON_PRECONDITION(std::size(rnd.swapchain_images) > 0);
@@ -277,6 +348,188 @@ namespace {
     }
     OBERON_POSTCONDITION(std::size(rnd.framebuffers) > 0);
     OBERON_POSTCONDITION(std::size(rnd.framebuffers) == std::size(rnd.swapchain_image_views));
+    return 0;
+  }
+
+  iresult create_vulkan_pipeline_cache(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkCreatePipelineCache);
+    OBERON_PRECONDITION(!rnd.pipeline_cache);
+    auto vkCreatePipelineCache = ctx.vkft.vkCreatePipelineCache;
+    auto pipeline_cache_info = VkPipelineCacheCreateInfo{ };
+    OBERON_INIT_VK_STRUCT(pipeline_cache_info, PIPELINE_CACHE_CREATE_INFO);
+    auto result = vkCreatePipelineCache(ctx.device, &pipeline_cache_info, nullptr, &rnd.pipeline_cache);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    OBERON_POSTCONDITION(rnd.pipeline_cache);
+    return 0;
+  }
+
+  iresult destroy_vulkan_pipeline_cache(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkDestroyPipelineCache);
+    auto vkDestroyPipelineCache = ctx.vkft.vkDestroyPipelineCache;
+    if (rnd.pipeline_cache)
+    {
+      vkDestroyPipelineCache(ctx.device, rnd.pipeline_cache, nullptr);
+      rnd.pipeline_cache = nullptr;
+    }
+    OBERON_POSTCONDITION(!rnd.pipeline_cache);
+    return 0;
+  }
+
+  iresult configure_test_frame_pipeline(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkCreateShaderModule);
+    OBERON_PRECONDITION(ctx.vkft.vkCreatePipelineLayout);
+    auto vkCreateShaderModule = ctx.vkft.vkCreateShaderModule;
+    auto vkCreatePipelineLayout = ctx.vkft.vkCreatePipelineLayout;
+    auto& config = rnd.graphics_pipeline_configs[static_cast<usize>(builtin_shader_name::test_frame)];
+    // Begin GFX pipeline config
+    OBERON_INIT_VK_STRUCT(config.graphics_pipeline_info, GRAPHICS_PIPELINE_CREATE_INFO);
+    // Shader stages
+    auto pipeline_shader_stage_info = VkPipelineShaderStageCreateInfo{ };
+    OBERON_INIT_VK_STRUCT(pipeline_shader_stage_info, PIPELINE_SHADER_STAGE_CREATE_INFO);
+    pipeline_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    auto module_info = VkShaderModuleCreateInfo{ };
+    OBERON_INIT_VK_STRUCT(module_info, SHADER_MODULE_CREATE_INFO);
+    OBERON_GET_VERTEX_BINARY(test_frame, module_info.pCode, module_info.codeSize);
+    auto result = vkCreateShaderModule(ctx.device, &module_info, nullptr, &pipeline_shader_stage_info.module);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    pipeline_shader_stage_info.pName = "main";
+    config.pipeline_stages.push_back(pipeline_shader_stage_info);
+    pipeline_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    OBERON_GET_FRAGMENT_BINARY(test_frame, module_info.pCode, module_info.codeSize);
+    result = vkCreateShaderModule(ctx.device, &module_info, nullptr, &pipeline_shader_stage_info.module);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    config.pipeline_stages.push_back(pipeline_shader_stage_info);
+    config.graphics_pipeline_info.pStages = std::data(config.pipeline_stages);
+    config.graphics_pipeline_info.stageCount = std::size(config.pipeline_stages);
+    // Vertex Inputs
+    OBERON_INIT_VK_STRUCT(config.vertex_input_state_info, PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
+    config.graphics_pipeline_info.pVertexInputState = &config.vertex_input_state_info;
+    // Input Assembly
+    OBERON_INIT_VK_STRUCT(config.input_assembly_state_info, PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
+    config.input_assembly_state_info.primitiveRestartEnable = false;
+    config.input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    config.graphics_pipeline_info.pInputAssemblyState = &config.input_assembly_state_info;
+    // No Tessellation
+    // Viewports
+    OBERON_INIT_VK_STRUCT(config.viewport_state_info, PIPELINE_VIEWPORT_STATE_CREATE_INFO);
+    auto viewport = VkViewport{ };
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<f32>(rnd.current_swapchain_extent.width);
+    viewport.height = static_cast<f32>(rnd.current_swapchain_extent.height);
+    config.viewports.push_back(viewport);
+    auto scissor = VkRect2D{ };
+    scissor.offset = { 0, 0 };
+    scissor.extent = rnd.current_swapchain_extent;
+    config.scissors.push_back(scissor);
+    config.viewport_state_info.pViewports = std::data(config.viewports);
+    config.viewport_state_info.viewportCount = std::size(config.viewports);
+    config.viewport_state_info.pScissors = std::data(config.scissors);
+    config.viewport_state_info.scissorCount = std::size(config.scissors);
+    config.graphics_pipeline_info.pViewportState = &config.viewport_state_info;
+    // Rasterization
+    OBERON_INIT_VK_STRUCT(config.rasterization_state_info, PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
+    config.rasterization_state_info.cullMode = VK_CULL_MODE_BACK_BIT;
+    config.rasterization_state_info.polygonMode = VK_POLYGON_MODE_FILL;
+    config.rasterization_state_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    config.rasterization_state_info.lineWidth = 1.0f;
+    config.graphics_pipeline_info.pRasterizationState = &config.rasterization_state_info;
+    // Multisampling
+    OBERON_INIT_VK_STRUCT(config.multisample_state_info, PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
+    config.multisample_state_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    config.graphics_pipeline_info.pMultisampleState = &config.multisample_state_info;
+    // No Depth-Stencil
+    // Color Blending
+    OBERON_INIT_VK_STRUCT(config.color_blend_state_info, PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
+    auto color_blend_attachment = VkPipelineColorBlendAttachmentState{ };
+    color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                                            VK_COLOR_COMPONENT_G_BIT |
+                                            VK_COLOR_COMPONENT_B_BIT |
+                                            VK_COLOR_COMPONENT_A_BIT;
+    color_blend_attachment.blendEnable = true;
+    color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+    color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    config.color_blend_attachments.push_back(color_blend_attachment);
+    config.color_blend_state_info.pAttachments = std::data(config.color_blend_attachments);
+    config.color_blend_state_info.attachmentCount = std::size(config.color_blend_attachments);
+    config.graphics_pipeline_info.pColorBlendState = &config.color_blend_state_info;
+    // No Dynamic States
+    OBERON_INIT_VK_STRUCT(config.pipeline_layout_info, PIPELINE_LAYOUT_CREATE_INFO);
+    result = vkCreatePipelineLayout(ctx.device, &config.pipeline_layout_info, nullptr,
+                                    &config.graphics_pipeline_info.layout);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    // Final Configuration
+    config.graphics_pipeline_info.renderPass = rnd.main_renderpass;
+    config.graphics_pipeline_info.subpass = 0;
+    OBERON_POSTCONDITION(config.graphics_pipeline_info.layout);
+    return 0;
+  }
+
+  iresult create_vulkan_graphics_pipelines(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkCreateGraphicsPipelines);
+    OBERON_PRECONDITION(rnd.pipeline_cache);
+    auto vkCreateGraphicsPipelines = ctx.vkft.vkCreateGraphicsPipelines;
+    auto configs = std::vector<VkGraphicsPipelineCreateInfo>(std::size(rnd.graphics_pipeline_configs));
+    for (auto cur = std::begin(configs); const auto& config : rnd.graphics_pipeline_configs)
+    {
+      *(cur++) = config.graphics_pipeline_info;
+    }
+    auto result = vkCreateGraphicsPipelines(ctx.device, rnd.pipeline_cache, std::size(configs), std::data(configs),
+                                            nullptr, std::data(rnd.graphics_pipelines));
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    return 0;
+  }
+
+  iresult destroy_vulkan_graphics_pipelines(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkDestroyPipeline);
+    auto vkDestroyPipeline = ctx.vkft.vkDestroyPipeline;
+    for (const auto& pipeline : rnd.graphics_pipelines)
+    {
+      vkDestroyPipeline(ctx.device, pipeline, nullptr);
+    }
+    return 0;
+  }
+
+  iresult release_graphics_pipeline_configurations(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkDestroyShaderModule);
+    OBERON_PRECONDITION(ctx.vkft.vkDestroyPipelineLayout);
+    auto vkDestroyShaderModule = ctx.vkft.vkDestroyShaderModule;
+    auto vkDestroyPipelineLayout = ctx.vkft.vkDestroyPipelineLayout;
+    for (auto& config : rnd.graphics_pipeline_configs)
+    {
+      for (auto& pipeline_stage : config.pipeline_stages)
+      {
+        vkDestroyShaderModule(ctx.device, pipeline_stage.module, nullptr);
+      }
+      vkDestroyPipelineLayout(ctx.device, config.graphics_pipeline_info.layout, nullptr);
+    }
+    rnd.graphics_pipeline_configs.clear();
+    OBERON_POSTCONDITION(!std::size(rnd.graphics_pipeline_configs));
     return 0;
   }
 
@@ -326,10 +579,238 @@ namespace {
     vkDestroySwapchainKHR(ctx.device, rnd.swapchain, nullptr);
     rnd.swapchain_images.resize(0);
     rnd.swapchain_image_views.resize(0);
+    rnd.in_flight_images.resize(0);
     rnd.swapchain = nullptr;
     OBERON_POSTCONDITION(!rnd.swapchain);
-    OBERON_POSTCONDITION(std::size(rnd.swapchain_images) == 0);
-    OBERON_POSTCONDITION(std::size(rnd.swapchain_image_views) == 0);
+    return 0;
+  }
+
+  iresult begin_vulkan_command_buffers(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkBeginCommandBuffer);
+    OBERON_PRECONDITION(ctx.vkft.vkResetCommandBuffer);
+    OBERON_PRECONDITION(std::size(rnd.graphics_transfer_command_buffers));
+    auto vkResetCommandBuffer = ctx.vkft.vkResetCommandBuffer;
+    auto vkBeginCommandBuffer = ctx.vkft.vkBeginCommandBuffer;
+    auto& command_buffer = rnd.graphics_transfer_command_buffers[rnd.frame_index];
+    auto result = vkResetCommandBuffer(command_buffer, 0);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    auto buffer_begin_info = VkCommandBufferBeginInfo{ };
+    OBERON_INIT_VK_STRUCT(buffer_begin_info, COMMAND_BUFFER_BEGIN_INFO);
+    //for (auto& command_buffer : rnd.graphics_transfer_command_buffers)
+    {
+      result = vkBeginCommandBuffer(command_buffer, &buffer_begin_info);
+      if (result != VK_SUCCESS)
+      {
+        return result;
+      }
+    }
+    return 0;
+  }
+
+  iresult end_vulkan_command_buffers(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkEndCommandBuffer);
+    OBERON_PRECONDITION(std::size(rnd.graphics_transfer_command_buffers));
+    auto vkEndCommandBuffer = ctx.vkft.vkEndCommandBuffer;
+    auto result = VK_SUCCESS;
+    //for (auto& command_buffer : rnd.graphics_transfer_command_buffers)
+    auto& command_buffer = rnd.graphics_transfer_command_buffers[rnd.frame_index];
+    {
+      result = vkEndCommandBuffer(command_buffer);
+      if (result != VK_SUCCESS)
+      {
+        return result;
+      }
+    }
+    return 0;
+  }
+
+  iresult begin_main_render_pass(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkCmdBeginRenderPass);
+    OBERON_PRECONDITION(std::size(rnd.graphics_transfer_command_buffers));
+    auto vkCmdBeginRenderPass = ctx.vkft.vkCmdBeginRenderPass;
+    auto render_pass_info = VkRenderPassBeginInfo{ };
+    OBERON_INIT_VK_STRUCT(render_pass_info, RENDER_PASS_BEGIN_INFO);
+    render_pass_info.renderPass = rnd.main_renderpass;
+    render_pass_info.renderArea = { { 0, 0 }, rnd.current_swapchain_extent };
+    auto clear_value = VkClearValue{ };
+    std::fill(std::begin(clear_value.color.float32), std::end(clear_value.color.float32) - 1, 0.2f);
+    clear_value.color.float32[3] = 1.0f;
+    render_pass_info.pClearValues = &clear_value;
+    render_pass_info.clearValueCount = 1;
+    render_pass_info.framebuffer = rnd.framebuffers[rnd.acquired_image_index];
+    auto& command_buffer = rnd.graphics_transfer_command_buffers[rnd.frame_index];
+    vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    return 0;
+  }
+
+  iresult end_main_render_pass(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkCmdEndRenderPass);
+    OBERON_PRECONDITION(std::size(rnd.graphics_transfer_command_buffers));
+    auto vkCmdEndRenderPass = ctx.vkft.vkCmdEndRenderPass;
+    vkCmdEndRenderPass(rnd.graphics_transfer_command_buffers[rnd.frame_index]);
+    return 0;
+  }
+
+  iresult draw_test_frame(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkCmdBindPipeline);
+    OBERON_PRECONDITION(ctx.vkft.vkCmdDraw);
+    OBERON_PRECONDITION(rnd.acquired_image_index < -1U);
+    OBERON_PRECONDITION(std::size(rnd.graphics_transfer_command_buffers));
+    auto vkCmdBindPipeline = ctx.vkft.vkCmdBindPipeline;
+    auto vkCmdDraw = ctx.vkft.vkCmdDraw;
+    auto& command_buffer = rnd.graphics_transfer_command_buffers[rnd.frame_index];
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      rnd.graphics_pipelines[static_cast<usize>(builtin_shader_name::test_frame)]);
+    vkCmdDraw(command_buffer, 3, 1, 0, 0);
+    return 0;
+  }
+
+  iresult create_vulkan_synchronization_objects(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkCreateSemaphore);
+    OBERON_PRECONDITION(ctx.vkft.vkCreateFence);
+    OBERON_PRECONDITION(!std::size(rnd.image_available_semaphores));
+    OBERON_PRECONDITION(!std::size(rnd.render_complete_semaphores));
+    OBERON_PRECONDITION(!std::size(rnd.in_flight_fences));
+    auto vkCreateSemaphore = ctx.vkft.vkCreateSemaphore;
+    auto vkCreateFence = ctx.vkft.vkCreateFence;
+    rnd.image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    rnd.render_complete_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    rnd.in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
+    auto semaphore_info = VkSemaphoreCreateInfo{ };
+    OBERON_INIT_VK_STRUCT(semaphore_info, SEMAPHORE_CREATE_INFO);
+    auto fence_info = VkFenceCreateInfo{ };
+    OBERON_INIT_VK_STRUCT(fence_info, FENCE_CREATE_INFO);
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    auto result = VK_SUCCESS;
+    for (auto i = usize{ 0 }; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+      result = vkCreateSemaphore(ctx.device, &semaphore_info, nullptr, &rnd.image_available_semaphores[i]);
+      if (result != VK_SUCCESS)
+      {
+        return result;
+      }
+      result = vkCreateSemaphore(ctx.device, &semaphore_info, nullptr, &rnd.render_complete_semaphores[i]);
+      if (result != VK_SUCCESS)
+      {
+        return result;
+      }
+      result = vkCreateFence(ctx.device, &fence_info, nullptr, &rnd.in_flight_fences[i]);
+      if (result != VK_SUCCESS)
+      {
+        return result;
+      }
+    }
+    OBERON_POSTCONDITION(std::size(rnd.image_available_semaphores) == std::size(rnd.render_complete_semaphores));
+    OBERON_POSTCONDITION(std::size(rnd.in_flight_fences) == std::size(rnd.image_available_semaphores));
+    return 0;
+  }
+
+  iresult destroy_vulkan_synchronization_objects(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkDestroySemaphore);
+    OBERON_PRECONDITION(ctx.vkft.vkDestroyFence);
+    OBERON_PRECONDITION(std::size(rnd.image_available_semaphores) == std::size(rnd.render_complete_semaphores));
+    OBERON_PRECONDITION(std::size(rnd.in_flight_fences) == std::size(rnd.image_available_semaphores));
+    auto vkDestroySemaphore = ctx.vkft.vkDestroySemaphore;
+    auto vkDestroyFence = ctx.vkft.vkDestroyFence;
+    for (auto i = usize{ 0 }; i < std::size(rnd.image_available_semaphores); ++i)
+    {
+      vkDestroySemaphore(ctx.device, rnd.image_available_semaphores[i], nullptr);
+      vkDestroySemaphore(ctx.device, rnd.render_complete_semaphores[i], nullptr);
+      vkDestroyFence(ctx.device, rnd.in_flight_fences[i], nullptr);
+    }
+    rnd.image_available_semaphores.resize(0);
+    rnd.render_complete_semaphores.resize(0);
+    rnd.in_flight_fences.resize(0);
+    return 0;
+  }
+
+  iresult acquire_frame(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(rnd.swapchain);
+    OBERON_PRECONDITION(ctx.vkft.vkAcquireNextImageKHR);
+    OBERON_PRECONDITION(ctx.vkft.vkWaitForFences);
+    auto vkWaitForFences = ctx.vkft.vkWaitForFences;
+    auto vkAcquireNextImageKHR = ctx.vkft.vkAcquireNextImageKHR;
+    auto result = vkWaitForFences(ctx.device, 1, &rnd.in_flight_fences[rnd.frame_index], true, -1ULL);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    result = vkAcquireNextImageKHR(ctx.device, rnd.swapchain, -1ULL,
+                                   rnd.image_available_semaphores[rnd.frame_index], VK_NULL_HANDLE,
+                                   &rnd.acquired_image_index);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    auto& fence = rnd.in_flight_images[rnd.acquired_image_index];
+    if (fence)
+    {
+      result = vkWaitForFences(ctx.device, 1, &fence, true, -1ULL);
+      if (result != VK_SUCCESS)
+      {
+        return result;
+      }
+    }
+    rnd.in_flight_images[rnd.acquired_image_index] = VK_NULL_HANDLE;
+    OBERON_POSTCONDITION(rnd.acquired_image_index < -1U);
+    return 0;
+  }
+
+  iresult submit_frame(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
+    OBERON_PRECONDITION(ctx.device);
+    OBERON_PRECONDITION(ctx.vkft.vkQueueSubmit);
+    OBERON_PRECONDITION(ctx.vkft.vkQueuePresentKHR);
+    OBERON_PRECONDITION(ctx.vkft.vkResetFences);
+    OBERON_PRECONDITION(rnd.acquired_image_index < -1U);
+    auto vkQueueSubmit = ctx.vkft.vkQueueSubmit;
+    auto vkQueuePresentKHR = ctx.vkft.vkQueuePresentKHR;
+    auto vkResetFences = ctx.vkft.vkResetFences;
+    auto submit_info = VkSubmitInfo{ };
+    OBERON_INIT_VK_STRUCT(submit_info, SUBMIT_INFO);
+    submit_info.pWaitSemaphores = &rnd.image_available_semaphores[rnd.frame_index];
+    submit_info.waitSemaphoreCount = 1;
+    auto wait_stages = VkPipelineStageFlags{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submit_info.pWaitDstStageMask = &wait_stages;
+    submit_info.pCommandBuffers = &rnd.graphics_transfer_command_buffers[rnd.frame_index];
+    submit_info.commandBufferCount = 1;
+    submit_info.pSignalSemaphores = &rnd.render_complete_semaphores[rnd.frame_index];
+    submit_info.signalSemaphoreCount = 1;
+    auto result = vkResetFences(ctx.device, 1, &rnd.in_flight_fences[rnd.frame_index]);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    result = vkQueueSubmit(ctx.graphics_transfer_queue, 1, &submit_info, rnd.in_flight_fences[rnd.frame_index]);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    auto present_info = VkPresentInfoKHR{ };
+    OBERON_INIT_VK_STRUCT(present_info, PRESENT_INFO_KHR);
+    present_info.pImageIndices = &rnd.acquired_image_index;
+    present_info.pSwapchains = &rnd.swapchain;
+    present_info.swapchainCount = 1;
+    present_info.pWaitSemaphores = &rnd.render_complete_semaphores[rnd.frame_index];
+    present_info.waitSemaphoreCount = 1;
+    result = vkQueuePresentKHR(ctx.presentation_queue, &present_info);
+    if (result != VK_SUCCESS)
+    {
+      return result;
+    }
+    rnd.in_flight_images[rnd.acquired_image_index] = rnd.in_flight_fences[rnd.frame_index];
+    rnd.acquired_image_index = -1U;
+    rnd.frame_index = (rnd.frame_index + 1) & (MAX_FRAMES_IN_FLIGHT - 1); // frame_index % MAX_FRAMES_IN_FLIGHT
     return 0;
   }
 }
@@ -337,7 +818,14 @@ namespace {
   void renderer_3d::v_dispose() noexcept {
     auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
     auto& ctx = reference_cast<detail::context_impl>(parent().parent().implementation());
+    detail::wait_for_device_idle(ctx);
+    detail::destroy_vulkan_synchronization_objects(ctx, rnd);
+    detail::destroy_vulkan_graphics_pipelines(ctx, rnd);
+    detail::release_graphics_pipeline_configurations(ctx, rnd);
+    detail::destroy_vulkan_pipeline_cache(ctx, rnd);
+    detail::destroy_vulkan_command_buffers(ctx, rnd);
     detail::destroy_vulkan_framebuffers(ctx, rnd);
+    detail::destroy_vulkan_command_pools(ctx, rnd);
     detail::destroy_vulkan_renderpasses(ctx, rnd);
     detail::destroy_vulkan_swapchain(ctx, rnd);
   }
@@ -346,6 +834,8 @@ namespace {
     auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
     auto& win_impl = reference_cast<detail::window_impl>(parent().implementation());
     auto& ctx = reference_cast<detail::context_impl>(parent().parent().implementation());
+    rnd.graphics_pipeline_configs.resize(detail::BUILTIN_SHADER_COUNT);
+    rnd.graphics_pipelines.resize(detail::BUILTIN_SHADER_COUNT);
     detail::retrieve_vulkan_surface_info(ctx, win_impl, rnd);
     if (OBERON_IS_IERROR(detail::create_vulkan_swapchain(ctx, win_impl, rnd)))
     {
@@ -356,9 +846,33 @@ namespace {
     {
       throw fatal_error{ "Failed to create Vulkan render passes." };
     }
+    if (OBERON_IS_IERROR(detail::create_vulkan_command_pools(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to create Vulkan command pools." };
+    }
     if (OBERON_IS_IERROR(detail::create_vulkan_framebuffers(ctx, win_impl, rnd)))
     {
       throw fatal_error{ "Failed to create Vulkan framebuffers." };
+    }
+    if (OBERON_IS_IERROR(detail::create_vulkan_command_buffers(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to allocate Vulkan command buffers." };
+    }
+    if (OBERON_IS_IERROR(detail::create_vulkan_pipeline_cache(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to create Vulkan pipeline cache." };
+    }
+    if (OBERON_IS_IERROR(detail::configure_test_frame_pipeline(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to configure test_frame pipeline." };
+    }
+    if (OBERON_IS_IERROR(detail::create_vulkan_graphics_pipelines(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to create Vulkan graphics pipelines." };
+    }
+    if (OBERON_IS_IERROR(detail::create_vulkan_synchronization_objects(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to create Vulkan semaphores." };
     }
   }
 
@@ -366,4 +880,41 @@ namespace {
     dispose();
   }
 
+
+  renderer_3d& renderer_3d::begin_frame() {
+    auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
+    auto& ctx = reference_cast<detail::context_impl>(parent().parent().implementation());
+    if (OBERON_IS_IERROR(detail::acquire_frame(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to acquire next image for drawing." };
+    }
+    if (OBERON_IS_IERROR(detail::begin_vulkan_command_buffers(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to begin Vulkan command buffer recording." };
+    }
+    detail::begin_main_render_pass(ctx, rnd);
+    return *this;
+  }
+
+  renderer_3d& renderer_3d::end_frame() {
+    auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
+    auto& ctx = reference_cast<detail::context_impl>(parent().parent().implementation());
+    detail::end_main_render_pass(ctx, rnd);
+    if (OBERON_IS_IERROR(detail::end_vulkan_command_buffers(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to end Vulkan command buffer recording." };
+    }
+    if (OBERON_IS_IERROR(detail::submit_frame(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to submit image for presentation." };
+    }
+    return *this;
+  }
+
+  renderer_3d& renderer_3d::draw_test_frame() {
+    auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
+    auto& ctx = reference_cast<detail::context_impl>(parent().parent().implementation());
+    detail::draw_test_frame(ctx, rnd);
+    return *this;
+  }
 }
