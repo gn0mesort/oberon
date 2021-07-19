@@ -72,6 +72,7 @@ namespace detail {
     std::vector<VkFence> in_flight_images{ };
     usize frame_index{ };
     u32 acquired_image_index{ -1U };
+    bool should_rebuild{ };
   };
 
   iresult retrieve_vulkan_surface_info(const context_impl& ctx, const window_impl& win, renderer_3d_impl& rnd) noexcept;

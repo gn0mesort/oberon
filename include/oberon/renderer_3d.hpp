@@ -22,6 +22,9 @@ namespace detail {
 
     virtual ~renderer_3d() noexcept;
 
+    bool should_rebuild() const;
+    renderer_3d& rebuild();
+
     renderer_3d& begin_frame();
     renderer_3d& end_frame();
     renderer_3d& draw_test_frame();

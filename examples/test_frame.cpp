@@ -36,6 +36,10 @@ int main() {
           break;
         }
       }
+      if (rnd.should_rebuild())
+      {
+        rnd.rebuild();
+      }
       rnd.begin_frame();
       rnd.draw_test_frame();
       rnd.end_frame();

@@ -333,8 +333,8 @@ namespace {
       framebuffer_info.attachmentCount = std::size(attachments);
       framebuffer_info.renderPass = rnd.main_renderpass;
       framebuffer_info.layers = 1;
-      framebuffer_info.width = win.bounds.size.width;
-      framebuffer_info.height = win.bounds.size.height;
+      framebuffer_info.width = rnd.current_swapchain_extent.width;
+      framebuffer_info.height = rnd.current_swapchain_extent.height;
       auto result = VkResult{ };
       for (auto& framebuffer : rnd.framebuffers)
       {
@@ -478,8 +478,6 @@ namespace {
       return result;
     }
     // Final Configuration
-    config.graphics_pipeline_info.renderPass = rnd.main_renderpass;
-    config.graphics_pipeline_info.subpass = 0;
     OBERON_POSTCONDITION(config.graphics_pipeline_info.layout);
     return 0;
   }
@@ -490,8 +488,16 @@ namespace {
     OBERON_PRECONDITION(rnd.pipeline_cache);
     auto vkCreateGraphicsPipelines = ctx.vkft.vkCreateGraphicsPipelines;
     auto configs = std::vector<VkGraphicsPipelineCreateInfo>(std::size(rnd.graphics_pipeline_configs));
-    for (auto cur = std::begin(configs); const auto& config : rnd.graphics_pipeline_configs)
+    for (auto cur = std::begin(configs); auto& config : rnd.graphics_pipeline_configs)
     {
+      if (config.graphics_pipeline_info.pViewportState)
+      {
+        config.viewports[0].width = rnd.current_swapchain_extent.width;
+        config.viewports[0].height = rnd.current_swapchain_extent.height;
+        config.scissors[0].extent = rnd.current_swapchain_extent;
+      }
+      config.graphics_pipeline_info.renderPass = rnd.main_renderpass;
+      config.graphics_pipeline_info.subpass = 0;
       *(cur++) = config.graphics_pipeline_info;
     }
     auto result = vkCreateGraphicsPipelines(ctx.device, rnd.pipeline_cache, std::size(configs), std::data(configs),
@@ -904,8 +910,15 @@ namespace {
     {
       throw fatal_error{ "Failed to end Vulkan command buffer recording." };
     }
-    if (OBERON_IS_IERROR(detail::submit_frame(ctx, rnd)))
+    auto result = detail::submit_frame(ctx, rnd);
+    switch (result)
     {
+    case VK_ERROR_OUT_OF_DATE_KHR: // Rebuild swapchain
+    case VK_SUBOPTIMAL_KHR:
+      rnd.should_rebuild = true;
+    case 0:
+      break;
+    default:
       throw fatal_error{ "Failed to submit image for presentation." };
     }
     return *this;
@@ -915,6 +928,41 @@ namespace {
     auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
     auto& ctx = reference_cast<detail::context_impl>(parent().parent().implementation());
     detail::draw_test_frame(ctx, rnd);
+    return *this;
+  }
+
+  bool renderer_3d::should_rebuild() const {
+    auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
+    return rnd.should_rebuild;
+  }
+
+  renderer_3d& renderer_3d::rebuild() {
+    auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
+    auto& win = reference_cast<detail::window_impl>(parent().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(parent().parent().implementation());
+    detail::wait_for_device_idle(ctx);
+    detail::destroy_vulkan_graphics_pipelines(ctx, rnd);
+    detail::destroy_vulkan_framebuffers(ctx, rnd);
+    detail::destroy_vulkan_renderpasses(ctx, rnd);
+    detail::destroy_vulkan_swapchain(ctx, rnd);
+    detail::retrieve_vulkan_surface_info(ctx, win, rnd);
+    if (OBERON_IS_IERROR(detail::create_vulkan_swapchain(ctx, win, rnd)))
+    {
+      throw fatal_error{ "Failed to create Vulkan swapchain." };
+    }
+    //TODO create depth/stencil images with some kind of allocator here.
+    if (OBERON_IS_IERROR(detail::create_vulkan_renderpasses(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to create Vulkan render passes." };
+    }
+    if (OBERON_IS_IERROR(detail::create_vulkan_framebuffers(ctx, win, rnd)))
+    {
+      throw fatal_error{ "Failed to create Vulkan framebuffers." };
+    }
+    if (OBERON_IS_IERROR(detail::create_vulkan_graphics_pipelines(ctx, rnd)))
+    {
+      throw fatal_error{ "Failed to create Vulkan graphics pipelines." };
+    }
     return *this;
   }
 }
