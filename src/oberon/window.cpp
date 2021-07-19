@@ -226,7 +226,7 @@ namespace detail {
   window& window::hide() {
     auto& win = reference_cast<detail::window_impl>(implementation());
     auto& ctx = reference_cast<detail::context_impl>(parent().implementation());
-    if (win.is_hidden)
+    if (!win.is_hidden)
     {
       detail::hide_x11_window(ctx, win);
     }

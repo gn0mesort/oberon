@@ -963,6 +963,7 @@ namespace {
     {
       throw fatal_error{ "Failed to create Vulkan graphics pipelines." };
     }
+    rnd.should_rebuild = false; // :-( don't forget to reset this flag!
     return *this;
   }
 }
