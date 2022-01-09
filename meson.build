@@ -21,7 +21,10 @@ glslc = generator(find_program('glslangValidator'),
 
 spv2cpp = find_program('tools/spv2cpp.py')
 
+vkfl_proj = subproject('vkfl')
+
 oberon_deps = [
+  vkfl_proj.get_variable('vkfl_dep'),
   dependency('xcb'),
   dependency('xcb-randr'),
   dependency('vulkan')
@@ -43,10 +46,10 @@ oberon_srcs = [
     'src/oberon/debug_context.cpp',
     'src/oberon/window.cpp',
     'src/oberon/renderer_3d.cpp',
-    'src/oberon/shader_config.cpp'
+#    'src/oberon/shader_config.cpp'
   ),
+  files('src/oberon/interfaces/disposable.cpp'),
   files(
-    'src/oberon/detail/vulkan_function_table.cpp',
     'src/oberon/detail/x11.cpp'
   ),
   shader_srcs

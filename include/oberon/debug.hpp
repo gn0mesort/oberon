@@ -3,7 +3,9 @@
 
 #include <string_view>
 
-#if __has_include(<source_location>)
+// For whatever reason clang doesn't recognize the standard source_location header even if I have it.
+// Checking for clang fixes this.
+#if __has_include(<source_location>) && !defined(__clang__)
   #include <source_location>
 #elif __has_include(<experimental/source_location>)
   #include <experimental/source_location>

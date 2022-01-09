@@ -83,11 +83,10 @@ namespace detail {
 
   iresult create_vulkan_surface(const context_impl& ctx, window_impl& window) noexcept {
     OBERON_PRECONDITION(ctx.instance);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateXcbSurfaceKHR);
     OBERON_PRECONDITION(ctx.x11_connection);
     OBERON_PRECONDITION(!xcb_connection_has_error(ctx.x11_connection));
     OBERON_PRECONDITION(window.x11_window);
-    auto vkCreateXcbSurfaceKHR = ctx.vkft.vkCreateXcbSurfaceKHR;
+    OBERON_DECLARE_PFN(ctx.ld, CreateXcbSurfaceKHR);
     auto surface_info = VkXcbSurfaceCreateInfoKHR{ };
     OBERON_INIT_VK_STRUCT(surface_info, XCB_SURFACE_CREATE_INFO_KHR);
     surface_info.connection = ctx.x11_connection;
@@ -154,8 +153,7 @@ namespace detail {
       return 0;
     }
     OBERON_ASSERT(ctx.instance);
-    OBERON_ASSERT(ctx.vkft.vkDestroySurfaceKHR);
-    auto vkDestroySurfaceKHR = ctx.vkft.vkDestroySurfaceKHR;
+    OBERON_DECLARE_PFN(ctx.ld, DestroySurfaceKHR);
     vkDestroySurfaceKHR(ctx.instance, window.surface, nullptr);
     window.surface = nullptr;
     OBERON_POSTCONDITION(!window.surface);
@@ -175,21 +173,20 @@ namespace detail {
 
   void window::v_dispose() noexcept {
     auto& win = reference_cast<detail::window_impl>(implementation());
-    auto& ctx = reference_cast<detail::context_impl>(parent().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(m_ctx_dep.value().implementation());
     detail::hide_x11_window(ctx, win);
     detail::destroy_vulkan_surface(ctx, win);
     detail::remove_window_from_context(ctx, win.x11_window);
     detail::destroy_x11_window(ctx, win);
   }
 
-  window::window(const context& ctx, const ptr<detail::window_impl> impl) : object{ impl, &ctx } { }
+  window::window(context& ctx, const ptr<detail::window_impl> impl) : object{ impl }, m_ctx_dep{ ctx } { }
 
-  window::window(const context& ctx) : object{ new detail::window_impl{ }, &ctx } {
-  }
+  window::window(context& ctx) : object{ new detail::window_impl{ } }, m_ctx_dep{ ctx } { }
 
-  window::window(const context& ctx, const bounding_rect& bounds) : object{ new detail::window_impl{ }, &ctx } {
+  window::window(context& ctx, const bounding_rect& bounds) : object{ new detail::window_impl{ } }, m_ctx_dep{ ctx } {
     auto& win = reference_cast<detail::window_impl>(implementation());
-    auto& ctx_impl = reference_cast<detail::context_impl>(parent().implementation());
+    auto& ctx_impl = reference_cast<detail::context_impl>(m_ctx_dep.value().implementation());
     detail::create_x11_window(ctx_impl, win, bounds);
     detail::add_window_to_context(ctx_impl, win.x11_window, this);
     if (OBERON_IS_IERROR(detail::create_vulkan_surface(ctx_impl, win)))
@@ -215,7 +212,7 @@ namespace detail {
 
   window& window::show() {
     auto& win = reference_cast<detail::window_impl>(implementation());
-    auto& ctx = reference_cast<detail::context_impl>(parent().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(m_ctx_dep.value().implementation());
     if (win.is_hidden)
     {
       detail::display_x11_window(ctx, win);
@@ -225,7 +222,7 @@ namespace detail {
 
   window& window::hide() {
     auto& win = reference_cast<detail::window_impl>(implementation());
-    auto& ctx = reference_cast<detail::context_impl>(parent().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(m_ctx_dep.value().implementation());
     if (!win.is_hidden)
     {
       detail::hide_x11_window(ctx, win);
@@ -244,6 +241,10 @@ namespace detail {
 
   usize window::height() const {
     return size().height;
+  }
+
+  context& window::owning_context() {
+    return m_ctx_dep.value();
   }
 /*
   window& window::notify(const event& ev) {

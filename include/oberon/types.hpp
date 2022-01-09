@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <climits>
 
+#include <limits>
 #include <type_traits>
 
 // Check if an iresult is an error (e.g. less than 0)

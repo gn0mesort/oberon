@@ -2,6 +2,7 @@
 #define OBERON_RENDERER_3D_HPP
 
 #include "object.hpp"
+#include "dependency.hpp"
 
 namespace oberon {
 namespace detail {
@@ -16,9 +17,11 @@ namespace detail {
   private:
     virtual void v_dispose() noexcept override;
   protected:
-    renderer_3d(const window& win, const ptr<detail::renderer_3d_impl> impl);
+    dependency<window> m_win_dep;
+
+    renderer_3d(window& win, const ptr<detail::renderer_3d_impl> impl);
   public:
-    renderer_3d(const window& win);
+    renderer_3d(window& win);
 
     virtual ~renderer_3d() noexcept;
 

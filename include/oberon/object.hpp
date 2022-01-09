@@ -2,6 +2,7 @@
 #define OBERON_OBJECT_HPP
 
 #include "memory.hpp"
+#include "interfaces/disposable.hpp"
 
 namespace oberon {
 namespace detail {
@@ -13,24 +14,19 @@ namespace detail {
 
 }
 
-  class object {
+  class object : public interfaces::disposable {
   private:
     std::unique_ptr<detail::object_impl, detail::object_dtor> m_impl{ };
-    readonly_ptr<object> m_parent{ };
 
-    virtual void v_dispose() noexcept = 0;
+    bool v_is_disposed() const noexcept override final;
+    void v_set_disposed() noexcept override final;
   protected:
     object(const ptr<detail::object_impl> impl);
-    object(const ptr<detail::object_impl> impl, const readonly_ptr<object> parent);
   public:
     inline virtual ~object() noexcept = 0;
 
-    bool is_disposed() const noexcept;
-    void dispose() noexcept;
-
-    detail::object_impl& implementation();
     const detail::object_impl& implementation() const;
-    const object& parent() const;
+    detail::object_impl& implementation();
   };
 
   object::~object() noexcept { }

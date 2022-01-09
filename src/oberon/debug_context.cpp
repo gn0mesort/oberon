@@ -30,8 +30,7 @@ namespace detail {
     const debug_context_impl& ctx,
     const std::unordered_set<std::string>& requested_layers
   ) noexcept {
-    OBERON_PRECONDITION(ctx.vkft.vkEnumerateInstanceLayerProperties);
-    auto vkEnumerateInstanceLayerProperties = ctx.vkft.vkEnumerateInstanceLayerProperties;
+    OBERON_DECLARE_PFN(ctx.ld, EnumerateInstanceLayerProperties);
     auto available_layer_props = std::vector<VkLayerProperties>{ };
     {
       auto sz = u32{ 0 };
@@ -94,8 +93,7 @@ namespace {
   ) noexcept {
     OBERON_PRECONDITION(ctx.instance);
     OBERON_PRECONDITION(!ctx.debug_messenger);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateDebugUtilsMessengerEXT);
-    auto vkCreateDebugUtilsMessengerEXT = ctx.vkft.vkCreateDebugUtilsMessengerEXT;
+    OBERON_DECLARE_PFN(ctx.ld, CreateDebugUtilsMessengerEXT);
     auto result = vkCreateDebugUtilsMessengerEXT(ctx.instance, &debug_info, nullptr, &ctx.debug_messenger);
     if (result != VK_SUCCESS)
     {
@@ -110,8 +108,7 @@ namespace {
     const VkDebugUtilsMessageSeverityFlagBitsEXT severity,
     const std::string& message
   ) noexcept {
-    OBERON_PRECONDITION(ctx.vkft.vkSubmitDebugUtilsMessageEXT);
-    auto vkSubmitDebugUtilsMessageEXT = ctx.vkft.vkSubmitDebugUtilsMessageEXT;
+    OBERON_DECLARE_PFN(ctx.ld, SubmitDebugUtilsMessageEXT);
     auto callback_data = VkDebugUtilsMessengerCallbackDataEXT{ };
     OBERON_INIT_VK_STRUCT(callback_data, DEBUG_UTILS_MESSENGER_CALLBACK_DATA_EXT);
     callback_data.pMessageIdName = "Library message";
@@ -124,8 +121,7 @@ namespace {
     OBERON_PRECONDITION(ctx.instance);
     if (ctx.debug_messenger)
     {
-      OBERON_ASSERT(ctx.vkft.vkDestroyDebugUtilsMessengerEXT);
-      auto vkDestroyDebugUtilsMessengerEXT = ctx.vkft.vkDestroyDebugUtilsMessengerEXT;
+      OBERON_DECLARE_PFN(ctx.ld, DestroyDebugUtilsMessengerEXT);
       vkDestroyDebugUtilsMessengerEXT(ctx.instance, ctx.debug_messenger, nullptr);
       ctx.debug_messenger = nullptr;
     }
@@ -148,7 +144,6 @@ namespace {
       application_version_major, application_version_minor, application_version_patch
     );
     detail::connect_to_x11(q, nullptr);
-    detail::load_vulkan_pfns(q.vkft);
     if (OBERON_IS_IERROR(detail::validate_requested_layers(q, requested_layers)))
     {
       throw fatal_error{ "One or more requested Vulkan instance layers are not available." };
@@ -187,7 +182,6 @@ namespace {
         throw fatal_error{ "Failed to create Vulkan instance." };
       }
     }
-    detail::load_vulkan_pfns(q.vkft, q.instance);
     if (OBERON_IS_IERROR(detail::create_debug_messenger(q, debug_info)))
     {
       throw fatal_error{ "Failed to create Vulkan debug messenger." };
@@ -204,7 +198,6 @@ namespace {
         throw fatal_error{ "Failed to create Vulkan device." };
       }
     }
-    detail::load_vulkan_pfns(q.vkft, q.device);
     detail::get_device_queues(q);
   }
 
