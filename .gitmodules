@@ -1,0 +1,3 @@
+[submodule "subprojects/vkfl"]
+	path = subprojects/vkfl
+	url = git+ssh://github.com/gn0mesort/vkfl
