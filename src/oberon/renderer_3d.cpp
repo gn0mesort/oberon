@@ -782,7 +782,7 @@ namespace {
 
   void renderer_3d::v_dispose() noexcept {
     auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
-    auto& ctx = reference_cast<detail::context_impl>(m_win_dep.value().owning_context().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(dependency<context>().implementation());
     detail::wait_for_device_idle(ctx);
     detail::destroy_vulkan_synchronization_objects(ctx, rnd);
     detail::destroy_vulkan_graphics_pipelines(ctx, rnd);
@@ -795,10 +795,12 @@ namespace {
     detail::destroy_vulkan_swapchain(ctx, rnd);
   }
 
-  renderer_3d::renderer_3d(window& win) : object{ new detail::renderer_3d_impl{ } }, m_win_dep{ win } {
+  renderer_3d::renderer_3d(window& win) : object{ new detail::renderer_3d_impl{ } } {
+    store_dependency<context>(win.dependency<context>());
+    store_dependency<window>(win);
     auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
-    auto& win_impl = reference_cast<detail::window_impl>(m_win_dep.value().implementation());
-    auto& ctx = reference_cast<detail::context_impl>(m_win_dep.value().owning_context().implementation());
+    auto& win_impl = reference_cast<detail::window_impl>(dependency<window>().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(dependency<context>().implementation());
     rnd.graphics_pipeline_configs.resize(detail::BUILTIN_SHADER_COUNT);
     rnd.graphics_pipelines.resize(detail::BUILTIN_SHADER_COUNT);
     detail::retrieve_vulkan_surface_info(ctx, win_impl, rnd);
@@ -848,7 +850,7 @@ namespace {
 
   renderer_3d& renderer_3d::begin_frame() {
     auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
-    auto& ctx = reference_cast<detail::context_impl>(m_win_dep.value().owning_context().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(dependency<context>().implementation());
     if (OBERON_IS_IERROR(detail::acquire_frame(ctx, rnd)))
     {
       throw fatal_error{ "Failed to acquire next image for drawing." };
@@ -863,7 +865,7 @@ namespace {
 
   renderer_3d& renderer_3d::end_frame() {
     auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
-    auto& ctx = reference_cast<detail::context_impl>(m_win_dep.value().owning_context().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(dependency<context>().implementation());
     detail::end_main_render_pass(ctx, rnd);
     if (OBERON_IS_IERROR(detail::end_vulkan_command_buffers(ctx, rnd)))
     {
@@ -885,7 +887,7 @@ namespace {
 
   renderer_3d& renderer_3d::draw_test_frame() {
     auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
-    auto& ctx = reference_cast<detail::context_impl>(m_win_dep.value().owning_context().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(dependency<context>().implementation());
     detail::draw_test_frame(ctx, rnd);
     return *this;
   }
@@ -897,8 +899,8 @@ namespace {
 
   renderer_3d& renderer_3d::rebuild() {
     auto& rnd = reference_cast<detail::renderer_3d_impl>(implementation());
-    auto& win = reference_cast<detail::window_impl>(m_win_dep.value().implementation());
-    auto& ctx = reference_cast<detail::context_impl>(m_win_dep.value().owning_context().implementation());
+    auto& win = reference_cast<detail::window_impl>(dependency<window>().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(dependency<context>().implementation());
     detail::wait_for_device_idle(ctx);
     detail::destroy_vulkan_graphics_pipelines(ctx, rnd);
     detail::destroy_vulkan_framebuffers(ctx, rnd);

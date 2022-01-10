@@ -24,7 +24,7 @@
     oberon::assert(std::source_location::current(), (x), (#x "\n"))
 
   #define OBERON_ASSERT_MSG(x, msg, ...) \
-    oberon::assert(std::source_location::current(), (x), (msg) __VA_OPT__(,) __VA_ARGS__)
+    oberon::assert(std::source_location::current(), (x), (msg) __VA_OPT__(,) __VA_OPT__(__VA_ARGS__))
 #else
   #define OBERON_ASSERT(x) (void) ((x))
 
@@ -38,10 +38,10 @@
   OBERON_ASSERT(x)
 
 #define OBERON_PRECONDITION_MSG(x, msg, ...) \
-  OBERON_ASSERT(x, msg __VA_OPT__(,) __VA_ARGS__)
+  OBERON_ASSERT_MSG(x, msg __VA_OPT__(,) __VA_OPT__(__VA_ARGS__))
 
 #define OBERON_POSTCONDITION_MSG(x, msg, ...) \
-  OBERON_ASSERT(x, msg, __VA_OPT__(,), __VA_ARGS__)
+  OBERON_ASSERT_MSG(x, msg __VA_OPT__(,) __VA_OPT__(__VA_ARGS__))
 
 namespace oberon {
 

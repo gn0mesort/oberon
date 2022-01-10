@@ -93,6 +93,13 @@ namespace oberon {
       return static_cast<To&&>(from);
   }
 
+  template <typename Type, typename... AcceptableTypes>
+  struct is_one_of {
+    static constexpr bool value{ (std::is_same_v<Type, AcceptableTypes> || ...) };
+  };
+
+  template <typename Type, typename... AcceptableTypes>
+  constexpr bool is_one_of_v = is_one_of<Type, AcceptableTypes...>::value;
 }
 
 #endif

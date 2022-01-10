@@ -2,7 +2,9 @@
 #define OBERON_WINDOW_HPP
 
 #include "object.hpp"
-#include "dependency.hpp"
+#include "debug.hpp"
+
+#include "detail/dependency_store.hpp"
 
 namespace oberon {
 namespace detail {
@@ -28,8 +30,6 @@ namespace events {
     virtual void v_dispose() noexcept override;
   protected:
     window(context& ctx, const ptr<detail::window_impl> child_impl);
-
-    dependency<context> m_ctx_dep;
   public:
     window(context& ctx);
     window(context& ctx, const bounding_rect& bounds);
@@ -46,7 +46,7 @@ namespace events {
     usize width() const;
     usize height() const;
 
-    context& owning_context();
+    OBERON_DETAIL_DECLARE_DEPENDENCY_RESOLVER(public, context)
 /*
     window& notify(const event& ev);
     window& notify(const events::window_expose_data& expose);
@@ -55,6 +55,7 @@ namespace events {
     // window_message translate_message(const events::window_message_data& message) const;
   };
 
+  OBERON_DETAIL_DEFINE_DEPENDENCY_RESOLVER(window, context)
 }
 
 #endif

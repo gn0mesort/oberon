@@ -173,20 +173,25 @@ namespace detail {
 
   void window::v_dispose() noexcept {
     auto& win = reference_cast<detail::window_impl>(implementation());
-    auto& ctx = reference_cast<detail::context_impl>(m_ctx_dep.value().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(dependency<context>().implementation());
     detail::hide_x11_window(ctx, win);
     detail::destroy_vulkan_surface(ctx, win);
     detail::remove_window_from_context(ctx, win.x11_window);
     detail::destroy_x11_window(ctx, win);
   }
 
-  window::window(context& ctx, const ptr<detail::window_impl> impl) : object{ impl }, m_ctx_dep{ ctx } { }
+  window::window(context& ctx, const ptr<detail::window_impl> impl) : object{ impl } {
+    store_dependency<context>(ctx);
+  }
 
-  window::window(context& ctx) : object{ new detail::window_impl{ } }, m_ctx_dep{ ctx } { }
+  window::window(context& ctx) : object{ new detail::window_impl{ } } {
+    store_dependency<context>(ctx);
+  }
 
-  window::window(context& ctx, const bounding_rect& bounds) : object{ new detail::window_impl{ } }, m_ctx_dep{ ctx } {
+  window::window(context& ctx, const bounding_rect& bounds) : object{ new detail::window_impl{ } } {
+    store_dependency<context>(ctx);
     auto& win = reference_cast<detail::window_impl>(implementation());
-    auto& ctx_impl = reference_cast<detail::context_impl>(m_ctx_dep.value().implementation());
+    auto& ctx_impl = reference_cast<detail::context_impl>(dependency<context>().implementation());
     detail::create_x11_window(ctx_impl, win, bounds);
     detail::add_window_to_context(ctx_impl, win.x11_window, this);
     if (OBERON_IS_IERROR(detail::create_vulkan_surface(ctx_impl, win)))
@@ -212,7 +217,7 @@ namespace detail {
 
   window& window::show() {
     auto& win = reference_cast<detail::window_impl>(implementation());
-    auto& ctx = reference_cast<detail::context_impl>(m_ctx_dep.value().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(dependency<context>().implementation());
     if (win.is_hidden)
     {
       detail::display_x11_window(ctx, win);
@@ -222,7 +227,7 @@ namespace detail {
 
   window& window::hide() {
     auto& win = reference_cast<detail::window_impl>(implementation());
-    auto& ctx = reference_cast<detail::context_impl>(m_ctx_dep.value().implementation());
+    auto& ctx = reference_cast<detail::context_impl>(dependency<context>().implementation());
     if (!win.is_hidden)
     {
       detail::hide_x11_window(ctx, win);
@@ -241,10 +246,6 @@ namespace detail {
 
   usize window::height() const {
     return size().height;
-  }
-
-  context& window::owning_context() {
-    return m_ctx_dep.value();
   }
 /*
   window& window::notify(const event& ev) {
