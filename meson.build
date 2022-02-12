@@ -55,6 +55,19 @@ oberon_srcs = [
   shader_srcs
 ]
 
+oberon_defs = {
+  'OBERON_ENGINE_NAME': '"@0@"'.format(meson.project_name()),
+  'OBERON_ENGINE_VERSION_VARIANT': 0,
+  'OBERON_ENGINE_VERSION_MAJOR': 0,
+  'OBERON_ENGINE_VERSION_MINOR': 1,
+  'OBERON_ENGINE_VERSION_PATCH': 0
+}
+
+foreach name, value : oberon_defs
+  def = '-D@0@=@1@'.format(name, value)
+  add_project_arguments(def, language: [ 'c', 'cpp' ])
+endforeach
+
 oberon_lib = library(
   meson.project_name(),
   oberon_srcs,

@@ -18,6 +18,37 @@ namespace oberon {
 
 namespace detail {
 
+  class x11_connection_xtor {
+  private:
+    virtual ptr<xcb_connection_t> v_connect(const cstring displayname) const;
+    virtual void v_disconnect(const ptr<xcb_connection_t> connection) const noexcept;
+  public:
+    virtual ~x11_connection_xtor() noexcept = default;
+
+    ptr<xcb_connection_t> connect(const cstring displayname) const;
+    ptr<xcb_screen_t> find_screen(const ptr<xcb_connection_t> connection) const;
+
+    void disconnect(const ptr<xcb_connection_t> connection) const noexcept;
+  };
+
+  class vk_instance_xtor {
+  private:
+    virtual void v_prepare_instance_info(VkInstanceCreateInfo& info);
+
+    std::string m_application_name{ };
+    u32 m_version{ };
+  public:
+    vk_instance_xtor(const std::string& application_name, const u16 variant, const u16 major, const u16 minor,
+                     const u16 patch);
+    vk_instance_xtor(const vk_instance_xtor& other) = default;
+    vk_instance_xtor(vk_instance_xtor&& other) = default;
+
+    virtual ~vk_instance_xtor() noexcept = default;
+
+    vk_instance_xtor& operator=(const vk_instance_xtor& rhs) = default;
+    vk_instance_xtor& operator=(vk_instance_xtor&& rhs) = default;
+  };
+
   struct context_impl : public object_impl {
     std::string application_name{ };
     u16 application_version_major{ };
@@ -215,6 +246,7 @@ namespace detail {
 
   iresult wait_for_device_idle(const context_impl& ctx) noexcept;
 }
+
 }
 
 #endif

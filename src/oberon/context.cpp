@@ -91,11 +91,12 @@ namespace detail {
     auto app_info = VkApplicationInfo{ };
     OBERON_INIT_VK_STRUCT(app_info, APPLICATION_INFO);
     app_info.pApplicationName = std::data(ctx.application_name);
-    auto ver =
-      VK_MAKE_VERSION(ctx.application_version_major, ctx.application_version_minor, ctx.application_version_patch);
+    auto ver = VK_MAKE_API_VERSION(0, ctx.application_version_major, ctx.application_version_minor,
+                                   ctx.application_version_patch);
     app_info.applicationVersion = ver;
-    app_info.pEngineName = "oberon";
-    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.pEngineName = OBERON_ENGINE_NAME;
+    app_info.engineVersion = VK_MAKE_API_VERSION(OBERON_ENGINE_VERSION_VARIANT, OBERON_ENGINE_VERSION_MAJOR,
+                                                 OBERON_ENGINE_VERSION_MINOR, OBERON_ENGINE_VERSION_PATCH);
     app_info.apiVersion = VK_API_VERSION_1_2;
 
     auto lyrs = std::vector<cstring>(std::size(layers));
@@ -484,12 +485,9 @@ namespace {
 
   context::context(const ptr<detail::context_impl> child_impl) : object{ child_impl } { }
 
-  context::context(
-    const std::string& application_name,
-    const u16 application_version_major,
-    const u16 application_version_minor,
-    const u16 application_version_patch
-  ) : object{ new detail::context_impl{ } } {
+  context::context(const std::string& application_name, const u16 application_version_major,
+                   const u16 application_version_minor, const u16 application_version_patch) :
+  object{ new detail::context_impl{ } } {
     auto& q = reference_cast<detail::context_impl>(implementation());
     detail::store_application_info(
       q,
