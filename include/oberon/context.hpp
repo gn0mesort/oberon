@@ -22,7 +22,7 @@ namespace detail {
     context(const ptr<detail::context_impl> child_impl, const detail::x11_connection_xtor& x11,
             const detail::vk_instance_xtor& vk_instance, const detail::vk_device_xtor& vk_device);
   public:
-    context(const std::string& application_name, const u16 application_version_major,
+    context(const std::u8string& application_name, const u16 application_version_major,
             const u16 application_version_minor, const u16 application_version_patch);
 
     virtual ~context() noexcept;

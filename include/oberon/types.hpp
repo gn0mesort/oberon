@@ -56,6 +56,9 @@ namespace oberon {
   using uchar = unsigned char;
   using ichar = signed char;
   using wchar = wchar_t;
+  using  utf8 = char8_t;
+  using utf16 = char16_t;
+  using utf32 = char32_t;
 
   using usize = std::size_t;
   using isize = std::make_signed_t<std::size_t>;
