@@ -1,9 +1,12 @@
 #ifndef OBERON_BOUNDS_HPP
 #define OBERON_BOUNDS_HPP
 
+#include "macros.hpp"
+
 #include "types.hpp"
 
 namespace oberon {
+OBERON_INLINE_V_0_0 namespace v0_0 {
 
   struct extent_2d final {
     usize width{ };
@@ -27,16 +30,17 @@ namespace oberon {
     isize z{ };
   };
 
-  struct bounding_rect final {
+  struct bounds_2d final {
     offset_2d position{ };
     extent_2d size{ };
   };
 
-  struct bounding_box final {
+  struct bounds_3d final {
     offset_3d position{ };
     extent_3d size{ };
   };
 
+}
 }
 
 #endif
