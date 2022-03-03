@@ -6,16 +6,13 @@
 #include <climits>
 
 #include <limits>
+#include <concepts>
 #include <type_traits>
 
-// Check if an iresult is an error (e.g. less than 0)
-#define OBERON_IS_IERROR(x) ((x) < 0)
-// Check if an iresult is a status (e.g. greater than 0)
-#define OBERON_IS_ISTATUS(x) ((x) > 0)
-// Check if an iresult is a passing return (e.g. equal to 0)
-#define OBERON_IS_IPASS(x) ((x) == 0)
+#include "macros.hpp"
 
 namespace oberon {
+OBERON_INLINE_V0_0 namespace v0_0 {
 
   using  u8 = std::uint8_t;
   using u16 = std::uint16_t;
@@ -66,43 +63,18 @@ namespace oberon {
   using uptr = std::uintptr_t;
   using iptr = std::intptr_t;
 
-  // C-Style integer errors
-  using iresult = imax;
-
-  // Reference casts such that reference_cast<To>(from) returns a correctly
-  // qualified reference of the type To.
-  template <typename To, typename From>
-  constexpr To& reference_cast(From& from) {
-      return static_cast<To&>(from);
-  }
-
-  template <typename To, typename From>
-  constexpr const To& reference_cast(const From& from) {
-      return static_cast<const To&>(from);
-  }
-
-  template <typename To, typename From>
-  constexpr volatile To& reference_cast(volatile From& from) {
-      return static_cast<volatile To&>(from);
-  }
-
-  template <typename To, typename From>
-  constexpr const volatile To& reference_cast(const volatile From& from) {
-      return static_cast<const volatile To&>(from);
-  }
-
-  template <typename To, typename From>
-  constexpr To&& reference_cast(From&& from) {
-      return static_cast<To&&>(from);
-  }
-
-  template <typename Type, typename... AcceptableTypes>
-  struct is_one_of {
-    static constexpr bool value{ (std::is_same_v<Type, AcceptableTypes> || ...) };
+  template <typename Type, typename... Types>
+  struct any_of final {
+    static constexpr bool value{ (std::same_as<Type, Types> || ...) };
   };
 
-  template <typename Type, typename... AcceptableTypes>
-  constexpr bool is_one_of_v = is_one_of<Type, AcceptableTypes...>::value;
+  template <typename Type, typename... Types>
+  constexpr bool any_of_v = any_of<Type, Types...>::value;
+
+  template <typename Type>
+  concept character = any_of_v<Type, char, ichar, uchar, wchar, utf8, utf16, utf32>;
+
+}
 }
 
 #endif

@@ -1,17 +1,17 @@
-#ifndef OBERON_WINDOW_HPP
-#define OBERON_WINDOW_HPP
+#ifndef OBERON_IMAGE_HPP
+#define OBERON_IMAGE_HPP
 
 #include <concepts>
 
 #include "macros.hpp"
-#include "image.hpp"
+#include "render_target.hpp"
 
 namespace oberon {
 OBERON_INLINE_V0_0 namespace v0_0 {
 
   template <typename Type>
-  concept window = requires {
-    requires image<Type>;
+  concept image = requires {
+    requires render_target<Type>;
   };
 
 }

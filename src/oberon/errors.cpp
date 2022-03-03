@@ -1,42 +1,33 @@
 #include "oberon/errors.hpp"
 
+#include <cstdlib>
+
 namespace oberon {
-  critical_error::critical_error(const cstring message) noexcept : m_message{ message } { }
-  
-  critical_error::critical_error(const cstring message, const i32 result) noexcept : 
-  m_message{ message }, m_result{ result } { }
+OBERON_INLINE_V0_0 namespace v0_0 {
 
-  cstring critical_error::message() const noexcept {
-    return m_message;
+  simple_error::simple_error(const cstring msg, const std::source_location& loc) :
+  m_message{ msg },
+  m_location{ loc } { }
+
+  simple_error::simple_error(const std::string& msg, const std::source_location& loc) :
+  m_message{ msg },
+  m_location{ loc } { }
+
+  cstring simple_error::what() const noexcept {
+    return std::data(m_message);
   }
 
-  i32 critical_error::result() const noexcept {
-    return m_result;
+  std::string_view simple_error::message() const noexcept {
+    return { std::begin(m_message), std::end(m_message) };
   }
 
-  fatal_error::fatal_error(const std::string_view& message) : m_message{ message } { }
-  
-  fatal_error::fatal_error(const std::string_view& message, const i32 result) :
-  m_message{ message }, m_result{ result } { }
-
-  cstring fatal_error::message() const noexcept {
-    return m_message.c_str();
+  iresult simple_error::result() const noexcept {
+    return EXIT_FAILURE;
   }
 
-  i32 fatal_error::result() const noexcept {
-    return m_result;
+  const std::source_location& simple_error::location() const noexcept {
+    return m_location;
   }
 
-  nonfatal_error::nonfatal_error(const std::string_view& message) : m_message{ message } { }
-
-  nonfatal_error::nonfatal_error(const std::string_view& message, const i32 result) :
-  m_message{ message }, m_result{ result } { }
-
-  cstring nonfatal_error::message() const noexcept {
-    return m_message.c_str();
-  }
-
-  i32 nonfatal_error::result() const noexcept {
-    return m_result;
-  }
+}
 }
