@@ -18,12 +18,11 @@
 #endif
 #include <exception>
 
-#include "macros.hpp"
 #include "types.hpp"
 #include "memory.hpp"
 
 namespace oberon {
-OBERON_INLINE_V0_0 namespace v0_0 {
+inline namespace errors_v01 {
 
   using iresult = imax;
 

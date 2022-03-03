@@ -3,10 +3,8 @@
 
 #include <concepts>
 
-#include "macros.hpp"
-
 namespace oberon {
-OBERON_INLINE_V0_0 namespace v0_0 {
+inline namespace render_target_v01 {
 
   template <typename Type>
   concept render_target = requires {

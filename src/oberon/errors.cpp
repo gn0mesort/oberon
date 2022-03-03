@@ -3,7 +3,7 @@
 #include <cstdlib>
 
 namespace oberon {
-OBERON_INLINE_V0_0 namespace v0_0 {
+inline namespace errors_v01 {
 
   simple_error::simple_error(const cstring msg, const std::source_location& loc) :
   m_message{ msg },

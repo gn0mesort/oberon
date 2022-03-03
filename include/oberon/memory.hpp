@@ -3,11 +3,10 @@
 
 #include <memory>
 
-#include "macros.hpp"
 #include "types.hpp"
 
 namespace oberon {
-OBERON_INLINE_V0_0 namespace v0_0 {
+inline namespace memory_v01 {
 
   template <typename Type>
   using ptr = Type*;

@@ -1,14 +1,11 @@
 #ifndef OBERON_IMAGING_SYSTEM_HPP
 #define OBERON_IMAGING_SYSTEM_HPP
 
-#include <concepts>
-
-#include "macros.hpp"
 #include "rendering_system.hpp"
 #include "image.hpp"
 
 namespace oberon {
-OBERON_INLINE_V0_0 namespace v0_0 {
+inline namespace imaging_system_v01 {
 
   template <typename Type>
   concept imaging_system = requires {

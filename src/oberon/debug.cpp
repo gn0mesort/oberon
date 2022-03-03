@@ -8,7 +8,7 @@
 #include <string>
 
 namespace oberon {
-OBERON_INLINE_V0_0 namespace v0_0 {
+inline namespace debug_v01 {
 
   void assert(const std::source_location& location, const bool condition,
               const std::string_view& message_format, ...) {

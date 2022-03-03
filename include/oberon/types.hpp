@@ -9,10 +9,8 @@
 #include <concepts>
 #include <type_traits>
 
-#include "macros.hpp"
-
 namespace oberon {
-OBERON_INLINE_V0_0 namespace v0_0 {
+inline namespace types_v01 {
 
   using  u8 = std::uint8_t;
   using u16 = std::uint16_t;
