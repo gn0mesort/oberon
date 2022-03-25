@@ -11,7 +11,6 @@
 
 #include "x11.hpp"
 #include "vulkan.hpp"
-#include "vulkan_function_table.hpp"
 
 namespace oberon {
 
@@ -28,7 +27,7 @@ namespace detail {
     ptr<xcb_connection_t> x11_connection{ };
     ptr<xcb_screen_t> x11_screen{ };
 
-    vulkan_function_table vkft{ };
+    vkfl::loader dl{ vkGetInstanceProcAddr };
     std::unordered_set<std::string> instance_extensions{ };
     std::unordered_set<std::string> device_extensions{ };
 

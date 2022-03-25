@@ -83,11 +83,10 @@ namespace detail {
 
   iresult create_vulkan_surface(const context_impl& ctx, window_impl& window) noexcept {
     OBERON_PRECONDITION(ctx.instance);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateXcbSurfaceKHR);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateXcbSurfaceKHR);
     OBERON_PRECONDITION(ctx.x11_connection);
     OBERON_PRECONDITION(!xcb_connection_has_error(ctx.x11_connection));
     OBERON_PRECONDITION(window.x11_window);
-    auto vkCreateXcbSurfaceKHR = ctx.vkft.vkCreateXcbSurfaceKHR;
     auto surface_info = VkXcbSurfaceCreateInfoKHR{ };
     OBERON_INIT_VK_STRUCT(surface_info, XCB_SURFACE_CREATE_INFO_KHR);
     surface_info.connection = ctx.x11_connection;
@@ -154,8 +153,7 @@ namespace detail {
       return 0;
     }
     OBERON_ASSERT(ctx.instance);
-    OBERON_ASSERT(ctx.vkft.vkDestroySurfaceKHR);
-    auto vkDestroySurfaceKHR = ctx.vkft.vkDestroySurfaceKHR;
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroySurfaceKHR);
     vkDestroySurfaceKHR(ctx.instance, window.surface, nullptr);
     window.surface = nullptr;
     OBERON_POSTCONDITION(!window.surface);

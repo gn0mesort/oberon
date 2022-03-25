@@ -2,6 +2,8 @@
 
 #include <cstring>
 
+#include <limits>
+
 #include "oberon/errors.hpp"
 #include "oberon/debug.hpp"
 
@@ -17,13 +19,10 @@ namespace detail {
     renderer_3d_impl& rnd
   ) noexcept {
     OBERON_PRECONDITION(ctx.physical_device);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceSurfaceFormatsKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceSurfacePresentModesKHR);
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetPhysicalDeviceSurfaceCapabilitiesKHR);
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetPhysicalDeviceSurfaceFormatsKHR);
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetPhysicalDeviceSurfacePresentModesKHR);
     OBERON_PRECONDITION(win.surface);
-    auto vkGetPhysicalDeviceSurfaceCapabilitiesKHR = ctx.vkft.vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
-    auto vkGetPhysicalDeviceSurfaceFormatsKHR = ctx.vkft.vkGetPhysicalDeviceSurfaceFormatsKHR;
-    auto vkGetPhysicalDeviceSurfacePresentModesKHR = ctx.vkft.vkGetPhysicalDeviceSurfacePresentModesKHR;
 
     auto result =
       vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx.physical_device, win.surface, &rnd.surface_capabilities);
@@ -64,22 +63,16 @@ namespace {
   }
 
 }
-
   iresult create_vulkan_swapchain(const context_impl& ctx, const window_impl& win, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.physical_device);
     OBERON_PRECONDITION(ctx.device);
     OBERON_PRECONDITION(win.surface);
     OBERON_PRECONDITION(std::size(rnd.presentation_modes) > 0);
     OBERON_PRECONDITION(std::size(rnd.surface_formats) > 0);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceSurfaceSupportKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateSwapchainKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkGetSwapchainImagesKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateImageView);
-
-    auto vkGetPhysicalDeviceSurfaceSupportKHR = ctx.vkft.vkGetPhysicalDeviceSurfaceSupportKHR;
-    auto vkCreateSwapchainKHR = ctx.vkft.vkCreateSwapchainKHR;
-    auto vkGetSwapchainImagesKHR = ctx.vkft.vkGetSwapchainImagesKHR;
-    auto vkCreateImageView = ctx.vkft.vkCreateImageView;
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetPhysicalDeviceSurfaceSupportKHR);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateSwapchainKHR);
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetSwapchainImagesKHR);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateImageView);
 
     // Recheck surface support. This is dumb but required by Vulkan.
     {
@@ -197,9 +190,8 @@ namespace {
 namespace {
 
   iresult create_main_renderpass(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
-    OBERON_PRECONDITION(ctx.vkft.vkCreateRenderPass);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateRenderPass);
     OBERON_PRECONDITION(ctx.device);
-    auto vkCreateRenderPass = ctx.vkft.vkCreateRenderPass;
     auto renderpass_info = VkRenderPassCreateInfo{ };
     OBERON_INIT_VK_STRUCT(renderpass_info, RENDER_PASS_CREATE_INFO);
     auto color_attachment = VkAttachmentDescription{ };
@@ -248,9 +240,8 @@ namespace {
 
   iresult create_vulkan_command_pools(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateCommandPool);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateCommandPool);
     OBERON_PRECONDITION(!rnd.graphics_transfer_command_pool);
-    auto vkCreateCommandPool = ctx.vkft.vkCreateCommandPool;
     auto command_pool_info = VkCommandPoolCreateInfo{ };
     OBERON_INIT_VK_STRUCT(command_pool_info, COMMAND_POOL_CREATE_INFO);
     command_pool_info.queueFamilyIndex = ctx.graphics_transfer_queue_family;
@@ -266,8 +257,7 @@ namespace {
 
   iresult destroy_vulkan_command_pools(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkDestroyCommandPool);
-    auto vkDestroyCommandPool = ctx.vkft.vkDestroyCommandPool;
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyCommandPool);
     if (rnd.graphics_transfer_command_pool)
     {
       vkDestroyCommandPool(ctx.device, rnd.graphics_transfer_command_pool, nullptr);
@@ -279,10 +269,9 @@ namespace {
 
   iresult create_vulkan_command_buffers(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkAllocateCommandBuffers);
+    OBERON_DECLARE_VK_PFN(ctx.dl, AllocateCommandBuffers);
     OBERON_PRECONDITION(rnd.graphics_transfer_command_pool);
     OBERON_PRECONDITION(!std::size(rnd.graphics_transfer_command_buffers));
-    auto vkAllocateCommandBuffers = ctx.vkft.vkAllocateCommandBuffers;
     rnd.graphics_transfer_command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
     auto command_buffer_info = VkCommandBufferAllocateInfo{ };
     OBERON_INIT_VK_STRUCT(command_buffer_info, COMMAND_BUFFER_ALLOCATE_INFO);
@@ -301,9 +290,8 @@ namespace {
 
   iresult destroy_vulkan_command_buffers(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkFreeCommandBuffers);
+    OBERON_DECLARE_VK_PFN(ctx.dl, FreeCommandBuffers);
     OBERON_PRECONDITION(rnd.graphics_transfer_command_pool);
-    auto vkFreeCommandBuffers = ctx.vkft.vkFreeCommandBuffers;
     if (std::size(rnd.graphics_transfer_command_buffers))
     {
       vkFreeCommandBuffers(ctx.device, rnd.graphics_transfer_command_pool,
@@ -320,8 +308,7 @@ namespace {
     OBERON_PRECONDITION(std::size(rnd.swapchain_images) > 0);
     OBERON_PRECONDITION(std::size(rnd.swapchain_image_views) > 0);
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateFramebuffer);
-    auto vkCreateFramebuffer = ctx.vkft.vkCreateFramebuffer;
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateFramebuffer);
     auto framebuffer_info = VkFramebufferCreateInfo{ };
     OBERON_INIT_VK_STRUCT(framebuffer_info, FRAMEBUFFER_CREATE_INFO);
     rnd.framebuffers.resize(std::size(rnd.swapchain_image_views));
@@ -353,9 +340,8 @@ namespace {
 
   iresult create_vulkan_pipeline_cache(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkCreatePipelineCache);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreatePipelineCache);
     OBERON_PRECONDITION(!rnd.pipeline_cache);
-    auto vkCreatePipelineCache = ctx.vkft.vkCreatePipelineCache;
     auto pipeline_cache_info = VkPipelineCacheCreateInfo{ };
     OBERON_INIT_VK_STRUCT(pipeline_cache_info, PIPELINE_CACHE_CREATE_INFO);
     auto result = vkCreatePipelineCache(ctx.device, &pipeline_cache_info, nullptr, &rnd.pipeline_cache);
@@ -369,8 +355,7 @@ namespace {
 
   iresult destroy_vulkan_pipeline_cache(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkDestroyPipelineCache);
-    auto vkDestroyPipelineCache = ctx.vkft.vkDestroyPipelineCache;
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyPipelineCache);
     if (rnd.pipeline_cache)
     {
       vkDestroyPipelineCache(ctx.device, rnd.pipeline_cache, nullptr);
@@ -382,10 +367,8 @@ namespace {
 
   iresult configure_test_frame_pipeline(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateShaderModule);
-    OBERON_PRECONDITION(ctx.vkft.vkCreatePipelineLayout);
-    auto vkCreateShaderModule = ctx.vkft.vkCreateShaderModule;
-    auto vkCreatePipelineLayout = ctx.vkft.vkCreatePipelineLayout;
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateShaderModule);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreatePipelineLayout);
     auto& config = rnd.graphics_pipeline_configs[static_cast<usize>(builtin_shader_name::test_frame)];
     // Begin GFX pipeline config
     OBERON_INIT_VK_STRUCT(config.graphics_pipeline_info, GRAPHICS_PIPELINE_CREATE_INFO);
@@ -484,9 +467,8 @@ namespace {
 
   iresult create_vulkan_graphics_pipelines(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateGraphicsPipelines);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateGraphicsPipelines);
     OBERON_PRECONDITION(rnd.pipeline_cache);
-    auto vkCreateGraphicsPipelines = ctx.vkft.vkCreateGraphicsPipelines;
     auto configs = std::vector<VkGraphicsPipelineCreateInfo>(std::size(rnd.graphics_pipeline_configs));
     for (auto cur = std::begin(configs); auto& config : rnd.graphics_pipeline_configs)
     {
@@ -511,8 +493,7 @@ namespace {
 
   iresult destroy_vulkan_graphics_pipelines(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkDestroyPipeline);
-    auto vkDestroyPipeline = ctx.vkft.vkDestroyPipeline;
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyPipeline);
     for (const auto& pipeline : rnd.graphics_pipelines)
     {
       vkDestroyPipeline(ctx.device, pipeline, nullptr);
@@ -522,10 +503,8 @@ namespace {
 
   iresult release_graphics_pipeline_configurations(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkDestroyShaderModule);
-    OBERON_PRECONDITION(ctx.vkft.vkDestroyPipelineLayout);
-    auto vkDestroyShaderModule = ctx.vkft.vkDestroyShaderModule;
-    auto vkDestroyPipelineLayout = ctx.vkft.vkDestroyPipelineLayout;
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyShaderModule);
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyPipelineLayout);
     for (auto& config : rnd.graphics_pipeline_configs)
     {
       for (auto& pipeline_stage : config.pipeline_stages)
@@ -541,8 +520,7 @@ namespace {
 
   iresult destroy_vulkan_framebuffers(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkDestroyFramebuffer);
-    auto vkDestroyFramebuffer = ctx.vkft.vkDestroyFramebuffer;
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyFramebuffer);
     for (const auto& framebuffer : rnd.framebuffers)
     {
       if (framebuffer)
@@ -557,8 +535,7 @@ namespace {
 
   iresult destroy_vulkan_renderpasses(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkDestroyRenderPass);
-    auto vkDestroyRenderPass = ctx.vkft.vkDestroyRenderPass;
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyRenderPass);
     if (rnd.main_renderpass)
     {
       vkDestroyRenderPass(ctx.device, rnd.main_renderpass, nullptr);
@@ -573,11 +550,8 @@ namespace {
       return 0;
     }
     OBERON_ASSERT(ctx.device);
-    OBERON_ASSERT(ctx.vkft.vkDestroySwapchainKHR);
-    OBERON_ASSERT(ctx.vkft.vkDestroyImageView);
-    auto vkDestroyImageView = ctx.vkft.vkDestroyImageView;
-    auto vkDestroySwapchainKHR = ctx.vkft.vkDestroySwapchainKHR;
-
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroySwapchainKHR);
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyImageView);
     for (const auto& swapchain_image_view : rnd.swapchain_image_views)
     {
       vkDestroyImageView(ctx.device, swapchain_image_view, nullptr);
@@ -593,11 +567,9 @@ namespace {
 
   iresult begin_vulkan_command_buffers(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkBeginCommandBuffer);
-    OBERON_PRECONDITION(ctx.vkft.vkResetCommandBuffer);
+    OBERON_DECLARE_VK_PFN(ctx.dl, BeginCommandBuffer);
+    OBERON_DECLARE_VK_PFN(ctx.dl, ResetCommandBuffer);
     OBERON_PRECONDITION(std::size(rnd.graphics_transfer_command_buffers));
-    auto vkResetCommandBuffer = ctx.vkft.vkResetCommandBuffer;
-    auto vkBeginCommandBuffer = ctx.vkft.vkBeginCommandBuffer;
     auto& command_buffer = rnd.graphics_transfer_command_buffers[rnd.frame_index];
     auto result = vkResetCommandBuffer(command_buffer, 0);
     if (result != VK_SUCCESS)
@@ -619,9 +591,8 @@ namespace {
 
   iresult end_vulkan_command_buffers(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkEndCommandBuffer);
+    OBERON_DECLARE_VK_PFN(ctx.dl, EndCommandBuffer);
     OBERON_PRECONDITION(std::size(rnd.graphics_transfer_command_buffers));
-    auto vkEndCommandBuffer = ctx.vkft.vkEndCommandBuffer;
     auto result = VK_SUCCESS;
     //for (auto& command_buffer : rnd.graphics_transfer_command_buffers)
     auto& command_buffer = rnd.graphics_transfer_command_buffers[rnd.frame_index];
@@ -637,9 +608,8 @@ namespace {
 
   iresult begin_main_render_pass(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkCmdBeginRenderPass);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CmdBeginRenderPass);
     OBERON_PRECONDITION(std::size(rnd.graphics_transfer_command_buffers));
-    auto vkCmdBeginRenderPass = ctx.vkft.vkCmdBeginRenderPass;
     auto render_pass_info = VkRenderPassBeginInfo{ };
     OBERON_INIT_VK_STRUCT(render_pass_info, RENDER_PASS_BEGIN_INFO);
     render_pass_info.renderPass = rnd.main_renderpass;
@@ -657,21 +627,18 @@ namespace {
 
   iresult end_main_render_pass(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkCmdEndRenderPass);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CmdEndRenderPass);
     OBERON_PRECONDITION(std::size(rnd.graphics_transfer_command_buffers));
-    auto vkCmdEndRenderPass = ctx.vkft.vkCmdEndRenderPass;
     vkCmdEndRenderPass(rnd.graphics_transfer_command_buffers[rnd.frame_index]);
     return 0;
   }
 
   iresult draw_test_frame(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkCmdBindPipeline);
-    OBERON_PRECONDITION(ctx.vkft.vkCmdDraw);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CmdBindPipeline);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CmdDraw);
     OBERON_PRECONDITION(rnd.acquired_image_index < -1U);
     OBERON_PRECONDITION(std::size(rnd.graphics_transfer_command_buffers));
-    auto vkCmdBindPipeline = ctx.vkft.vkCmdBindPipeline;
-    auto vkCmdDraw = ctx.vkft.vkCmdDraw;
     auto& command_buffer = rnd.graphics_transfer_command_buffers[rnd.frame_index];
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                       rnd.graphics_pipelines[static_cast<usize>(builtin_shader_name::test_frame)]);
@@ -681,13 +648,11 @@ namespace {
 
   iresult create_vulkan_synchronization_objects(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateSemaphore);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateFence);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateSemaphore);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateFence);
     OBERON_PRECONDITION(!std::size(rnd.image_available_semaphores));
     OBERON_PRECONDITION(!std::size(rnd.render_complete_semaphores));
     OBERON_PRECONDITION(!std::size(rnd.in_flight_fences));
-    auto vkCreateSemaphore = ctx.vkft.vkCreateSemaphore;
-    auto vkCreateFence = ctx.vkft.vkCreateFence;
     rnd.image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
     rnd.render_complete_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
     rnd.in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -722,12 +687,10 @@ namespace {
 
   iresult destroy_vulkan_synchronization_objects(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkDestroySemaphore);
-    OBERON_PRECONDITION(ctx.vkft.vkDestroyFence);
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroySemaphore);
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyFence);
     OBERON_PRECONDITION(std::size(rnd.image_available_semaphores) == std::size(rnd.render_complete_semaphores));
     OBERON_PRECONDITION(std::size(rnd.in_flight_fences) == std::size(rnd.image_available_semaphores));
-    auto vkDestroySemaphore = ctx.vkft.vkDestroySemaphore;
-    auto vkDestroyFence = ctx.vkft.vkDestroyFence;
     for (auto i = usize{ 0 }; i < std::size(rnd.image_available_semaphores); ++i)
     {
       vkDestroySemaphore(ctx.device, rnd.image_available_semaphores[i], nullptr);
@@ -743,10 +706,8 @@ namespace {
   iresult acquire_frame(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
     OBERON_PRECONDITION(rnd.swapchain);
-    OBERON_PRECONDITION(ctx.vkft.vkAcquireNextImageKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkWaitForFences);
-    auto vkWaitForFences = ctx.vkft.vkWaitForFences;
-    auto vkAcquireNextImageKHR = ctx.vkft.vkAcquireNextImageKHR;
+    OBERON_DECLARE_VK_PFN(ctx.dl, AcquireNextImageKHR);
+    OBERON_DECLARE_VK_PFN(ctx.dl, WaitForFences);
     auto result = vkWaitForFences(ctx.device, 1, &rnd.in_flight_fences[rnd.frame_index], true, -1ULL);
     if (result != VK_SUCCESS)
     {
@@ -775,13 +736,10 @@ namespace {
 
   iresult submit_frame(const context_impl& ctx, renderer_3d_impl& rnd) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkQueueSubmit);
-    OBERON_PRECONDITION(ctx.vkft.vkQueuePresentKHR);
-    OBERON_PRECONDITION(ctx.vkft.vkResetFences);
+    OBERON_DECLARE_VK_PFN(ctx.dl, QueueSubmit);
+    OBERON_DECLARE_VK_PFN(ctx.dl, QueuePresentKHR);
+    OBERON_DECLARE_VK_PFN(ctx.dl, ResetFences);
     OBERON_PRECONDITION(rnd.acquired_image_index < -1U);
-    auto vkQueueSubmit = ctx.vkft.vkQueueSubmit;
-    auto vkQueuePresentKHR = ctx.vkft.vkQueuePresentKHR;
-    auto vkResetFences = ctx.vkft.vkResetFences;
     auto submit_info = VkSubmitInfo{ };
     OBERON_INIT_VK_STRUCT(submit_info, SUBMIT_INFO);
     submit_info.pWaitSemaphores = &rnd.image_available_semaphores[rnd.frame_index];

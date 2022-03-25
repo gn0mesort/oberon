@@ -48,7 +48,7 @@ namespace detail {
     const std::unordered_set<std::string>& required_extensions,
     const std::unordered_set<std::string>& optional_extensions
   ) noexcept {
-    auto vkEnumerateInstanceExtensionProperties = ctx.vkft.vkEnumerateInstanceExtensionProperties;
+    OBERON_DECLARE_VK_PFN(ctx.dl, EnumerateInstanceExtensionProperties);
     auto sz = u32{ 0 };
     OBERON_ASSERT(vkEnumerateInstanceExtensionProperties(nullptr, &sz, nullptr) == VK_SUCCESS);
     auto extension_props = std::vector<VkExtensionProperties>(sz);
@@ -86,9 +86,7 @@ namespace detail {
     const readonly_ptr<void> next
   ) noexcept {
     OBERON_PRECONDITION(!ctx.instance);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateInstance);
-
-    auto vkCreateInstance = ctx.vkft.vkCreateInstance;
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateInstance);
 
     auto app_info = VkApplicationInfo{ };
     OBERON_INIT_VK_STRUCT(app_info, APPLICATION_INFO);
@@ -145,13 +143,10 @@ namespace {
       const std::unordered_set<std::string>& optional_extensions
     ) {
     OBERON_PRECONDITION(ctx.instance);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceProperties);
-    OBERON_PRECONDITION(ctx.vkft.vkEnumerateDeviceExtensionProperties);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceQueueFamilyProperties);
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetPhysicalDeviceProperties);
+    OBERON_DECLARE_VK_PFN(ctx.dl, EnumerateDeviceExtensionProperties);
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetPhysicalDeviceQueueFamilyProperties);
     OBERON_PRECONDITION(pdev);
-    auto vkGetPhysicalDeviceProperties = ctx.vkft.vkGetPhysicalDeviceProperties;
-    auto vkEnumerateDeviceExtensionProperties = ctx.vkft.vkEnumerateDeviceExtensionProperties;
-    auto vkGetPhysicalDeviceQueueFamilyProperties = ctx.vkft.vkGetPhysicalDeviceQueueFamilyProperties;
     auto result = physical_device_info{ };
     result.handle = pdev;
     vkGetPhysicalDeviceProperties(result.handle, &result.properties);
@@ -199,10 +194,8 @@ namespace {
     const std::unordered_set<std::string>& optional_extensions
   ) noexcept {
     OBERON_PRECONDITION(ctx.instance);
-    OBERON_PRECONDITION(ctx.vkft.vkEnumeratePhysicalDevices);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceXcbPresentationSupportKHR);
-    auto vkEnumeratePhysicalDevices = ctx.vkft.vkEnumeratePhysicalDevices;
-    auto vkGetPhysicalDeviceXcbPresentationSupportKHR = ctx.vkft.vkGetPhysicalDeviceXcbPresentationSupportKHR;
+    OBERON_DECLARE_VK_PFN(ctx.dl, EnumeratePhysicalDevices);
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetPhysicalDeviceXcbPresentationSupportKHR);
     auto pdev_infos = std::vector<physical_device_info>{ };
     {
       auto sz = u32{ 0 };
@@ -258,10 +251,8 @@ namespace {
 
   iresult select_physical_device_queue_families(context_impl& ctx) noexcept {
     OBERON_PRECONDITION(ctx.physical_device);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceQueueFamilyProperties);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceXcbPresentationSupportKHR);
-    auto vkGetPhysicalDeviceQueueFamilyProperties = ctx.vkft.vkGetPhysicalDeviceQueueFamilyProperties;
-    auto vkGetPhysicalDeviceXcbPresentationSupportKHR = ctx.vkft.vkGetPhysicalDeviceXcbPresentationSupportKHR;
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetPhysicalDeviceQueueFamilyProperties);
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetPhysicalDeviceXcbPresentationSupportKHR);
 
     auto sz = u32{ 0 };
     vkGetPhysicalDeviceQueueFamilyProperties(ctx.physical_device, &sz, nullptr);
@@ -305,12 +296,10 @@ namespace {
     OBERON_PRECONDITION(!ctx.device);
     OBERON_PRECONDITION(!ctx.graphics_transfer_queue);
     OBERON_PRECONDITION(!ctx.presentation_queue);
-    OBERON_PRECONDITION(ctx.vkft.vkGetPhysicalDeviceFeatures);
-    OBERON_PRECONDITION(ctx.vkft.vkCreateDevice);
     OBERON_PRECONDITION(ctx.physical_device);
 
-    auto vkGetPhysicalDeviceFeatures = ctx.vkft.vkGetPhysicalDeviceFeatures;
-    auto vkCreateDevice = ctx.vkft.vkCreateDevice;
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetPhysicalDeviceFeatures);
+    OBERON_DECLARE_VK_PFN(ctx.dl, CreateDevice);
 
     auto device_info = VkDeviceCreateInfo{ };
     OBERON_INIT_VK_STRUCT(device_info, DEVICE_CREATE_INFO);
@@ -365,8 +354,7 @@ namespace {
 
   iresult get_device_queues(context_impl& ctx) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkGetDeviceQueue);
-    auto vkGetDeviceQueue = ctx.vkft.vkGetDeviceQueue;
+    OBERON_DECLARE_VK_PFN(ctx.dl, GetDeviceQueue);
     vkGetDeviceQueue(ctx.device, ctx.graphics_transfer_queue_family, 0, &ctx.graphics_transfer_queue);
     vkGetDeviceQueue(ctx.device, ctx.presentation_queue_family, 0, &ctx.presentation_queue);
     OBERON_POSTCONDITION(ctx.graphics_transfer_queue);
@@ -442,8 +430,7 @@ namespace {
       return 0;
     }
     OBERON_ASSERT(ctx.instance);
-    OBERON_ASSERT(ctx.vkft.vkDestroyDevice);
-    auto vkDestroyDevice = ctx.vkft.vkDestroyDevice;
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyDevice);
     vkDestroyDevice(ctx.device, nullptr);
     ctx.device = nullptr;
     OBERON_POSTCONDITION(!ctx.device);
@@ -455,8 +442,7 @@ namespace {
     {
       return 0;
     }
-    OBERON_ASSERT(ctx.vkft.vkDestroyInstance);
-    auto vkDestroyInstance = ctx.vkft.vkDestroyInstance;
+    OBERON_DECLARE_VK_PFN(ctx.dl, DestroyInstance);
     vkDestroyInstance(ctx.instance, nullptr);
     ctx.instance = nullptr;
     OBERON_POSTCONDITION(!ctx.instance);
@@ -484,8 +470,7 @@ namespace {
 
   iresult wait_for_device_idle(const context_impl& ctx) noexcept {
     OBERON_PRECONDITION(ctx.device);
-    OBERON_PRECONDITION(ctx.vkft.vkDeviceWaitIdle);
-    auto vkDeviceWaitIdle = ctx.vkft.vkDeviceWaitIdle;
+    OBERON_DECLARE_VK_PFN(ctx.dl, DeviceWaitIdle);
     auto result = vkDeviceWaitIdle(ctx.device);
     if (result != VK_SUCCESS)
     {
@@ -514,7 +499,6 @@ namespace {
     {
       throw fatal_error{ "Failed to connect to X11 server." };
     }
-    detail::load_vulkan_pfns(q.vkft);
     {
       auto required_extensions = std::unordered_set<std::string>{
         VK_KHR_SURFACE_EXTENSION_NAME,
@@ -531,7 +515,7 @@ namespace {
         throw fatal_error{ "Failed to create Vulkan instance." };
       }
     }
-    detail::load_vulkan_pfns(q.vkft, q.instance);
+    q.dl.load(q.instance);
     {
       auto required_extensions = std::unordered_set<std::string>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
       if (OBERON_IS_IERROR(detail::select_physical_device(q, required_extensions, { })))
@@ -544,7 +528,7 @@ namespace {
         throw fatal_error{ "Failed to create Vulkan device." };
       }
     }
-    detail::load_vulkan_pfns(q.vkft, q.device);
+    q.dl.load(q.device);
     detail::get_device_queues(q);
   }
 
