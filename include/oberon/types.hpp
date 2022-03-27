@@ -5,14 +5,8 @@
 #include <cstddef>
 #include <climits>
 
+#include <limits>
 #include <type_traits>
-
-// Check if an iresult is an error (e.g. less than 0)
-#define OBERON_IS_IERROR(x) ((x) < 0)
-// Check if an iresult is a status (e.g. greater than 0)
-#define OBERON_IS_ISTATUS(x) ((x) > 0)
-// Check if an iresult is a passing return (e.g. equal to 0)
-#define OBERON_IS_IPASS(x) ((x) == 0)
 
 namespace oberon {
 
@@ -54,6 +48,9 @@ namespace oberon {
 
   using uchar = unsigned char;
   using ichar = signed char;
+  using  utf8 = char8_t;
+  using utf16 = char16_t;
+  using utf32 = char32_t;
   using wchar = wchar_t;
 
   using usize = std::size_t;
@@ -61,36 +58,6 @@ namespace oberon {
 
   using uptr = std::uintptr_t;
   using iptr = std::intptr_t;
-
-  // C-Style integer errors
-  using iresult = imax;
-
-  // Reference casts such that reference_cast<To>(from) returns a correctly
-  // qualified reference of the type To.
-  template <typename To, typename From>
-  constexpr To& reference_cast(From& from) {
-      return static_cast<To&>(from);
-  }
-
-  template <typename To, typename From>
-  constexpr const To& reference_cast(const From& from) {
-      return static_cast<const To&>(from);
-  }
-
-  template <typename To, typename From>
-  constexpr volatile To& reference_cast(volatile From& from) {
-      return static_cast<volatile To&>(from);
-  }
-
-  template <typename To, typename From>
-  constexpr const volatile To& reference_cast(const volatile From& from) {
-      return static_cast<const volatile To&>(from);
-  }
-
-  template <typename To, typename From>
-  constexpr To&& reference_cast(From&& from) {
-      return static_cast<To&&>(from);
-  }
 
 }
 

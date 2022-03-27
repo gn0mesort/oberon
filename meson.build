@@ -35,25 +35,17 @@ oberon_incs = [
   include_directories('include')
 ]
 
-shader_srcs = [ ]
-subdir('src/shaders')
+#shader_srcs = [ ]
+#subdir('src/shaders')
 
-oberon_srcs = [
-  files(
-    'src/oberon/debug.cpp',
-    'src/oberon/errors.cpp',
-    'src/oberon/object.cpp',
-    'src/oberon/context.cpp',
-    'src/oberon/debug_context.cpp',
-    'src/oberon/window.cpp',
-    'src/oberon/renderer_3d.cpp',
-#    'src/oberon/shader_config.cpp'
-  ),
-  files(
-    'src/oberon/detail/x11.cpp'
-  ),
-  shader_srcs
-]
+oberon_srcs = [ ]
+
+if host_machine.system() == 'linux'
+  oberon_srcs += [
+    files('src/oberon/linux/system.cpp',
+          'src/oberon/linux/context.cpp')
+  ]
+endif
 
 oberon_lib = library(
   meson.project_name(),
