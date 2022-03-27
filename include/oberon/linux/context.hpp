@@ -44,7 +44,14 @@ namespace oberon {
                                 const readonly_ptr<cstring> extensions, const u32 extension_count,
                                 const ptr<void> next);
     void create_vulkan_debug_messenger(const VkDebugUtilsMessengerCreateInfoEXT& debug_info);
+    void select_vulkan_physical_device(const u32 device_index);
+    void create_vulkan_device(const readonly_ptr<cstring> extensions, const u32 extension_count, const ptr<void> next);
+    void create_vulkan_device_nvidia(VkDeviceCreateInfo& device_info);
+    void create_vulkan_device_amd(VkDeviceCreateInfo& device_info);
+    void create_vulkan_device_intel(VkDeviceCreateInfo& device_info);
+    void create_vulkan_device_generic(VkDeviceCreateInfo& device_info);
 
+    void destroy_vulkan_device() noexcept;
     void destroy_vulkan_debug_messenger() noexcept;
     void destroy_vulkan_instance() noexcept;
     void disconnect_from_x_server() noexcept;
@@ -59,6 +66,10 @@ namespace oberon {
     VkDebugUtilsMessengerEXT m_vulkan_debug_messenger{ };
     VkPhysicalDevice m_vulkan_physical_device{ };
     VkDevice m_vulkan_device{ };
+    u32 m_vulkan_unique_queues{ };
+    VkQueue m_vulkan_graphics_queue{ };
+    VkQueue m_vulkan_transfer_queue{ };
+    VkQueue m_vulkan_present_queue{ };
 
     context() = default;
     context(const x_configuration& x_conf, const vulkan_configuration& vulkan_conf);

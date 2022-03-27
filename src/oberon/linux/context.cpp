@@ -2,6 +2,8 @@
 
 #include <cstdio>
 
+#include <vector>
+
 extern "C" VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugLog(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                                      VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                                                      const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -76,6 +78,152 @@ namespace oberon {
     }
   }
 
+  void context::select_vulkan_physical_device(const u32 device_index) {
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, EnumeratePhysicalDevices);
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetPhysicalDeviceQueueFamilyProperties);
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetPhysicalDeviceXcbPresentationSupportKHR);
+    auto sz = u32{ 0 };
+    if (auto res = vkEnumeratePhysicalDevices(m_vulkan_instance, &sz, nullptr); res != VK_SUCCESS)
+    {
+      // TODO throw
+    }
+    auto physical_devices = std::vector<VkPhysicalDevice>(sz);
+    if (auto res = vkEnumeratePhysicalDevices(m_vulkan_instance, &sz, std::data(physical_devices)); res != VK_SUCCESS)
+    {
+      // TODO throw
+    }
+    auto acceptable_physical_devices = std::vector<VkPhysicalDevice>{ };
+    for (const auto& physical_device : physical_devices) // Probably runs 1 or 2 times
+    {
+      vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &sz, nullptr);
+      auto queue_families = std::vector<VkQueueFamilyProperties>(sz);
+      vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &sz, std::data(queue_families));
+      auto has_present = false;
+      auto has_graphics = false;
+      auto counter = u32{ 0 };
+      for (const auto& queue_family : queue_families)
+      {
+        has_present = has_present || vkGetPhysicalDeviceXcbPresentationSupportKHR(physical_device, counter++,
+                                                                                  m_x_connection,
+                                                                                  m_x_screen->root_visual);
+        has_graphics = has_graphics || (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT);
+      }
+      if (has_graphics && has_present)
+      {
+        acceptable_physical_devices.emplace_back(physical_device);
+      }
+    }
+    m_vulkan_physical_device = acceptable_physical_devices.at(device_index);
+  }
+
+  void context::create_vulkan_device(const readonly_ptr<cstring> extensions, const u32 extension_count,
+                                     const ptr<void> next) {
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetPhysicalDeviceFeatures);
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetPhysicalDeviceProperties);
+    auto device_info = VkDeviceCreateInfo{ };
+    device_info.sType = OBERON_VK_STRUCT(DEVICE_CREATE_INFO);
+    device_info.pNext = next;
+    device_info.ppEnabledExtensionNames = extensions;
+    device_info.enabledExtensionCount = extension_count;
+    auto features = VkPhysicalDeviceFeatures{ };
+    vkGetPhysicalDeviceFeatures(m_vulkan_physical_device, &features);
+    device_info.pEnabledFeatures = &features;
+    auto properties = VkPhysicalDeviceProperties{ };
+    vkGetPhysicalDeviceProperties(m_vulkan_physical_device, &properties);
+    switch (properties.vendorID)
+    {
+    case 0x10de: // Nvidia
+      create_vulkan_device_nvidia(device_info);
+      break;
+    case 0x1002: // AMD
+      create_vulkan_device_amd(device_info);
+      break;
+    case 0x8086: // Intel
+      create_vulkan_device_intel(device_info);
+      break;
+    default: // Generic
+      create_vulkan_device_generic(device_info);
+      break;
+    }
+  }
+
+  // Nvidia devices present 16 Graphics/Compute/Transfer/Present queues in queue family 0
+  void context::create_vulkan_device_nvidia(VkDeviceCreateInfo& device_info) {
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, CreateDevice);
+    auto queue_info = VkDeviceQueueCreateInfo{ };
+    queue_info.sType = OBERON_VK_STRUCT(DEVICE_QUEUE_CREATE_INFO);
+    auto priority = 1.0f;
+    queue_info.pQueuePriorities = &priority;
+    queue_info.queueCount = 1;
+    queue_info.queueFamilyIndex = 0;
+    device_info.pQueueCreateInfos = &queue_info;
+    device_info.queueCreateInfoCount = m_vulkan_unique_queues = 1;
+    if (auto res = vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device);
+        res != VK_SUCCESS)
+    {
+      // TODO throw
+    }
+    m_vulkan_dl.load(m_vulkan_device);
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetDeviceQueue);
+    vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_graphics_queue);
+    m_vulkan_transfer_queue = m_vulkan_present_queue = m_vulkan_graphics_queue;
+  }
+
+  // AMD devices present 1 Graphics/Compute/Transfer/Present queue in queue family 0
+  void context::create_vulkan_device_amd(VkDeviceCreateInfo& device_info) {
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, CreateDevice);
+    auto queue_info = VkDeviceQueueCreateInfo{ };
+    queue_info.sType = OBERON_VK_STRUCT(DEVICE_QUEUE_CREATE_INFO);
+    auto priority = 1.0f;
+    queue_info.pQueuePriorities = &priority;
+    queue_info.queueCount = 1;
+    queue_info.queueFamilyIndex = 0;
+    device_info.pQueueCreateInfos = &queue_info;
+    device_info.queueCreateInfoCount = m_vulkan_unique_queues = 1;
+    if (auto res = vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device);
+        res != VK_SUCCESS)
+    {
+      // TODO throw
+    }
+    m_vulkan_dl.load(m_vulkan_device);
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetDeviceQueue);
+    vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_graphics_queue);
+    m_vulkan_transfer_queue = m_vulkan_present_queue = m_vulkan_graphics_queue;
+  }
+
+  // Intel devices present 1 Graphics/Compute/Transfer/Present queue in queue family 0
+  // Might be different with regard to Iris vs UHD vs HD
+  // Intel discrete graphics aren't available yet so I have no idea what those will look like.
+  void context::create_vulkan_device_intel(VkDeviceCreateInfo& device_info) {
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, CreateDevice);
+    auto queue_info = VkDeviceQueueCreateInfo{ };
+    queue_info.sType = OBERON_VK_STRUCT(DEVICE_QUEUE_CREATE_INFO);
+    auto priority = 1.0f;
+    queue_info.pQueuePriorities = &priority;
+    queue_info.queueCount = 1;
+    queue_info.queueFamilyIndex = 0;
+    device_info.pQueueCreateInfos = &queue_info;
+    device_info.queueCreateInfoCount = m_vulkan_unique_queues = 1;
+    if (auto res = vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device);
+        res != VK_SUCCESS)
+    {
+      // TODO throw
+    }
+    m_vulkan_dl.load(m_vulkan_device);
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetDeviceQueue);
+    vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_graphics_queue);
+    m_vulkan_transfer_queue = m_vulkan_present_queue = m_vulkan_graphics_queue;
+  }
+
+  void context::create_vulkan_device_generic(VkDeviceCreateInfo& device_info) {
+    // TODO implementation
+  }
+
+  void context::destroy_vulkan_device() noexcept {
+    OBERON_DECLARE_VK_PFN(m_vulkan_dl, DestroyDevice);
+    vkDestroyDevice(m_vulkan_device, nullptr);
+  }
+
   void context::destroy_vulkan_debug_messenger() noexcept {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, DestroyDebugUtilsMessengerEXT);
     vkDestroyDebugUtilsMessengerEXT(m_vulkan_instance, m_vulkan_debug_messenger, nullptr);
@@ -118,8 +266,9 @@ namespace oberon {
                                    VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
       debug_info.pfnUserCallback = vkDebugLog;
       validation.pNext = &debug_info;
-      const auto extensions = std::array<cstring, 3>{ VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+      const auto extensions = std::array<cstring, 4>{ VK_KHR_XCB_SURFACE_EXTENSION_NAME,
                                                       VK_KHR_SURFACE_EXTENSION_NAME,
+                                                      VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME,
                                                       VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
       // idea: multiply &validation by vulkan_conf.require_debug_messenger instead of the condition lol
       create_vulkan_instance(vulkan_conf.layers, vulkan_conf.layer_count, std::data(extensions), std::size(extensions),
@@ -133,9 +282,15 @@ namespace oberon {
       create_vulkan_instance(vulkan_conf.layers, vulkan_conf.layer_count, std::data(extensions), std::size(extensions),
                              nullptr);
     }
+    {
+      const auto extensions = std::array<cstring, 1>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+      select_vulkan_physical_device(vulkan_conf.device_index);
+      create_vulkan_device(std::data(extensions), std::size(extensions), nullptr);
+    }
   }
 
   context::~context() noexcept {
+    destroy_vulkan_device();
     if (m_vulkan_debug_messenger != VK_NULL_HANDLE)
     {
       destroy_vulkan_debug_messenger();
