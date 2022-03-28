@@ -1,6 +1,8 @@
 #ifndef OBERON_LINUX_CONTEXT_HPP
 #define OBERON_LINUX_CONTEXT_HPP
 
+#include <array>
+
 #include <xcb/xcb.h>
 
 #define VK_USE_PLATFORM_XCB_KHR 1
@@ -66,7 +68,7 @@ namespace oberon {
     VkDebugUtilsMessengerEXT m_vulkan_debug_messenger{ };
     VkPhysicalDevice m_vulkan_physical_device{ };
     VkDevice m_vulkan_device{ };
-    u32 m_vulkan_unique_queues{ };
+    std::array<u32, 3> m_vulkan_queue_families{ };
     VkQueue m_vulkan_graphics_queue{ };
     VkQueue m_vulkan_transfer_queue{ };
     VkQueue m_vulkan_present_queue{ };
@@ -86,9 +88,14 @@ namespace oberon {
     ptr<xcb_connection_t> x_connection();
     ptr<xcb_screen_t> x_screen();
 
+    vkfl::loader& vulkan_dl();
     VkInstance vulkan_instance();
     VkPhysicalDevice vulkan_physical_device();
     VkDevice vulkan_device();
+    const std::array<u32, 3>& vulkan_queue_families() const;
+    VkQueue vulkan_graphics_queue();
+    VkQueue vulkan_transfer_queue();
+    VkQueue vulkan_present_queue();
   };
 
 }

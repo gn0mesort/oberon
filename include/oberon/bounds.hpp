@@ -6,25 +6,25 @@
 namespace oberon {
 
   struct extent_2d final {
-    usize width{ };
-    usize height{ };
+    u16 width{ };
+    u16 height{ };
   };
 
   struct extent_3d final {
-    usize width{ };
-    usize height{ };
-    usize depth{ };
+    u16 width{ };
+    u16 height{ };
+    u16 depth{ };
   };
 
   struct offset_2d final {
-    isize x{ };
-    isize y{ };
+    i16 x{ };
+    i16 y{ };
   };
 
   struct offset_3d final {
-    isize x{ };
-    isize y{ };
-    isize z{ };
+    i16 x{ };
+    i16 y{ };
+    i16 z{ };
   };
 
   struct bounding_rect final {

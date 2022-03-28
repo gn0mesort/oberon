@@ -157,7 +157,7 @@ namespace oberon {
     queue_info.queueCount = 1;
     queue_info.queueFamilyIndex = 0;
     device_info.pQueueCreateInfos = &queue_info;
-    device_info.queueCreateInfoCount = m_vulkan_unique_queues = 1;
+    device_info.queueCreateInfoCount = 1;
     if (auto res = vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device);
         res != VK_SUCCESS)
     {
@@ -167,6 +167,7 @@ namespace oberon {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetDeviceQueue);
     vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_graphics_queue);
     m_vulkan_transfer_queue = m_vulkan_present_queue = m_vulkan_graphics_queue;
+    m_vulkan_queue_families = { 0, 0, 0 };
   }
 
   // AMD devices present 1 Graphics/Compute/Transfer/Present queue in queue family 0
@@ -179,7 +180,7 @@ namespace oberon {
     queue_info.queueCount = 1;
     queue_info.queueFamilyIndex = 0;
     device_info.pQueueCreateInfos = &queue_info;
-    device_info.queueCreateInfoCount = m_vulkan_unique_queues = 1;
+    device_info.queueCreateInfoCount = 1;
     if (auto res = vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device);
         res != VK_SUCCESS)
     {
@@ -189,6 +190,7 @@ namespace oberon {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetDeviceQueue);
     vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_graphics_queue);
     m_vulkan_transfer_queue = m_vulkan_present_queue = m_vulkan_graphics_queue;
+    m_vulkan_queue_families = { 0, 0, 0 };
   }
 
   // Intel devices present 1 Graphics/Compute/Transfer/Present queue in queue family 0
@@ -203,7 +205,7 @@ namespace oberon {
     queue_info.queueCount = 1;
     queue_info.queueFamilyIndex = 0;
     device_info.pQueueCreateInfos = &queue_info;
-    device_info.queueCreateInfoCount = m_vulkan_unique_queues = 1;
+    device_info.queueCreateInfoCount = 1;
     if (auto res = vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device);
         res != VK_SUCCESS)
     {
@@ -213,6 +215,7 @@ namespace oberon {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetDeviceQueue);
     vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_graphics_queue);
     m_vulkan_transfer_queue = m_vulkan_present_queue = m_vulkan_graphics_queue;
+    m_vulkan_queue_families = { 0, 0, 0 };
   }
 
   void context::create_vulkan_device_generic(VkDeviceCreateInfo& device_info) {
@@ -299,4 +302,31 @@ namespace oberon {
     disconnect_from_x_server();
   }
 
+  ptr<xcb_connection_t> context::x_connection() {
+    return m_x_connection;
+  }
+
+  ptr<xcb_screen_t> context::x_screen() {
+    return m_x_screen;
+  }
+
+  vkfl::loader& context::vulkan_dl() {
+    return m_vulkan_dl;
+  }
+
+  VkInstance context::vulkan_instance() {
+    return m_vulkan_instance;
+  }
+
+  const std::array<u32, 3>& context::vulkan_queue_families() const {
+    return m_vulkan_queue_families;
+  }
+
+  VkPhysicalDevice context::vulkan_physical_device() {
+    return m_vulkan_physical_device;
+  }
+
+  VkDevice context::vulkan_device() {
+    return m_vulkan_device;
+  }
 }

@@ -43,7 +43,8 @@ oberon_srcs = [ ]
 if host_machine.system() == 'linux'
   oberon_srcs += [
     files('src/oberon/linux/system.cpp',
-          'src/oberon/linux/context.cpp')
+          'src/oberon/linux/context.cpp',
+          'src/oberon/linux/render_window.cpp')
   ]
 endif
 
