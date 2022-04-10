@@ -19,7 +19,7 @@
 
 #if !defined(NDEBUG)
   #define OBERON_ASSERT(x) \
-    oberon::assert(std::source_location::current(), (x), (#x "\n"))
+    oberon::assert(std::source_location::current(), (x), (#x))
 
   #define OBERON_ASSERT_MSG(x, msg, ...) \
     oberon::assert(std::source_location::current(), (x), (msg) __VA_OPT__(,) __VA_ARGS__)
