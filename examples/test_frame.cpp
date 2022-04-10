@@ -2,23 +2,20 @@
 
 #include <unistd.h>
 
-#include <oberon/system.hpp>
-#include <oberon/render_window.hpp>
+#include <oberon/linux/system.hpp>
 
-int oberon_main(oberon::system& sys, oberon::context& ctx) {
-  auto window = oberon::render_window{ ctx, { { 0, 0 }, { 640, 480 } } };
-  window.show();
-  sleep(5);
+int oberon_main(oberon::system& sys, oberon::onscreen_context& ctx, oberon::render_window& win) {
   return 0;
 }
 
 int main() {
+  auto sys = oberon::linux::onscreen_system{ };
 #ifndef NDEBUG
-  constexpr auto debug = true;
-#else
-  constexpr auto debug = false;
+  using namespace oberon::linux;
+  auto layers = std::array<oberon::cstring, 1>{ "VK_LAYER_KHRONOS_validation" };
+  sys.set_parameter(SYS_PARAM_VULKAN_REQUIRED_LAYERS, reinterpret_cast<oberon::uptr>(std::data(layers)));
+  sys.set_parameter(SYS_PARAM_VULKAN_REQUIRED_LAYER_COUNT, std::size(layers));
+  sys.set_parameter(SYS_PARAM_VULKAN_DEBUG_MESSENGER_ENABLE, true);
 #endif
-  auto sys = oberon::system{ };
-  sys.set_hint(oberon::system::hint::debug_context, debug);
   return sys.run(oberon_main);
 }

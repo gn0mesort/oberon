@@ -1,36 +1,28 @@
 #ifndef OBERON_CONTEXT_HPP
 #define OBERON_CONTEXT_HPP
 
-#include "object.hpp"
-
 namespace oberon {
-namespace detail {
 
-  struct context_impl;
-
-}
-
-  struct event;
-
-  class context : public object {
-  private:
-    void v_dispose() noexcept override;
-  protected:
-    context(const ptr<detail::context_impl> child_impl);
+  class context {
   public:
-    context(
-      const std::string& application_name,
-      const u16 application_version_major,
-      const u16 application_version_minor,
-      const u16 application_version_patch
-    );
-
-    virtual ~context() noexcept;
-
-    const std::string& application_name() const;
-
-    bool poll_events(event& ev);
+    inline virtual ~context() noexcept = 0;
   };
+
+  context::~context() noexcept { }
+
+  class onscreen_context : public context {
+  public:
+    inline virtual ~onscreen_context() noexcept = 0;
+  };
+
+  onscreen_context::~onscreen_context() noexcept { }
+
+  class offscreen_context : public context {
+  public:
+    inline virtual ~offscreen_context() noexcept = 0;
+  };
+
+  offscreen_context::~offscreen_context() noexcept { }
 
 }
 

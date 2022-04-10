@@ -1,30 +1,15 @@
 #include "oberon/linux/context.hpp"
 
-#include <cstdio>
-
 #include <vector>
 
-extern "C" VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugLog(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                                     VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-                                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                                                     void* pUserData) {
-  auto file = stdout;
-  if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT ||
-      messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-  {
-    file = stderr;
-  }
-  std::fprintf(file, "[VK] %s\n", pCallbackData->pMessage);
-  return VK_FALSE;
-}
+namespace oberon::linux {
 
-namespace oberon {
-  void context::connect_to_x_server(const cstring displayname) {
+  void onscreen_context::connect_to_x_server(const cstring displayname) {
     auto screen_pref = int{ 0 };
     m_x_connection = xcb_connect(displayname, &screen_pref);
     if (xcb_connection_has_error(m_x_connection))
     {
-      // TODO throw error
+      throw x_connection_failed_error{ };
     }
     {
       auto setup = xcb_get_setup(m_x_connection);
@@ -37,14 +22,14 @@ namespace oberon {
       }
       if (!m_x_screen)
       {
-        // TODO throw error
+        throw x_no_screen_error{ };
       }
     }
   }
 
-  void context::create_vulkan_instance(const readonly_ptr<cstring> layers, const u32 layer_count,
-                                       const readonly_ptr<cstring> extensions, const u32 extension_count,
-                                       const ptr<void> next) {
+  void onscreen_context::create_vulkan_instance(const readonly_ptr<cstring> layers, const u32 layer_count,
+                                                const readonly_ptr<cstring> extensions, const u32 extension_count,
+                                                const ptr<void> next) {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, CreateInstance);
 
     auto app_info = VkApplicationInfo{ };
@@ -62,36 +47,28 @@ namespace oberon {
     instance_info.ppEnabledExtensionNames = extensions;
     instance_info.enabledExtensionCount = extension_count;
 
-    if (auto res = vkCreateInstance(&instance_info, nullptr, &m_vulkan_instance); res != VK_SUCCESS)
-    {
-      // TODO throw error
-    }
+    OBERON_VK_SUCCEEDS(vkCreateInstance(&instance_info, nullptr, &m_vulkan_instance),
+                       vulkan_instance_create_failed_error);
     m_vulkan_dl.load(m_vulkan_instance);
   }
 
-  void context::create_vulkan_debug_messenger(const VkDebugUtilsMessengerCreateInfoEXT& debug_info) {
+  void onscreen_context::create_vulkan_debug_messenger(const VkDebugUtilsMessengerCreateInfoEXT& debug_info) {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, CreateDebugUtilsMessengerEXT);
-    if (auto res = vkCreateDebugUtilsMessengerEXT(m_vulkan_instance, &debug_info, nullptr, &m_vulkan_debug_messenger);
-        res != VK_SUCCESS)
-    {
-      // TODO throw
-    }
+    OBERON_VK_SUCCEEDS(vkCreateDebugUtilsMessengerEXT(m_vulkan_instance, &debug_info, nullptr,
+                                                      &m_vulkan_debug_messenger),
+                       vulkan_debug_messenger_create_failed_error);
   }
 
-  void context::select_vulkan_physical_device(const u32 device_index) {
+  void onscreen_context::select_vulkan_physical_device(const u32 device_index) {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, EnumeratePhysicalDevices);
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetPhysicalDeviceQueueFamilyProperties);
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetPhysicalDeviceXcbPresentationSupportKHR);
     auto sz = u32{ 0 };
-    if (auto res = vkEnumeratePhysicalDevices(m_vulkan_instance, &sz, nullptr); res != VK_SUCCESS)
-    {
-      // TODO throw
-    }
+    OBERON_VK_SUCCEEDS(vkEnumeratePhysicalDevices(m_vulkan_instance, &sz, nullptr),
+                       vulkan_couldnt_enumerate_physical_devices_error);
     auto physical_devices = std::vector<VkPhysicalDevice>(sz);
-    if (auto res = vkEnumeratePhysicalDevices(m_vulkan_instance, &sz, std::data(physical_devices)); res != VK_SUCCESS)
-    {
-      // TODO throw
-    }
+    OBERON_VK_SUCCEEDS(vkEnumeratePhysicalDevices(m_vulkan_instance, &sz, std::data(physical_devices)),
+                       vulkan_couldnt_enumerate_physical_devices_error);
     auto acceptable_physical_devices = std::vector<VkPhysicalDevice>{ };
     for (const auto& physical_device : physical_devices) // Probably runs 1 or 2 times
     {
@@ -116,8 +93,8 @@ namespace oberon {
     m_vulkan_physical_device = acceptable_physical_devices.at(device_index);
   }
 
-  void context::create_vulkan_device(const readonly_ptr<cstring> extensions, const u32 extension_count,
-                                     const ptr<void> next) {
+  void onscreen_context::create_vulkan_device(const readonly_ptr<cstring> extensions, const u32 extension_count,
+                                              const ptr<void> next) {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetPhysicalDeviceFeatures);
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetPhysicalDeviceProperties);
     auto device_info = VkDeviceCreateInfo{ };
@@ -148,7 +125,7 @@ namespace oberon {
   }
 
   // Nvidia devices present 16 Graphics/Compute/Transfer/Present queues in queue family 0
-  void context::create_vulkan_device_nvidia(VkDeviceCreateInfo& device_info) {
+  void onscreen_context::create_vulkan_device_nvidia(VkDeviceCreateInfo& device_info) {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, CreateDevice);
     auto queue_info = VkDeviceQueueCreateInfo{ };
     queue_info.sType = OBERON_VK_STRUCT(DEVICE_QUEUE_CREATE_INFO);
@@ -158,20 +135,16 @@ namespace oberon {
     queue_info.queueFamilyIndex = 0;
     device_info.pQueueCreateInfos = &queue_info;
     device_info.queueCreateInfoCount = 1;
-    if (auto res = vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device);
-        res != VK_SUCCESS)
-    {
-      // TODO throw
-    }
+    OBERON_VK_SUCCEEDS(vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device),
+                       vulkan_device_create_failed_error);
     m_vulkan_dl.load(m_vulkan_device);
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetDeviceQueue);
-    vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_graphics_queue);
-    m_vulkan_transfer_queue = m_vulkan_present_queue = m_vulkan_graphics_queue;
-    m_vulkan_queue_families = { 0, 0, 0 };
+    vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_work_queue);
+    m_vulkan_present_queue = m_vulkan_work_queue;
   }
 
   // AMD devices present 1 Graphics/Compute/Transfer/Present queue in queue family 0
-  void context::create_vulkan_device_amd(VkDeviceCreateInfo& device_info) {
+  void onscreen_context::create_vulkan_device_amd(VkDeviceCreateInfo& device_info) {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, CreateDevice);
     auto queue_info = VkDeviceQueueCreateInfo{ };
     queue_info.sType = OBERON_VK_STRUCT(DEVICE_QUEUE_CREATE_INFO);
@@ -181,22 +154,18 @@ namespace oberon {
     queue_info.queueFamilyIndex = 0;
     device_info.pQueueCreateInfos = &queue_info;
     device_info.queueCreateInfoCount = 1;
-    if (auto res = vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device);
-        res != VK_SUCCESS)
-    {
-      // TODO throw
-    }
+    OBERON_VK_SUCCEEDS(vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device),
+                       vulkan_device_create_failed_error);
     m_vulkan_dl.load(m_vulkan_device);
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetDeviceQueue);
-    vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_graphics_queue);
-    m_vulkan_transfer_queue = m_vulkan_present_queue = m_vulkan_graphics_queue;
-    m_vulkan_queue_families = { 0, 0, 0 };
+    vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_work_queue);
+    m_vulkan_present_queue = m_vulkan_work_queue;
   }
 
   // Intel devices present 1 Graphics/Compute/Transfer/Present queue in queue family 0
   // Might be different with regard to Iris vs UHD vs HD
   // Intel discrete graphics aren't available yet so I have no idea what those will look like.
-  void context::create_vulkan_device_intel(VkDeviceCreateInfo& device_info) {
+  void onscreen_context::create_vulkan_device_intel(VkDeviceCreateInfo& device_info) {
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, CreateDevice);
     auto queue_info = VkDeviceQueueCreateInfo{ };
     queue_info.sType = OBERON_VK_STRUCT(DEVICE_QUEUE_CREATE_INFO);
@@ -206,48 +175,59 @@ namespace oberon {
     queue_info.queueFamilyIndex = 0;
     device_info.pQueueCreateInfos = &queue_info;
     device_info.queueCreateInfoCount = 1;
-    if (auto res = vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device);
-        res != VK_SUCCESS)
-    {
-      // TODO throw
-    }
+    OBERON_VK_SUCCEEDS(vkCreateDevice(m_vulkan_physical_device, &device_info, nullptr, &m_vulkan_device),
+                       vulkan_device_create_failed_error);
     m_vulkan_dl.load(m_vulkan_device);
     OBERON_DECLARE_VK_PFN(m_vulkan_dl, GetDeviceQueue);
-    vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_graphics_queue);
-    m_vulkan_transfer_queue = m_vulkan_present_queue = m_vulkan_graphics_queue;
-    m_vulkan_queue_families = { 0, 0, 0 };
+    vkGetDeviceQueue(m_vulkan_device, 0, 0, &m_vulkan_work_queue);
+    m_vulkan_present_queue = m_vulkan_work_queue;
   }
 
-  void context::create_vulkan_device_generic(VkDeviceCreateInfo& device_info) {
-    // TODO implementation
+  void onscreen_context::create_vulkan_device_generic(VkDeviceCreateInfo&) {
+    throw not_implemented_error{ };
   }
 
-  void context::destroy_vulkan_device() noexcept {
-    OBERON_DECLARE_VK_PFN(m_vulkan_dl, DestroyDevice);
-    vkDestroyDevice(m_vulkan_device, nullptr);
+  void onscreen_context::destroy_vulkan_device() noexcept {
+    if (m_vulkan_device != VK_NULL_HANDLE)
+    {
+      OBERON_DECLARE_VK_PFN(m_vulkan_dl, DestroyDevice);
+      vkDestroyDevice(m_vulkan_device, nullptr);
+      m_vulkan_device = VK_NULL_HANDLE;
+    }
   }
 
-  void context::destroy_vulkan_debug_messenger() noexcept {
-    OBERON_DECLARE_VK_PFN(m_vulkan_dl, DestroyDebugUtilsMessengerEXT);
-    vkDestroyDebugUtilsMessengerEXT(m_vulkan_instance, m_vulkan_debug_messenger, nullptr);
-    m_vulkan_debug_messenger = VK_NULL_HANDLE;
+  void onscreen_context::destroy_vulkan_debug_messenger() noexcept {
+    if (m_vulkan_debug_messenger != VK_NULL_HANDLE)
+    {
+      OBERON_DECLARE_VK_PFN(m_vulkan_dl, DestroyDebugUtilsMessengerEXT);
+      vkDestroyDebugUtilsMessengerEXT(m_vulkan_instance, m_vulkan_debug_messenger, nullptr);
+      m_vulkan_debug_messenger = VK_NULL_HANDLE;
+    }
   }
 
-  void context::destroy_vulkan_instance() noexcept {
-    OBERON_DECLARE_VK_PFN(m_vulkan_dl, DestroyInstance);
-    vkDestroyInstance(m_vulkan_instance, nullptr);
-    m_vulkan_instance = VK_NULL_HANDLE;
+  void onscreen_context::destroy_vulkan_instance() noexcept {
+    if (m_vulkan_instance != VK_NULL_HANDLE)
+    {
+      OBERON_DECLARE_VK_PFN(m_vulkan_dl, DestroyInstance);
+      vkDestroyInstance(m_vulkan_instance, nullptr);
+      m_vulkan_instance = VK_NULL_HANDLE;
+    }
   }
 
-  void context::disconnect_from_x_server() noexcept {
-    xcb_disconnect(m_x_connection);
-    m_x_screen = nullptr;
-    m_x_connection = nullptr;
+  void onscreen_context::disconnect_from_x_server() noexcept {
+    if (m_x_connection)
+    {
+      xcb_disconnect(m_x_connection);
+      m_x_screen = nullptr;
+      m_x_connection = nullptr;
+    }
   }
 
-  context::context(const x_configuration& x_conf, const vulkan_configuration& vulkan_conf) {
-    connect_to_x_server(x_conf.displayname);
-    if (vulkan_conf.require_debug_messenger)
+  onscreen_context::onscreen_context(const cstring x_displayname, const u32 vulkan_device_index,
+                                     const readonly_ptr<cstring> vulkan_layers, const u32 vulkan_layer_count,
+                                     const bool vulkan_enable_debug_messenger) {
+    connect_to_x_server(x_displayname);
+    if (vulkan_enable_debug_messenger)
     {
       auto validation = VkValidationFeaturesEXT{ };
       validation.sType = OBERON_VK_STRUCT(VALIDATION_FEATURES_EXT);
@@ -273,60 +253,26 @@ namespace oberon {
                                                       VK_KHR_SURFACE_EXTENSION_NAME,
                                                       VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME,
                                                       VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
-      // idea: multiply &validation by vulkan_conf.require_debug_messenger instead of the condition lol
-      create_vulkan_instance(vulkan_conf.layers, vulkan_conf.layer_count, std::data(extensions), std::size(extensions),
+      create_vulkan_instance(vulkan_layers, vulkan_layer_count, std::data(extensions), std::size(extensions),
                              &validation);
       create_vulkan_debug_messenger(debug_info);
     }
     else
     {
-      const auto extensions = std::array<cstring, 2>{ VK_KHR_XCB_SURFACE_EXTENSION_NAME,
-                                                      VK_KHR_SURFACE_EXTENSION_NAME };
-      create_vulkan_instance(vulkan_conf.layers, vulkan_conf.layer_count, std::data(extensions), std::size(extensions),
-                             nullptr);
+      auto extensions = std::array<cstring, 2>{ VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME };
+      create_vulkan_instance(vulkan_layers, vulkan_layer_count, std::data(extensions), std::size(extensions), nullptr);
     }
     {
       const auto extensions = std::array<cstring, 1>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-      select_vulkan_physical_device(vulkan_conf.device_index);
+      select_vulkan_physical_device(vulkan_device_index);
       create_vulkan_device(std::data(extensions), std::size(extensions), nullptr);
     }
   }
 
-  context::~context() noexcept {
+  onscreen_context::~onscreen_context() noexcept {
     destroy_vulkan_device();
-    if (m_vulkan_debug_messenger != VK_NULL_HANDLE)
-    {
-      destroy_vulkan_debug_messenger();
-    }
+    destroy_vulkan_debug_messenger();
     destroy_vulkan_instance();
     disconnect_from_x_server();
-  }
-
-  ptr<xcb_connection_t> context::x_connection() {
-    return m_x_connection;
-  }
-
-  ptr<xcb_screen_t> context::x_screen() {
-    return m_x_screen;
-  }
-
-  vkfl::loader& context::vulkan_dl() {
-    return m_vulkan_dl;
-  }
-
-  VkInstance context::vulkan_instance() {
-    return m_vulkan_instance;
-  }
-
-  const std::array<u32, 3>& context::vulkan_queue_families() const {
-    return m_vulkan_queue_families;
-  }
-
-  VkPhysicalDevice context::vulkan_physical_device() {
-    return m_vulkan_physical_device;
-  }
-
-  VkDevice context::vulkan_device() {
-    return m_vulkan_device;
   }
 }

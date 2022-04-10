@@ -1,62 +1,92 @@
-#include "oberon/detail/linux/system_impl.hpp"
+#include "oberon/linux/system.hpp"
 
+#include <iostream>
+
+#include "oberon/errors.hpp"
 #include "oberon/linux/context.hpp"
+#include "oberon/linux/render_target.hpp"
 
+namespace oberon::linux {
 
-namespace oberon::detail {
-  void system_impl_dtor::operator()(const ptr<system_impl> p) const noexcept {
-    delete p;
-  }
-}
-
-namespace oberon {
-
-  system::system() : m_impl{ new detail::system_impl{ } } { }
-
-  void system::set_hint(const hint ht, const uptr value) {
-    switch (ht)
+  void onscreen_system::set_parameter(const umax param, const uptr value) {
+    switch (param)
     {
-    case hint::debug_context:
-      m_impl->is_debug = value;
+    case SYS_PARAM_X_DISPLAYNAME:
+      m_x_displayname = reinterpret_cast<cstring>(value);
       break;
-    case hint::x_display:
-      m_impl->x_display_string = reinterpret_cast<cstring>(value);
+    case SYS_PARAM_VULKAN_DEVICE_INDEX:
+      m_vulkan_device_index = static_cast<u32>(value);
       break;
-    case hint::vulkan_device_index:
-      m_impl->vulkan_device_index = value;
+    case SYS_PARAM_VULKAN_REQUIRED_LAYERS:
+      m_vulkan_layers = reinterpret_cast<readonly_ptr<cstring>>(value);
+      break;
+    case SYS_PARAM_VULKAN_REQUIRED_LAYER_COUNT:
+      m_vulkan_layer_count = static_cast<u32>(value);
+      break;
+    case SYS_PARAM_VULKAN_DEBUG_MESSENGER_ENABLE:
+      m_vulkan_debug_messenger_enable = static_cast<bool>(value);
       break;
     default:
       break;
     }
   }
 
-  uptr system::get_hint(const hint ht) const {
-    switch (ht)
+  uptr onscreen_system::get_parameter(const umax param) const {
+    switch (param)
     {
-    case hint::debug_context:
-      return m_impl->is_debug;
-    case hint::x_display:
-      return reinterpret_cast<uptr>(m_impl->x_display_string);
-    case hint::vulkan_device_index:
-      return m_impl->vulkan_device_index;
+    case SYS_PARAM_X_DISPLAYNAME:
+      return reinterpret_cast<uptr>(m_x_displayname);
+    case SYS_PARAM_VULKAN_DEVICE_INDEX:
+      return static_cast<uptr>(m_vulkan_device_index);
+    case SYS_PARAM_VULKAN_REQUIRED_LAYERS:
+      return reinterpret_cast<uptr>(m_vulkan_layers);
+    case SYS_PARAM_VULKAN_REQUIRED_LAYER_COUNT:
+      return static_cast<uptr>(m_vulkan_layer_count);
+    case SYS_PARAM_VULKAN_DEBUG_MESSENGER_ENABLE:
+      return static_cast<uptr>(m_vulkan_debug_messenger_enable);
     default:
-      return bad_hint;
+      return bad_parameter;
     }
   }
 
-  int system::run(const ptr<entry_point> main) {
-    auto x_conf = x_configuration{ };
-    x_conf.displayname = m_impl->x_display_string;
-    auto vulkan_conf = vulkan_configuration{ };
-    if (m_impl->is_debug)
+  void onscreen_system::set_x_displayname(const cstring displayname) {
+    m_x_displayname = displayname;
+  }
+
+  void onscreen_system::set_vulkan_device_index(const u32 device_index) {
+    m_vulkan_device_index = device_index;
+  }
+
+  void onscreen_system::set_vulkan_required_layers(const readonly_ptr<cstring> layers, const u32 layer_count) {
+    m_vulkan_layers = layers;
+    m_vulkan_layer_count = layer_count;
+  }
+
+  void onscreen_system::set_vulkan_debug_messenger_enable(const bool enable) {
+    m_vulkan_debug_messenger_enable = enable;
+  }
+
+  int onscreen_system::run(const ptr<entry_point> main) {
+    try
     {
-      vulkan_conf.layers = std::data(detail::system_impl::debug_vulkan_layers);
-      vulkan_conf.layer_count = std::size(detail::system_impl::debug_vulkan_layers);
-      vulkan_conf.require_debug_messenger = true;
+      auto ctx = new onscreen_context{ m_x_displayname, m_vulkan_device_index, m_vulkan_layers, m_vulkan_layer_count,
+                                       m_vulkan_debug_messenger_enable };
+      auto win = new render_window{ };
+      auto res = main(*this, *ctx, *win);
+      delete win;
+      delete ctx;
+      return res;
     }
-    vulkan_conf.device_index = m_impl->vulkan_device_index;
-    auto ctx = context{ x_conf, vulkan_conf };
-    return main(*this, ctx);
+    catch (const oberon::error& err)
+    {
+      std::cerr << err.message() << std::endl;
+      return err.result();
+    }
+    catch (const std::exception& err)
+    {
+      std::cerr << err.what() << std::endl;
+      return 1;
+    }
   }
 
 }
