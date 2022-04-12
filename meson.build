@@ -27,6 +27,9 @@ spv2cpp = find_program('tools/spv2cpp.py')
 oberon_deps = [
   vkfl_dep,
   dependency('xcb'),
+  dependency('xcb-util'),
+  dependency('xcb-icccm'),
+  dependency('xcb-ewmh'),
   dependency('xcb-randr'),
   dependency('vulkan')
 ]
@@ -40,11 +43,18 @@ oberon_incs = [
 
 oberon_srcs = [ ]
 
+oberon_srcs += [
+  files('src/oberon/debug.cpp')
+]
+
 if host_machine.system() == 'linux'
   oberon_srcs += [
-    files('src/oberon/linux/system.cpp',
-          'src/oberon/linux/context.cpp',
-          'src/oberon/linux/x11_vulkan.cpp')
+    files('src/oberon/linux/application.cpp', 'src/oberon/linux/window_system.cpp',
+          'src/oberon/linux/render_system.cpp',
+          'src/oberon/linux/render_window.cpp')
+  ]
+  oberon_srcs += [
+    files('src/oberon/linux/detail/vulkan.cpp')
   ]
 endif
 

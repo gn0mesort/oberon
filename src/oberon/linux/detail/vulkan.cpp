@@ -1,11 +1,13 @@
-#include "oberon/linux/x11_vulkan.hpp"
+#include "oberon/linux/detail/vulkan.hpp"
+
+#include "oberon/memory.hpp"
 
 #include <iostream>
 
 
 namespace {
 
-  oberon::cstring vulkan_severity_to_string(const VkDebugUtilsMessageSeverityFlagBitsEXT severity) {
+  oberon::cstring vk_severity_to_string(const VkDebugUtilsMessageSeverityFlagBitsEXT severity) {
     switch (severity)
     {
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
@@ -33,6 +35,6 @@ extern "C" VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugLog(VkDebugUtilsMessageSeverity
   {
     stream = &std::cerr;
   }
-  (*stream) << "[vk_" << vulkan_severity_to_string(messageSeverity) << "]: " << pCallbackData->pMessage << std::endl;
+  (*stream) << "[vk_" << vk_severity_to_string(messageSeverity) << "]: " << pCallbackData->pMessage << std::endl;
   return VK_FALSE;
 }

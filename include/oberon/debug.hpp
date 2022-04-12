@@ -3,6 +3,7 @@
 
 #include <string_view>
 
+// clangd doesn't detect this header correctly with gcc in C++20 mode.
 #if __has_include(<source_location>) && !defined(__clang__)
   #include <source_location>
 #elif __has_include(<experimental/source_location>)
@@ -18,15 +19,25 @@
 #endif
 
 #if !defined(NDEBUG)
+  #if !defined(OBERON_BYPASS_ASSERTIONS)
+    #define OBERON_BYPASS_ASSERTIONS 0
+  #endif
+#else
+  #if !defined(OBERON_BYPASS_ASSERTIONS)
+    #define OBERON_BYPASS_ASSERTIONS 1
+  #endif
+#endif
+
+#if OBERON_BYPASS_ASSERTIONS
+  #define OBERON_ASSERT(x) ((void) (x))
+
+  #define OBERON_ASSERT_MSG(x, msg, ...) ((void) (x))
+#else
   #define OBERON_ASSERT(x) \
     oberon::assert(std::source_location::current(), (x), (#x))
 
   #define OBERON_ASSERT_MSG(x, msg, ...) \
     oberon::assert(std::source_location::current(), (x), (msg) __VA_OPT__(,) __VA_ARGS__)
-#else
-  #define OBERON_ASSERT(x) ((void) (x))
-
-  #define OBERON_ASSERT_MSG(x, msg, ...) ((void) (x))
 #endif
 
 #define OBERON_PRECONDITION(x) \

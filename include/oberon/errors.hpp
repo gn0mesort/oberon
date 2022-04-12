@@ -17,12 +17,21 @@
     inline oberon::i32 result() const noexcept override { return m_result; }\
   }
 
-#define OBERON_CHECK(exp, status, error) \
-  do\
-  {\
-    if (auto res = (exp); res != (status)) { throw error{ }; }\
-  }\
-  while (0)
+// Enable skipping invariant checks. Risky!
+#if !defined(OBERON_BYPASS_INVARIANTS)
+  #define OBERON_BYPASS_INVARIANTS 0
+#endif
+
+#if OBERON_BYPASS_INVARIANTS
+  #define OBERON_INVARIANT(exp, error) ((void) (exp))
+#else
+  #define OBERON_INVARIANT(exp, error) \
+    do\
+    {\
+      if (!(exp)) { throw (error); }\
+    }\
+    while (0)
+#endif
 
 namespace oberon {
 
