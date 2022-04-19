@@ -3,19 +3,32 @@
 
 #include "../types.hpp"
 #include "../memory.hpp"
+#include "../context.hpp"
 
 namespace oberon::linux {
 
-  class window_system;
-  class render_system;
-
   class application {
   private:
-    ptr<void> m_user_data{ };
-    bool m_vulkan_create_debug_context{ };
-    u32 m_vulkan_device{ };
+    class subsystem_factory final : public oberon::detail::subsystem_factory {
+      void v_create_subsystems(oberon::detail::subsystem_storage& subsystems,
+                               const readonly_ptr<void> config) override;
+      void v_destroy_subsystems(oberon::detail::subsystem_storage& subsystems) noexcept override;
+    };
+
+    struct config final {
+      ptr<void> user_data{ };
+      struct {
+        cstring x_display{ };
+      } io;
+      struct {
+        bool vk_create_debug_instance{ };
+        u32 vk_device_index{ };
+      } gfx;
+    };
+
+    config m_config{ };
   public:
-    using entry_point = int(window_system& win, render_system& rnd, const ptr<void> user);
+    using entry_point = int(context& ctx, const ptr<void> user);
 
     virtual ~application() noexcept = default;
 

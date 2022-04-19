@@ -1,0 +1,2 @@
+CompileFlags:
+  Add: [ -DUSING_CLANGD=1 ]

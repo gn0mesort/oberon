@@ -1,5 +1,5 @@
-#ifndef OBERON_LINUX_DETAIL_X11_HPP
-#define OBERON_LINUX_DETAIL_X11_HPP
+#ifndef OBERON_LINUX_X11_HPP
+#define OBERON_LINUX_X11_HPP
 
 #include <xcb/xcb.h>
 #include <xcb/xcb_atom.h>

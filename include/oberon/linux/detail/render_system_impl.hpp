@@ -17,8 +17,9 @@ namespace oberon::linux::detail {
     VkDebugUtilsMessengerEXT debug_messenger{ };
     VkPhysicalDevice physical_device{ };
     VkDevice device{ };
-    u32 work_queue_family{ };
-    VkQueue work_queue{ };
+
+    u32 primary_queue_family{ };
+    VkQueue primary_queue{ };
   };
 
 

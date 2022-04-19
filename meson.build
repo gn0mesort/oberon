@@ -14,8 +14,20 @@ project(
   ]
 )
 
+cmake = import('cmake')
+
 vkfl_proj = subproject('vkfl')
 vkfl_dep = vkfl_proj.get_variable('vkfl_dep')
+
+# Configure VMA
+#vma_opts = cmake.subproject_options()
+#vma_opts.append_compile_args('cpp', '-w')
+#vma_opts.append_compile_args('cpp', '-DVMA_VULKAN_VERSION=1002000')
+#vma_opts.append_compile_args('cpp', '-DVMA_STATS_STRING_ENABLED=0')
+#vma_opts.add_cmake_defines({ 'VMA_STATIC_VULKAN_FUNCTIONS': 'OFF' })
+#vma_opts.add_cmake_defines({ 'BUILD_SHARED_LIBS': 'ON' })
+#vma_proj = cmake.subproject('VulkanMemoryAllocator', options: vma_opts)
+#vma_dep = vma_proj.dependency('VulkanMemoryAllocator')
 
 glslc = generator(find_program('glslangValidator'),
                   output: '@PLAINNAME@.spv',
@@ -26,6 +38,7 @@ spv2cpp = find_program('tools/spv2cpp.py')
 
 oberon_deps = [
   vkfl_dep,
+  #vma_dep,
   dependency('xcb'),
   dependency('xcb-util'),
   dependency('xcb-icccm'),
@@ -44,17 +57,13 @@ oberon_incs = [
 oberon_srcs = [ ]
 
 oberon_srcs += [
-  files('src/oberon/debug.cpp')
+  files('src/oberon/debug.cpp', 'src/oberon/context.cpp')
 ]
 
 if host_machine.system() == 'linux'
   oberon_srcs += [
-    files('src/oberon/linux/application.cpp', 'src/oberon/linux/window_system.cpp',
-          'src/oberon/linux/render_system.cpp',
-          'src/oberon/linux/render_window.cpp')
-  ]
-  oberon_srcs += [
-    files('src/oberon/linux/detail/vulkan.cpp')
+    files('src/oberon/linux/application.cpp', 'src/oberon/linux/io_subsystem.cpp',
+          'src/oberon/linux/graphics_subsystem.cpp', 'src/oberon/linux/vulkan.cpp')
   ]
 endif
 

@@ -7,6 +7,7 @@
 
 #include <limits>
 #include <type_traits>
+#include <concepts>
 
 namespace oberon {
 
@@ -58,6 +59,9 @@ namespace oberon {
 
   using uptr = std::uintptr_t;
   using iptr = std::intptr_t;
+
+  template <typename From, typename To>
+  concept inherits_from = std::convertible_to<From*, To*> || std::same_as<From, To>;
 
 }
 

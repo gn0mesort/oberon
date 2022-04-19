@@ -4,7 +4,7 @@
 #include <string_view>
 
 // clangd doesn't detect this header correctly with gcc in C++20 mode.
-#if __has_include(<source_location>) && !defined(__clang__)
+#if __has_include(<source_location>) && !defined(USING_CLANGD)
   #include <source_location>
 #elif __has_include(<experimental/source_location>)
   #include <experimental/source_location>

@@ -279,6 +279,7 @@ namespace oberon::linux {
     auto& rnd = m_impl->parent_render_system_backend;
     m_impl->bounds = detail::x11_get_current_geometry(win->connection, m_impl->window_handle);
     detail::vk_destroy_swapchain_images(rnd->device, m_impl->swapchain_images, m_impl->swapchain_image_views, *rnd->dl);
+    // 3 = triple buffer at a minimum
     detail::vk_configure_swapchain(rnd->physical_device, m_impl->surface, m_impl->bounds, 3, m_impl->swapchain_config,
                                    *rnd->dl);
     m_impl->swapchain = detail::vk_create_swapchain(rnd->physical_device, rnd->device, m_impl->surface,
@@ -315,6 +316,7 @@ namespace oberon::linux {
     // Create Vulkan swapchain
     {
       auto& backend = m_impl->parent_render_system_backend;
+      // 3 = triple buffer at a minimum
       detail::vk_configure_swapchain(backend->physical_device, m_impl->surface, m_impl->bounds, 3,
                                      m_impl->swapchain_config, *backend->dl);
       m_impl->swapchain = detail::vk_create_swapchain(backend->physical_device, backend->device, m_impl->surface,
