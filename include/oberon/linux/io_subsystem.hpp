@@ -31,6 +31,7 @@ namespace oberon::linux {
     xcb_atom_t x_atom(const std::string_view name);
     ptr<xcb_connection_t> x_connection();
     ptr<xcb_screen_t> x_screen();
+    xcb_ewmh_connection_t& x_ewmh();
   };
 
   static_assert(is_io_subsystem_v<io_subsystem>);

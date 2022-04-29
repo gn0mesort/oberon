@@ -47,6 +47,13 @@ namespace oberon::linux {
     constexpr subsystem_implementation implementation() noexcept override {
       return subsystem_implementation::vulkan;
     }
+
+    const vkfl::loader& vk_loader();
+    VkInstance vk_instance();
+    VkPhysicalDevice vk_physical_device();
+    u32 vk_primary_queue_family() const;
+    VkDevice vk_device();
+    VkQueue vk_primary_queue();
   };
 
   static_assert(is_graphics_subsystem_v<graphics_subsystem>);

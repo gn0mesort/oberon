@@ -1,12 +1,17 @@
 #ifndef OBERON_CONTEXT_HPP
 #define OBERON_CONTEXT_HPP
 
+#include <string_view>
+
 #include "memory.hpp"
-#include "io_subsystem.hpp"
-#include "graphics_subsystem.hpp"
+#include "subsystem.hpp"
 
 namespace oberon {
 
+  class abstract_io_subsystem;
+  class abstract_graphics_subsystem;
+  class abstract_window;
+  struct bounding_rect;
   class context;
 
 }
@@ -60,6 +65,8 @@ namespace oberon {
 
     abstract_io_subsystem& get_io_subsystem();
     abstract_graphics_subsystem& get_graphics_subsystem();
+
+    ptr<abstract_window> create_window(const std::string_view title, const bounding_rect& bounds);
   };
 
 }

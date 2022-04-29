@@ -7,7 +7,7 @@
 #define VK_USE_PLATFORM_XCB_KHR 1
 #include <vulkan/vulkan.h>
 
-#include "vk_mem_alloc.h"
+//#include "vk_mem_alloc.h"
 
 #define OBERON_DECLARE_VK_PFN(dl, cmd) \
   auto vk##cmd = (reinterpret_cast<PFN_vk##cmd>((dl).get(vkfl::command::cmd)))

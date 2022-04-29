@@ -63,4 +63,8 @@ namespace oberon::linux {
     return m_screen;
   }
 
+  xcb_ewmh_connection_t& io_subsystem::x_ewmh() {
+    return m_ewmh;
+  }
+
 }

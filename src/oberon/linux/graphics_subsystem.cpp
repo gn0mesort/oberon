@@ -251,4 +251,20 @@ namespace oberon::linux {
     close_vk_instance();
   }
 
+  const vkfl::loader& graphics_subsystem::vk_loader() {
+    return m_vkdl;
+  }
+
+  VkPhysicalDevice graphics_subsystem::vk_physical_device() {
+    return m_physical_device;
+  }
+
+  u32 graphics_subsystem::vk_primary_queue_family() const {
+    return m_primary_queue_family;
+  }
+
+  VkQueue graphics_subsystem::vk_primary_queue() {
+    return m_primary_queue;
+  }
+
 }

@@ -14,7 +14,7 @@ project(
   ]
 )
 
-cmake = import('cmake')
+#cmake = import('cmake')
 
 vkfl_proj = subproject('vkfl')
 vkfl_dep = vkfl_proj.get_variable('vkfl_dep')
@@ -63,7 +63,7 @@ oberon_srcs += [
 if host_machine.system() == 'linux'
   oberon_srcs += [
     files('src/oberon/linux/application.cpp', 'src/oberon/linux/io_subsystem.cpp',
-          'src/oberon/linux/graphics_subsystem.cpp', 'src/oberon/linux/vulkan.cpp')
+          'src/oberon/linux/graphics_subsystem.cpp', 'src/oberon/linux/vulkan.cpp', 'src/oberon/linux/window.cpp')
   ]
 endif
 
