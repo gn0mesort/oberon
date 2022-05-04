@@ -21,7 +21,7 @@ namespace oberon::linux {
     OBERON_PRECONDITION(m_vkdl.loaded_device() == VK_NULL_HANDLE);
     auto app_info = VkApplicationInfo{ };
     app_info.sType = OBERON_VK_STRUCT(APPLICATION_INFO);
-    app_info.apiVersion = VK_API_VERSION_1_2;
+    app_info.apiVersion = VK_API_VERSION_1_3;
     auto instance_info = VkInstanceCreateInfo{ };
     instance_info.sType = OBERON_VK_STRUCT(INSTANCE_CREATE_INFO);
     instance_info.pApplicationInfo = &app_info;
@@ -238,7 +238,14 @@ namespace oberon::linux {
     open_vk_physical_devices(io);
     open_vk_selected_physical_device(device_index);
     {
-      auto extensions = std::array<cstring, 1>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+      auto extensions = std::vector<cstring>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+      OBERON_DECLARE_VK_PFN(m_vkdl, GetPhysicalDeviceProperties);
+      auto properties = VkPhysicalDeviceProperties{ };
+      vkGetPhysicalDeviceProperties(m_physical_device, &properties);
+      if (properties.apiVersion < VK_MAKE_API_VERSION(0, 1, 3, 0))
+      {
+        extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+      }
       open_vk_device(std::data(extensions), std::size(extensions), nullptr);
     }
   }

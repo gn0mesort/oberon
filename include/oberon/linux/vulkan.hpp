@@ -3,9 +3,11 @@
 
 #include "vkfl.hpp"
 
+#include "x11.hpp"
+
 #define VK_NO_PROTOTYPES 1
-#define VK_USE_PLATFORM_XCB_KHR 1
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_xcb.h>
 
 //#include "vk_mem_alloc.h"
 

@@ -17,7 +17,7 @@ project(
 #cmake = import('cmake')
 
 vkfl_proj = subproject('vkfl')
-vkfl_dep = vkfl_proj.get_variable('vkfl_dep')
+vkfl_dep = vkfl_proj.get_variable('vkfl_cpp_dep')
 
 # Configure VMA
 #vma_opts = cmake.subproject_options()
