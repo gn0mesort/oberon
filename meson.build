@@ -62,7 +62,8 @@ oberon_srcs += [
 
 if host_machine.system() == 'linux'
   oberon_srcs += [
-    files('src/oberon/application.cpp', 'src/oberon/io_subsystem.cpp', 'src/oberon/vulkan.cpp')
+    files('src/oberon/application.cpp', 'src/oberon/io_subsystem.cpp', 'src/oberon/graphics_subsystem.cpp',
+          'src/oberon/vulkan.cpp')
   ]
 endif
 

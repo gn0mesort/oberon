@@ -12,13 +12,26 @@ namespace oberon {
   private:
     vkfl::loader m_vkdl{ vkGetInstanceProcAddr };
     VkInstance m_instance{ };
+    VkDebugUtilsMessengerEXT m_debug_messenger{ };
     VkPhysicalDevice m_physical_device{ };
     VkPhysicalDeviceProperties m_physical_device_properties{ };
     u32 m_primary_queue_family{ };
     VkDevice m_device{ };
     VkQueue m_primary_queue{ };
+
+    void open_vk_instance();
+    void open_vk_device(io_subsystem& io, const u32 device_index);
+    void close_vk_device() noexcept;
+    void close_vk_instance() noexcept;
   public:
-    graphics_subsystem(io_subsystem& io);
+    graphics_subsystem(io_subsystem& io, const u32 device_index);
+    graphics_subsystem(const graphics_subsystem& other) = delete;
+    graphics_subsystem(graphics_subsystem&& other) = delete;
+
+    ~graphics_subsystem() noexcept;
+
+    graphics_subsystem& operator=(const graphics_subsystem& rhs) = delete;
+    graphics_subsystem& operator=(graphics_subsystem&& rhs) = delete;
   };
 
 }
