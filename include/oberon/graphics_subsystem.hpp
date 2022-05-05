@@ -1,28 +1,25 @@
 #ifndef OBERON_GRAPHICS_SUBSYSTEM_HPP
 #define OBERON_GRAPHICS_SUBSYSTEM_HPP
 
-#include "subsystem.hpp"
+#include "types.hpp"
+#include "vulkan.hpp"
 
 namespace oberon {
 
-  class abstract_graphics_subsystem : public abstract_subsystem {
-  protected:
-    abstract_graphics_subsystem() = default;
+  class io_subsystem;
 
-    virtual ~abstract_graphics_subsystem() noexcept = default;
+  class graphics_subsystem final {
+  private:
+    vkfl::loader m_vkdl{ vkGetInstanceProcAddr };
+    VkInstance m_instance{ };
+    VkPhysicalDevice m_physical_device{ };
+    VkPhysicalDeviceProperties m_physical_device_properties{ };
+    u32 m_primary_queue_family{ };
+    VkDevice m_device{ };
+    VkQueue m_primary_queue{ };
   public:
-    constexpr subsystem_type type() noexcept final override { return subsystem_type::graphics; }
+    graphics_subsystem(io_subsystem& io);
   };
-
-  template <typename Type>
-  struct is_graphics_subsystem final {
-    static constexpr bool value{ inherits_from<Type, abstract_graphics_subsystem> && is_subsystem_v<Type> };
-  };
-
-  template <typename Type>
-  constexpr bool is_graphics_subsystem_v = is_graphics_subsystem<Type>::value;
-
-  static_assert(is_graphics_subsystem_v<abstract_graphics_subsystem>);
 
 }
 

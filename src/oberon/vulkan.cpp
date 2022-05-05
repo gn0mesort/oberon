@@ -1,4 +1,4 @@
-#include "oberon/linux/vulkan.hpp"
+#include "oberon/vulkan.hpp"
 
 #include "oberon/memory.hpp"
 

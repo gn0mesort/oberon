@@ -2,11 +2,13 @@
 #define OBERON_ERRORS_HPP
 
 #include <exception>
+#include <string>
+#include <string_view>
 
 #include "types.hpp"
 #include "memory.hpp"
 
-#define OBERON_EXCEPTION_TYPE(name, msg, res) \
+#define OBERON_STATIC_EXCEPTION_TYPE(name, msg, res) \
   class name##_error final : public oberon::error {\
   private:\
     oberon::cstring m_message{ (msg) };\
@@ -14,6 +16,19 @@
   public:\
     inline oberon::cstring what() const noexcept override { return m_message; }\
     inline oberon::cstring message() const noexcept override { return m_message; }\
+    inline oberon::i32 result() const noexcept override { return m_result; }\
+  }
+
+#define OBERON_DYNAMIC_EXCEPTION_TYPE(name) \
+  class name##_error final : public oberon::error {\
+  private:\
+    std::string m_message{ };\
+    oberon::i32 m_result{ };\
+  public:\
+    inline name##_error(const std::string_view message, const oberon::i32 result) :\
+    m_message{ message }, m_result{ result } { }\
+    inline oberon::cstring what() const noexcept override { return std::data(m_message); }\
+    inline oberon::cstring message() const noexcept override { return std::data(m_message); }\
     inline oberon::i32 result() const noexcept override { return m_result; }\
   }
 
@@ -43,7 +58,7 @@ namespace oberon {
     virtual i32 result() const noexcept = 0;
   };
 
-  OBERON_EXCEPTION_TYPE(not_implemented, "Functionality not implemented.", 1);
+  OBERON_STATIC_EXCEPTION_TYPE(not_implemented, "Functionality not implemented.", 1);
 
 }
 
