@@ -2,9 +2,11 @@
 #define OBERON_IO_SUBSYSTEM_HPP
 
 #include <string_view>
+#include <string>
 
 #include "x11.hpp"
 #include "memory.hpp"
+#include "errors.hpp"
 
 namespace oberon {
 
@@ -12,10 +14,7 @@ namespace oberon {
   private:
     ptr<xcb_connection_t> m_connection{ };
     ptr<xcb_screen_t> m_screen{ };
-    xcb_atom_t m_wm_name{ };
-    xcb_atom_t m_wm_protocols{ };
-    xcb_atom_t m_wm_delete_window{ };
-    xcb_atom_t m_wm_normal_hints{ };
+    std::array<xcb_atom_t, static_cast<usize>(X_ATOM_MAX)> m_atoms{ };
 
     xcb_intern_atom_cookie_t x_intern_atom(const std::string_view name);
     xcb_intern_atom_cookie_t x_intern_existing_atom(const std::string_view name);
@@ -33,11 +32,12 @@ namespace oberon {
 
     ptr<xcb_connection_t> x_connection();
     ptr<xcb_screen_t> x_screen();
-    xcb_atom_t x_wm_name_atom();
-    xcb_atom_t x_wm_protocols_atom();
-    xcb_atom_t x_wm_delete_window_atom();
-    xcb_atom_t x_wm_normal_hints_atom();
+    xcb_atom_t x_atom(const enum x_atom atom);
+
+    std::string hostname() const;
   };
+
+  OBERON_STATIC_EXCEPTION_TYPE(get_hostname_failed, "Failed to get system hostname.", 1);
 
 }
 

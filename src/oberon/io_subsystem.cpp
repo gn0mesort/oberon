@@ -2,9 +2,18 @@
 
 #include <cstdlib>
 
+#include <sys/utsname.h>
+
 #include "oberon/debug.hpp"
 
 namespace oberon {
+
+// Generates array of X11 atom names at compile time
+#define OBERON_X_ATOM(name) (#name),
+  consteval std::array<cstring, static_cast<usize>(X_ATOM_MAX)> x_atom_names() {
+    return { OBERON_X_ATOMS };
+  }
+#undef OBERON_X_ATOM
 
   // Pre: connection
   xcb_intern_atom_cookie_t io_subsystem::x_intern_atom(const std::string_view name) {
@@ -40,10 +49,16 @@ namespace oberon {
       throw x_connection_failed_error{ };
     }
     xcb_set_close_down_mode(m_connection, XCB_CLOSE_DOWN_DESTROY_ALL);
-    auto wm_name_req = x_intern_atom("WM_NAME");
-    auto wm_protocols_req = x_intern_atom("WM_PROTOCOLS");
-    auto wm_delete_window_req = x_intern_atom("WM_DELETE_WINDOW");
-    auto wm_normal_hints_req = x_intern_atom("WM_NORMAL_HINTS");
+    // Fire off X intern atom requests
+    auto intern_atom_reqs = std::array<xcb_intern_atom_cookie_t, static_cast<usize>(X_ATOM_MAX)>{ };
+    {
+      constexpr auto atom_names = x_atom_names();
+      auto cur = std::begin(intern_atom_reqs);
+      for (const auto name : atom_names)
+      {
+        *(cur++) = x_intern_atom(name);
+      }
+    }
     {
       auto setup = xcb_get_setup(m_connection);
       for (auto roots = xcb_setup_roots_iterator(setup); roots.rem; xcb_screen_next(&roots))
@@ -54,10 +69,14 @@ namespace oberon {
         }
       }
     }
-    m_wm_name = x_intern_atom_reply(wm_name_req);
-    m_wm_protocols = x_intern_atom_reply(wm_protocols_req);
-    m_wm_delete_window = x_intern_atom_reply(wm_delete_window_req);
-    m_wm_normal_hints = x_intern_atom_reply(wm_normal_hints_req);
+    // Retrieve X atoms
+    {
+      auto cur = std::begin(m_atoms);
+      for (const auto req : intern_atom_reqs)
+      {
+        *(cur++) = x_intern_atom_reply(req);
+      }
+    }
     OBERON_POSTCONDITION(m_connection);
     OBERON_POSTCONDITION(m_screen);
   }
@@ -95,20 +114,17 @@ namespace oberon {
     return m_screen;
   }
 
-  xcb_atom_t io_subsystem::x_wm_name_atom() {
-    return m_wm_name;
+  xcb_atom_t io_subsystem::x_atom(const enum x_atom atom) {
+    return m_atoms[static_cast<usize>(atom)];
   }
 
-  xcb_atom_t io_subsystem::x_wm_protocols_atom() {
-    return m_wm_protocols;
-  }
-
-  xcb_atom_t io_subsystem::x_wm_delete_window_atom() {
-    return m_wm_delete_window;
-  }
-
-  xcb_atom_t io_subsystem::x_wm_normal_hints_atom() {
-    return m_wm_normal_hints;
+  std::string io_subsystem::hostname() const {
+    auto uname_res = utsname{ };
+    if (uname(&uname_res) == -1)
+    {
+      throw get_hostname_failed_error{ };
+    }
+    return uname_res.nodename;
   }
 
 }

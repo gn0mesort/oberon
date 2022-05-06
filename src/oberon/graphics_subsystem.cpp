@@ -114,6 +114,33 @@ namespace oberon {
     OBERON_POSTCONDITION(m_vkdl.loaded_instance() == VK_NULL_HANDLE);
   }
 
+  bool is_acceptable_device(const VkPhysicalDevice physical_device, io_subsystem& io, const vkfl::loader& vkdl) {
+    OBERON_PRECONDITION(physical_device != VK_NULL_HANDLE);
+    OBERON_PRECONDITION(vkdl.loaded_instance() != VK_NULL_HANDLE);
+    OBERON_DECLARE_VK_PFN(vkdl, GetPhysicalDeviceQueueFamilyProperties);
+    OBERON_DECLARE_VK_PFN(vkdl, GetPhysicalDeviceXcbPresentationSupportKHR);
+    auto sz = u32{ 0 };
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &sz, nullptr);
+    auto queue_families = std::vector<VkQueueFamilyProperties>(sz);
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &sz, std::data(queue_families));
+    auto has_graphics = false;
+    auto has_compute = false;
+    auto has_transfer = false;
+    auto has_present = false;
+    auto index = u32{ 0 };
+    for (const auto& queue_family : queue_families)
+    {
+      has_graphics = has_graphics || (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT);
+      has_compute = has_compute || (queue_family.queueFlags & VK_QUEUE_COMPUTE_BIT);
+      has_transfer = has_transfer || (queue_family.queueFlags & (VK_QUEUE_COMPUTE_BIT | VK_QUEUE_GRAPHICS_BIT |
+                                                                 VK_QUEUE_TRANSFER_BIT));
+      has_present = has_present || vkGetPhysicalDeviceXcbPresentationSupportKHR(physical_device, index++,
+                                                                                io.x_connection(),
+                                                                                io.x_screen()->root_visual);
+    }
+    return has_graphics && has_compute && has_transfer && has_present;
+  }
+
   // Pre: no device, no physical_device, no primary_queue, device unloaded, instance, instance loaded
   // Post: device, physical_device, primary_queue, device loaded
   void graphics_subsystem::open_vk_device(io_subsystem& io, const u32 device_index) {
@@ -123,7 +150,7 @@ namespace oberon {
     OBERON_PRECONDITION(m_vkdl.loaded_device() == VK_NULL_HANDLE);
     OBERON_PRECONDITION(m_instance != VK_NULL_HANDLE);
     OBERON_PRECONDITION(m_vkdl.loaded_instance() == m_instance);
-
+    // Select physical device and retrieve properties.
     OBERON_DECLARE_VK_PFN(m_vkdl, EnumeratePhysicalDevices);
     {
       auto sz = u32{ 0 };
@@ -131,25 +158,79 @@ namespace oberon {
       // Sanity, must have at least one device.
       OBERON_ASSERT(sz > 0);
       auto physical_devices = std::vector<VkPhysicalDevice>(sz);
-      auto physical_device_properties = std::vector<VkPhysicalDeviceProperties>(sz);
       OBERON_VK_SUCCEEDS(vkEnumeratePhysicalDevices(m_instance, &sz, std::data(physical_devices)),
                          vk_create_device_failed_error{ });
+      std::erase_if(physical_devices, [&](const VkPhysicalDevice p){ return !is_acceptable_device(p, io, m_vkdl); });
+      if (device_index > std::size(physical_devices))
       {
-        OBERON_DECLARE_VK_PFN(m_vkdl, GetPhysicalDeviceProperties);
-        auto cur = std::begin(physical_device_properties);
-        for (const auto& physical_device : physical_devices)
-        {
-          vkGetPhysicalDeviceProperties(physical_device, &(*cur));
-          ++cur;
-        }
+        throw no_device_found_error{ };
       }
-
+      m_physical_device = physical_devices[device_index];
+      OBERON_DECLARE_VK_PFN(m_vkdl, GetPhysicalDeviceProperties);
+      vkGetPhysicalDeviceProperties(m_physical_device, &m_physical_device_properties);
     }
+    // Create a new Vulkan device.
+    {
+      auto device_info = VkDeviceCreateInfo{ };
+      device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+      auto extensions = std::array<cstring, 1>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+      device_info.ppEnabledExtensionNames = std::data(extensions);
+      device_info.enabledExtensionCount = std::size(extensions);
+      OBERON_DECLARE_VK_PFN(m_vkdl, GetPhysicalDeviceFeatures);
+      auto features = VkPhysicalDeviceFeatures{ };
+      vkGetPhysicalDeviceFeatures(m_physical_device, &features);
+      device_info.pEnabledFeatures = &features;
+      switch (m_physical_device_properties.vendorID)
+      {
+      // AMD, Intel, and Nvidia all implement a graphics/compute/transfer/present queue family as queue family 0.
+      // In the future these cases may not all be the same but this is the current reality.
+      case 0x10de: // Nvidia
+      case 0x1002: // AMD
+      case 0x8086: // Intel
+        m_primary_queue_family = 0;
+        break;
+      default:
+        throw not_implemented_error{ };
+      }
+      auto queue_info = VkDeviceQueueCreateInfo{ };
+      queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+      queue_info.queueFamilyIndex = m_primary_queue_family;
+      queue_info.queueCount = 1;
+      auto priority = 1.0f;
+      queue_info.pQueuePriorities = &priority;
+      device_info.pQueueCreateInfos = &queue_info;
+      device_info.queueCreateInfoCount = 1;
+      OBERON_DECLARE_VK_PFN(m_vkdl, CreateDevice);
+      OBERON_VK_SUCCEEDS(vkCreateDevice(m_physical_device, &device_info, nullptr, &m_device),
+                         vk_create_device_failed_error{ });
+      m_vkdl.load(m_device);
+      OBERON_DECLARE_VK_PFN(m_vkdl, GetDeviceQueue);
+      vkGetDeviceQueue(m_device, m_primary_queue_family, 0, &m_primary_queue);
+    }
+
 
     OBERON_POSTCONDITION(m_device != VK_NULL_HANDLE);
     OBERON_POSTCONDITION(m_physical_device != VK_NULL_HANDLE);
     OBERON_POSTCONDITION(m_primary_queue != VK_NULL_HANDLE);
     OBERON_POSTCONDITION(m_vkdl.loaded_device() == m_device);
+  }
+
+  // Post: no device, no physical device, device unloaded, no primary queue and primary queue family undefined
+  void graphics_subsystem::close_vk_device() noexcept {
+    if (m_device != VK_NULL_HANDLE)
+    {
+      OBERON_ASSERT(m_device == m_vkdl.loaded_device());
+      OBERON_DECLARE_VK_PFN(m_vkdl, DestroyDevice);
+      vkDestroyDevice(m_device, nullptr);
+      m_device = VK_NULL_HANDLE;
+      m_vkdl.unload_device();
+      m_primary_queue = VK_NULL_HANDLE;
+      m_physical_device = VK_NULL_HANDLE;
+    }
+    OBERON_POSTCONDITION(m_device == VK_NULL_HANDLE);
+    OBERON_POSTCONDITION(m_physical_device == VK_NULL_HANDLE);
+    OBERON_POSTCONDITION(m_primary_queue == VK_NULL_HANDLE);
+    OBERON_POSTCONDITION(m_vkdl.loaded_device() == VK_NULL_HANDLE);
   }
 
   graphics_subsystem::graphics_subsystem(io_subsystem& io, const u32 device_index) {
@@ -158,7 +239,7 @@ namespace oberon {
   }
 
   graphics_subsystem::~graphics_subsystem() noexcept {
-    //close_vk_device();
+    close_vk_device();
     close_vk_instance();
   }
 
