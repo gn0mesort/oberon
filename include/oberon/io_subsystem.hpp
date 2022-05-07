@@ -4,9 +4,8 @@
 #include <string_view>
 #include <string>
 
+#include "basics.hpp"
 #include "x11.hpp"
-#include "memory.hpp"
-#include "errors.hpp"
 
 namespace oberon {
 

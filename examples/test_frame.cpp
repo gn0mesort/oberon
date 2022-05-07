@@ -1,9 +1,5 @@
 #include <cstdio>
 
-#include <memory>
-
-#include <unistd.h>
-
 #include <oberon/application.hpp>
 #include <oberon/io_subsystem.hpp>
 

@@ -1,15 +1,12 @@
-#ifndef OBERON_LINUX_VULKAN_HPP
-#define OBERON_LINUX_VULKAN_HPP
-
-#include "vkfl.hpp"
-
-#include "x11.hpp"
+#ifndef OBERON_VULKAN_HPP
+#define OBERON_VULKAN_HPP
 
 #define VK_NO_PROTOTYPES 1
 #include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_xcb.h>
 
-#include "errors.hpp"
+#include "vkfl.hpp"
+
+#include "basics.hpp"
 
 //#include "vk_mem_alloc.h"
 
@@ -28,8 +25,12 @@ extern "C" VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugLog(VkDebugUtilsMessageSeverity
                                                      const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                                      void* pUserData);
 
-OBERON_STATIC_EXCEPTION_TYPE(vk_create_instance_failed, "Failed to create Vulkan instance.", 1);
-OBERON_STATIC_EXCEPTION_TYPE(vk_create_debug_messenger_failed, "Failed to create Vulkan debug messenger.", 1);
-OBERON_STATIC_EXCEPTION_TYPE(vk_create_device_failed, "Failed to create Vulkan device.", 1);
+namespace oberon {
+
+  OBERON_STATIC_EXCEPTION_TYPE(vk_create_instance_failed, "Failed to create Vulkan instance.", 1);
+  OBERON_STATIC_EXCEPTION_TYPE(vk_create_debug_messenger_failed, "Failed to create Vulkan debug messenger.", 1);
+  OBERON_STATIC_EXCEPTION_TYPE(vk_create_device_failed, "Failed to create Vulkan device.", 1);
+
+}
 
 #endif

@@ -1,7 +1,7 @@
 #ifndef OBERON_GRAPHICS_SUBSYSTEM_HPP
 #define OBERON_GRAPHICS_SUBSYSTEM_HPP
 
-#include "types.hpp"
+#include "basics.hpp"
 #include "vulkan.hpp"
 
 namespace oberon {

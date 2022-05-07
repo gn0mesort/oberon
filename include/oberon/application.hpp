@@ -1,7 +1,7 @@
 #ifndef OBERON_APPLICATION_HPP
 #define OBERON_APPLICATION_HPP
 
-#include "memory.hpp"
+#include "basics.hpp"
 
 namespace oberon {
 

@@ -4,6 +4,7 @@
 
 #include "oberon/debug.hpp"
 #include "oberon/io_subsystem.hpp"
+#include "oberon/x11.hpp"
 
 namespace oberon {
 
@@ -75,7 +76,7 @@ namespace oberon {
     LAYERS;
     EXTENSIONS;
     PNEXT;
-    OBERON_DECLARE_VK_PFN(m_vkdl, CreateInstance);
+OBERON_DECLARE_VK_PFN(m_vkdl, CreateInstance);
     OBERON_VK_SUCCEEDS(vkCreateInstance(&instance_info, nullptr, &m_instance), vk_create_instance_failed_error{ });
     m_vkdl.load(m_instance);
     CREATE_DEBUGGER;
@@ -207,8 +208,6 @@ namespace oberon {
       OBERON_DECLARE_VK_PFN(m_vkdl, GetDeviceQueue);
       vkGetDeviceQueue(m_device, m_primary_queue_family, 0, &m_primary_queue);
     }
-
-
     OBERON_POSTCONDITION(m_device != VK_NULL_HANDLE);
     OBERON_POSTCONDITION(m_physical_device != VK_NULL_HANDLE);
     OBERON_POSTCONDITION(m_primary_queue != VK_NULL_HANDLE);

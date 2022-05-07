@@ -1,15 +1,20 @@
-#ifndef OBERON_LINUX_X11_HPP
-#define OBERON_LINUX_X11_HPP
+#ifndef OBERON_X11_HPP
+#define OBERON_X11_HPP
 
 #include <xcb/xcb.h>
-#include <xcb/xcb_atom.h>
-#include <xcb/xcb_aux.h>
-#include <xcb/xcb_util.h>
-#include <xcb/xcb_icccm.h>
-#include <xcb/xcb_ewmh.h>
+//#include <xcb/xcb_atom.h>
+//#include <xcb/xcb_aux.h>
+//#include <xcb/xcb_util.h>
+//#include <xcb/xcb_icccm.h>
+//#include <xcb/xcb_ewmh.h>
 
-#include "oberon/types.hpp"
-#include "oberon/errors.hpp"
+// If vulkan.hpp (from oberon not the Khronos Vulkan-Hpp library) is included before this header then add
+// vulkan_xcb.h.
+#ifdef OBERON_VULKAN_HPP
+  #include <vulkan/vulkan_xcb.h>
+#endif
+
+#include "basics.hpp"
 
 #define OBERON_X_ATOMS \
   OBERON_X_ATOM(WM_NAME) \
