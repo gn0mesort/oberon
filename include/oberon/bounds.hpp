@@ -1,7 +1,7 @@
 #ifndef OBERON_BOUNDS_HPP
 #define OBERON_BOUNDS_HPP
 
-#include "types.hpp"
+#include "basics.hpp"
 
 namespace oberon {
 

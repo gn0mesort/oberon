@@ -3,19 +3,23 @@
 
 #include "basics.hpp"
 
-namespace oberon {
+namespace oberon::detail {
 
   class io_subsystem;
   class graphics_subsystem;
+
+}
+
+namespace oberon {
 
   class context final {
   private:
     friend class application;
 
-    ptr<io_subsystem> m_io{ nullptr };
-    ptr<graphics_subsystem> m_graphics{ nullptr };
+    ptr<detail::io_subsystem> m_io{ nullptr };
+    ptr<detail::graphics_subsystem> m_graphics{ nullptr };
 
-    context(const ptr<io_subsystem> io, const ptr<graphics_subsystem> graphics);
+    context(const ptr<detail::io_subsystem> io, const ptr<detail::graphics_subsystem> graphics);
 
     ~context() noexcept = default;
   public:
@@ -25,8 +29,8 @@ namespace oberon {
     context& operator=(const context& other) = delete;
     context& operator=(context&& other) = delete;
 
-    io_subsystem& io();
-    graphics_subsystem& graphics();
+    detail::io_subsystem& io();
+    detail::graphics_subsystem& graphics();
   };
 
   class application final {

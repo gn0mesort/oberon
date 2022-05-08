@@ -1,22 +1,24 @@
 #include "oberon/application.hpp"
 
 #include "oberon/debug.hpp"
-#include "oberon/io_subsystem.hpp"
-#include "oberon/graphics_subsystem.hpp"
+
+#include "oberon/detail/io_subsystem.hpp"
+#include "oberon/detail/graphics_subsystem.hpp"
 
 namespace oberon {
 
-  context::context(const ptr<io_subsystem> io, const ptr<graphics_subsystem> graphics) :
+  // Post: io, graphics
+  context::context(const ptr<detail::io_subsystem> io, const ptr<detail::graphics_subsystem> graphics) :
   m_io{ io }, m_graphics{ graphics } {
     OBERON_POSTCONDITION(m_io);
     OBERON_POSTCONDITION(m_graphics);
   }
 
-  io_subsystem& context::io() {
+  detail::io_subsystem& context::io() {
     return *m_io;
   }
 
-  graphics_subsystem& context::graphics() {
+  detail::graphics_subsystem& context::graphics() {
     return *m_graphics;
   }
 
@@ -25,8 +27,8 @@ namespace oberon {
     {
       // Build up the application context.
       // Dependencies between subsystems matter.
-      auto io = new io_subsystem{ };
-      auto graphics = new graphics_subsystem{ *io, 0 };
+      auto io = new detail::io_subsystem{ };
+      auto graphics = new detail::graphics_subsystem{ *io, 0 };
 
       // Construct context object, wrap subsystems, and execute application entry point function.
       auto ctx = context{ io, graphics };

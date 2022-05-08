@@ -1,13 +1,14 @@
-#ifndef OBERON_IO_SUBSYSTEM_HPP
-#define OBERON_IO_SUBSYSTEM_HPP
+#ifndef OBERON_DETAIL_IO_SUBSYSTEM_HPP
+#define OBERON_DETAIL_IO_SUBSYSTEM_HPP
 
 #include <string_view>
 #include <string>
 
-#include "basics.hpp"
+#include "../basics.hpp"
+
 #include "x11.hpp"
 
-namespace oberon {
+namespace oberon::detail {
 
   class io_subsystem final {
   private:
@@ -34,6 +35,7 @@ namespace oberon {
     xcb_atom_t x_atom(const enum x_atom atom);
 
     std::string hostname() const;
+    u32 process_id() const;
   };
 
   OBERON_STATIC_EXCEPTION_TYPE(get_hostname_failed, "Failed to get system hostname.", 1);

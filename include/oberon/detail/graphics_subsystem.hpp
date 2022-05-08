@@ -1,10 +1,11 @@
-#ifndef OBERON_GRAPHICS_SUBSYSTEM_HPP
-#define OBERON_GRAPHICS_SUBSYSTEM_HPP
+#ifndef OBERON_DETAIL_GRAPHICS_SUBSYSTEM_HPP
+#define OBERON_DETAIL_GRAPHICS_SUBSYSTEM_HPP
 
-#include "basics.hpp"
+#include "../basics.hpp"
+
 #include "vulkan.hpp"
 
-namespace oberon {
+namespace oberon::detail {
 
   class io_subsystem;
 
@@ -33,6 +34,10 @@ namespace oberon {
     graphics_subsystem& operator=(const graphics_subsystem& rhs) = delete;
     graphics_subsystem& operator=(graphics_subsystem&& rhs) = delete;
   };
+
+}
+
+namespace oberon::errors {
 
   OBERON_STATIC_EXCEPTION_TYPE(no_device_found, "No Vulkan device corresponding to the desired index was found.", 1);
 

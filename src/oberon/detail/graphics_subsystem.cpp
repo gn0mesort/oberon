@@ -1,12 +1,13 @@
-#include "oberon/graphics_subsystem.hpp"
+#include "oberon/detail/graphics_subsystem.hpp"
 
 #include <vector>
 
 #include "oberon/debug.hpp"
-#include "oberon/io_subsystem.hpp"
-#include "oberon/x11.hpp"
 
-namespace oberon {
+#include "oberon/detail/x11.hpp"
+#include "oberon/detail/io_subsystem.hpp"
+
+namespace oberon::detail {
 
   // Pre: no instance, instance unloaded
   // Post: instance, debugger (ifndef NDEBUG), instance loaded
@@ -58,7 +59,7 @@ namespace oberon {
   #define CREATE_DEBUGGER \
     OBERON_DECLARE_VK_PFN(m_vkdl, CreateDebugUtilsMessengerEXT); \
     OBERON_VK_SUCCEEDS(vkCreateDebugUtilsMessengerEXT(m_instance, &debug_messenger_info, nullptr, \
-    &m_debug_messenger), vk_create_debug_messenger_failed_error{ })
+    &m_debug_messenger), oberon::errors::vk_create_debug_messenger_failed_error{ })
   #define DEBUGGER_VALID (m_debug_messenger != VK_NULL_HANDLE)
 #else
   #define LAYERS ((void) 0)
@@ -76,8 +77,9 @@ namespace oberon {
     LAYERS;
     EXTENSIONS;
     PNEXT;
-OBERON_DECLARE_VK_PFN(m_vkdl, CreateInstance);
-    OBERON_VK_SUCCEEDS(vkCreateInstance(&instance_info, nullptr, &m_instance), vk_create_instance_failed_error{ });
+    OBERON_DECLARE_VK_PFN(m_vkdl, CreateInstance);
+    OBERON_VK_SUCCEEDS(vkCreateInstance(&instance_info, nullptr, &m_instance),
+                       oberon::errors::vk_create_instance_failed_error{ });
     m_vkdl.load(m_instance);
     CREATE_DEBUGGER;
     OBERON_POSTCONDITION(m_instance != VK_NULL_HANDLE);
@@ -155,16 +157,17 @@ OBERON_DECLARE_VK_PFN(m_vkdl, CreateInstance);
     OBERON_DECLARE_VK_PFN(m_vkdl, EnumeratePhysicalDevices);
     {
       auto sz = u32{ 0 };
-      OBERON_VK_SUCCEEDS(vkEnumeratePhysicalDevices(m_instance, &sz, nullptr), vk_create_device_failed_error{ });
+      OBERON_VK_SUCCEEDS(vkEnumeratePhysicalDevices(m_instance, &sz, nullptr),
+                         oberon::errors::vk_create_device_failed_error{ });
       // Sanity, must have at least one device.
       OBERON_ASSERT(sz > 0);
       auto physical_devices = std::vector<VkPhysicalDevice>(sz);
       OBERON_VK_SUCCEEDS(vkEnumeratePhysicalDevices(m_instance, &sz, std::data(physical_devices)),
-                         vk_create_device_failed_error{ });
+                         oberon::errors::vk_create_device_failed_error{ });
       std::erase_if(physical_devices, [&](const VkPhysicalDevice p){ return !is_acceptable_device(p, io, m_vkdl); });
       if (device_index > std::size(physical_devices))
       {
-        throw no_device_found_error{ };
+        throw oberon::errors::no_device_found_error{ };
       }
       m_physical_device = physical_devices[device_index];
       OBERON_DECLARE_VK_PFN(m_vkdl, GetPhysicalDeviceProperties);
@@ -191,7 +194,7 @@ OBERON_DECLARE_VK_PFN(m_vkdl, CreateInstance);
         m_primary_queue_family = 0;
         break;
       default:
-        throw not_implemented_error{ };
+        throw oberon::errors::not_implemented_error{ };
       }
       auto queue_info = VkDeviceQueueCreateInfo{ };
       queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -203,7 +206,7 @@ OBERON_DECLARE_VK_PFN(m_vkdl, CreateInstance);
       device_info.queueCreateInfoCount = 1;
       OBERON_DECLARE_VK_PFN(m_vkdl, CreateDevice);
       OBERON_VK_SUCCEEDS(vkCreateDevice(m_physical_device, &device_info, nullptr, &m_device),
-                         vk_create_device_failed_error{ });
+                         oberon::errors::vk_create_device_failed_error{ });
       m_vkdl.load(m_device);
       OBERON_DECLARE_VK_PFN(m_vkdl, GetDeviceQueue);
       vkGetDeviceQueue(m_device, m_primary_queue_family, 0, &m_primary_queue);

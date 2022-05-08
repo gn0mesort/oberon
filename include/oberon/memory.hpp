@@ -5,18 +5,17 @@
 
 #include "types.hpp"
 
-#define OBERON_PIMPL_FWD(type) \
-  struct type##_impl;\
-  struct type##_impl_dtor final {\
-    void operator()(const ptr<type##_impl> p) const noexcept;\
-  }
+#define OBERON_OPAQUE_BASE_FWD(type) \
+  namespace oberon::detail { \
+    class type##_impl;\
+    struct type##_impl_dtor final {\
+      void operator()(const ptr<type##_impl> p) const noexcept;\
+    };\
+  }\
+  static_assert(true)
 
-#define OBERON_PIMPL_PTR(ns, type) \
-  std::unique_ptr<ns::type##_impl, ns::type##_impl_dtor> m_impl{ }
-
-#define OBERON_NON_OWNING_PIMPL_FWD(type) struct type##_impl
-
-#define OBERON_NON_OWNING_PIMPL_PTR(ns, type) oberon::ptr<ns::type##_impl> m_impl{ }
+#define OBERON_OPAQUE_BASE_PTR(type) \
+  std::unique_ptr<oberon::detail::type##_impl, oberon::detail::type##_impl_dtor> m_impl{ }
 
 namespace oberon {
 

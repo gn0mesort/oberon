@@ -1,19 +1,32 @@
 #include <cstdio>
 
 #include <oberon/application.hpp>
-#include <oberon/io_subsystem.hpp>
+#include <oberon/bounds.hpp>
+#include <oberon/window.hpp>
 
 int oberon_main(oberon::context& ctx) {
   using namespace oberon;
 
-  for (auto i = usize{ 0 }; i < X_ATOM_MAX; ++i)
-  {
-    std::printf("0x%08x\n", ctx.io().x_atom(static_cast<x_atom>(i)));
-  }
+  auto win = window{ ctx, "Hello, X11", { { 100, 100 }, { 640, 480 } } };
+  win.show();
+  while (true);
   return 0;
 }
 
 int main() {
-  auto app = oberon::application{ };
-  return app.run(oberon_main);
+  try
+  {
+    auto app = oberon::application{ };
+    return app.run(oberon_main);
+  }
+  catch (const oberon::error& err)
+  {
+    std::fprintf(stderr, "Error %s: %s\n", err.type(), err.message());
+    return err.result();
+  }
+  catch (const std::exception& err)
+  {
+    std::fprintf(stderr, "Error: %s\n", err.what());
+    return 1;
+  }
 }

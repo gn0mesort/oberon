@@ -1,12 +1,12 @@
-#ifndef OBERON_VULKAN_HPP
-#define OBERON_VULKAN_HPP
+#ifndef OBERON_DETAIL_VULKAN_HPP
+#define OBERON_DETAIL_VULKAN_HPP
 
 #define VK_NO_PROTOTYPES 1
 #include <vulkan/vulkan_core.h>
 
 #include "vkfl.hpp"
 
-#include "basics.hpp"
+#include "../basics.hpp"
 
 //#include "vk_mem_alloc.h"
 
@@ -17,6 +17,10 @@
 
 #define OBERON_VK_SUCCEEDS(exp, error) OBERON_INVARIANT(((exp) == VK_SUCCESS), (error))
 
+#ifndef OBERON_VK_LOG_LEVEL
+  #define OBERON_VK_LOG_LEVEL VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+#endif
+
 // Used by default in the vkfl loader.
 extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance, const char*);
 // Used by VkDebugMessengerEXT
@@ -25,7 +29,7 @@ extern "C" VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugLog(VkDebugUtilsMessageSeverity
                                                      const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                                      void* pUserData);
 
-namespace oberon {
+namespace oberon::errors {
 
   OBERON_STATIC_EXCEPTION_TYPE(vk_create_instance_failed, "Failed to create Vulkan instance.", 1);
   OBERON_STATIC_EXCEPTION_TYPE(vk_create_debug_messenger_failed, "Failed to create Vulkan debug messenger.", 1);

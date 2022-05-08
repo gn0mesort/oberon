@@ -40,10 +40,6 @@ oberon_deps = [
   vkfl_dep,
   #vma_dep,
   dependency('xcb'),
-  dependency('xcb-util'),
-  dependency('xcb-icccm'),
-  dependency('xcb-ewmh'),
-  dependency('xcb-randr'),
   dependency('vulkan')
 ]
 
@@ -62,8 +58,11 @@ oberon_srcs += [
 
 if host_machine.system() == 'linux'
   oberon_srcs += [
-    files('src/oberon/application.cpp', 'src/oberon/io_subsystem.cpp', 'src/oberon/graphics_subsystem.cpp',
-          'src/oberon/vulkan.cpp')
+    files('src/oberon/application.cpp', 'src/oberon/window.cpp')
+  ]
+  oberon_srcs += [
+    files('src/oberon/detail/io_subsystem.cpp', 'src/oberon/detail/graphics_subsystem.cpp',
+          'src/oberon/detail/vulkan.cpp', 'src/oberon/detail/window_impl.cpp')
   ]
 endif
 

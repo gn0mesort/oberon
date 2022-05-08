@@ -1,19 +1,22 @@
-#include "oberon/io_subsystem.hpp"
+#include "oberon/detail/io_subsystem.hpp"
 
 #include <cstdlib>
 
+#include <sys/types.h>
 #include <sys/utsname.h>
+
+#include <unistd.h>
 
 #include "oberon/debug.hpp"
 
-namespace oberon {
+namespace oberon::detail {
 
 // Generates array of X11 atom names at compile time
-#define OBERON_X_ATOM(name) (#name),
+#define OBERON_X_ATOM_NAME(name, str) (str),
   consteval std::array<cstring, static_cast<usize>(X_ATOM_MAX)> x_atom_names() {
     return { OBERON_X_ATOMS };
   }
-#undef OBERON_X_ATOM
+#undef OBERON_X_ATOM_NAME
 
   // Pre: connection
   xcb_intern_atom_cookie_t io_subsystem::x_intern_atom(const std::string_view name) {
@@ -30,7 +33,7 @@ namespace oberon {
     {
       auto code = err->error_code;
       std::free(err);
-      throw x_generic_error{ "Failed to intern X11 atom.", code };
+      throw oberon::errors::x_generic_error{ "Failed to intern X11 atom.", code };
     }
     auto result = rep->atom;
     std::free(rep);
@@ -46,7 +49,7 @@ namespace oberon {
     m_connection = xcb_connect(display, &screen_pref);
     if (xcb_connection_has_error(m_connection))
     {
-      throw x_connection_failed_error{ };
+      throw oberon::errors::x_connection_failed_error{ };
     }
     xcb_set_close_down_mode(m_connection, XCB_CLOSE_DOWN_DESTROY_ALL);
     // Fire off X intern atom requests
@@ -125,6 +128,10 @@ namespace oberon {
       throw get_hostname_failed_error{ };
     }
     return uname_res.nodename;
+  }
+
+  u32 io_subsystem::process_id() const {
+    return getpid();
   }
 
 }
