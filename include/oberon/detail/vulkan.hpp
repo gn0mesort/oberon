@@ -34,6 +34,7 @@ namespace oberon::errors {
   OBERON_STATIC_EXCEPTION_TYPE(vk_create_instance_failed, "Failed to create Vulkan instance.", 1);
   OBERON_STATIC_EXCEPTION_TYPE(vk_create_debug_messenger_failed, "Failed to create Vulkan debug messenger.", 1);
   OBERON_STATIC_EXCEPTION_TYPE(vk_create_device_failed, "Failed to create Vulkan device.", 1);
+  OBERON_STATIC_EXCEPTION_TYPE(vk_create_surface_failed, "Failed to create Vulkan window surface.", 1);
 
 }
 

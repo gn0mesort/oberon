@@ -245,4 +245,32 @@ namespace oberon::detail {
     close_vk_instance();
   }
 
+  const vkfl::loader& graphics_subsystem::vk_loader() const {
+    return m_vkdl;
+  }
+
+  VkInstance graphics_subsystem::vk_instance() {
+    return m_instance;
+  }
+
+  VkPhysicalDevice graphics_subsystem::vk_physical_device() {
+    return m_physical_device;
+  }
+
+  const VkPhysicalDeviceProperties& graphics_subsystem::vk_physical_device_properties() const {
+    return m_physical_device_properties;
+  }
+
+  u32 graphics_subsystem::vk_primary_queue_family() const {
+    return m_primary_queue_family;
+  }
+
+  VkDevice graphics_subsystem::vk_device() {
+    return m_device;
+  }
+
+  VkQueue graphics_subsystem::vk_primary_queue() {
+    return m_primary_queue;
+  }
+
 }

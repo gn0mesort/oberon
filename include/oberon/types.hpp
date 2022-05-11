@@ -8,6 +8,10 @@
 #include <limits>
 #include <type_traits>
 #include <concepts>
+#include <utility>
+
+#define OBERON_DEFINE_BIT(name, bit) \
+  constexpr oberon::bitmask name##_bit = (oberon::bitmask{ 1 } << oberon::bitmask{ bit })
 
 namespace oberon {
 
@@ -59,6 +63,8 @@ namespace oberon {
 
   using uptr = std::uintptr_t;
   using iptr = std::intptr_t;
+
+  using bitmask = u64;
 
   template <typename From, typename To>
   concept inherits_from = std::convertible_to<From*, To*> || std::same_as<From, To>;

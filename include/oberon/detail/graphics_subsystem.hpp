@@ -33,6 +33,14 @@ namespace oberon::detail {
 
     graphics_subsystem& operator=(const graphics_subsystem& rhs) = delete;
     graphics_subsystem& operator=(graphics_subsystem&& rhs) = delete;
+
+    const vkfl::loader& vk_loader() const;
+    VkInstance vk_instance();
+    VkPhysicalDevice vk_physical_device();
+    const VkPhysicalDeviceProperties& vk_physical_device_properties() const;
+    u32 vk_primary_queue_family() const;
+    VkDevice vk_device();
+    VkQueue vk_primary_queue();
   };
 
 }

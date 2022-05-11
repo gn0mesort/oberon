@@ -1,5 +1,8 @@
 #include "oberon/detail/window_impl.hpp"
 
+#include <cstdlib>
+#include <cstring>
+
 #include "oberon/bounds.hpp"
 #include "oberon/debug.hpp"
 #include "oberon/application.hpp"
@@ -86,23 +89,93 @@ namespace oberon::detail {
     OBERON_POSTCONDITION(m_window_id == XCB_NONE);
   }
 
+
+  // Pre: no surface, graphics->instance
+  // Post: surface
+  void window_impl::open_vk_surface() {
+    OBERON_PRECONDITION(m_graphics->vk_instance());
+    OBERON_PRECONDITION(m_surface == VK_NULL_HANDLE);
+    const auto& vkdl = m_graphics->vk_loader();
+    auto surface_info = VkXcbSurfaceCreateInfoKHR{ };
+    surface_info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+    surface_info.window = m_window_id;
+    surface_info.connection = m_io->x_connection();
+    OBERON_DECLARE_VK_PFN(vkdl, CreateXcbSurfaceKHR);
+    OBERON_VK_SUCCEEDS(vkCreateXcbSurfaceKHR(m_graphics->vk_instance(), &surface_info, nullptr, &m_surface),
+                       oberon::errors::vk_create_surface_failed_error{ });
+    OBERON_POSTCONDITION(m_surface != VK_NULL_HANDLE);
+  }
+
+  // Pre: graphics->instance
+  // Post: no surface
+  void window_impl::close_vk_surface() noexcept {
+    OBERON_PRECONDITION(m_graphics->vk_instance());
+    if (m_surface != VK_NULL_HANDLE)
+    {
+      const auto& vkdl = m_graphics->vk_loader();
+      OBERON_DECLARE_VK_PFN(vkdl, DestroySurfaceKHR);
+      vkDestroySurfaceKHR(m_graphics->vk_instance(), m_surface, nullptr);
+      m_surface = VK_NULL_HANDLE;
+    }
+    OBERON_POSTCONDITION(m_surface == VK_NULL_HANDLE);
+  }
+
   window_impl::window_impl(context& ctx, const std::string_view title, const bounding_rect& bounds) {
     open_parent_systems(ctx.io(), ctx.graphics());
     open_x_window(title, bounds);
+    open_vk_surface();
   }
 
   window_impl::~window_impl() noexcept {
+    close_vk_surface();
     close_x_window();
     close_parent_systems();
+  }
+
+  bitmask window_impl::get_signals() const {
+    return  m_window_signals;
+  }
+
+  void window_impl::clear_signals(const bitmask sigs) {
+    m_window_signals = m_window_signals & ~sigs;
+  }
+
+  bitmask window_impl::get_flags() const {
+    return m_window_state;
   }
 
   void window_impl::show() {
     xcb_map_window(m_io->x_connection(), m_window_id);
     xcb_flush(m_io->x_connection());
+    m_window_state = m_window_state | window_flag_bits::shown_bit;
   }
 
   void window_impl::hide() {
     xcb_unmap_window(m_io->x_connection(), m_window_id);
     xcb_flush(m_io->x_connection());
+    m_window_state = m_window_state & ~window_flag_bits::shown_bit;
   }
+
+  void window_impl::accept_message(const ptr<void> message) {
+    auto client_message = reinterpret_cast<ptr<xcb_client_message_event_t>>(message);
+    OBERON_ASSERT(client_message->window == m_window_id);
+    if (client_message->type == m_io->x_atom(X_ATOM_WM_PROTOCOLS))
+    {
+      if (client_message->data.data32[0] == m_io->x_atom(X_ATOM_NET_WM_PING))
+      {
+        auto root = m_io->x_screen()->root;
+        client_message->window = root;
+        auto buffer = xcb_generic_event_t{ };
+        std::memcpy(reinterpret_cast<ptr<char>>(&buffer), client_message, sizeof(xcb_client_message_event_t));
+        m_io->x_send_event(root, buffer, 0, false);
+      }
+      if (client_message->data.data32[0] == m_io->x_atom(X_ATOM_WM_DELETE_WINDOW))
+      {
+        m_window_signals = m_window_signals | window_signal_bits::destroy_bit;
+        hide();
+      }
+      std::free(client_message);
+    }
+  }
+
 }

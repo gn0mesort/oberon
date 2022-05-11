@@ -1,6 +1,8 @@
 #ifndef OBERON_DETAIL_X11_HPP
 #define OBERON_DETAIL_X11_HPP
 
+#include <array>
+
 #include <xcb/xcb.h>
 //#include <xcb/xcb_atom.h>
 //#include <xcb/xcb_aux.h>
@@ -70,6 +72,10 @@ namespace oberon::detail {
     i32 base_width{ };
     i32 base_height{ };
     i32 win_gravity{ };
+  };
+
+  struct x_generic_event final {
+    std::array<char, 32> data{ };
   };
 
 }

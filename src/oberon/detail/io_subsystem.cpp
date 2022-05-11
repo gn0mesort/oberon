@@ -121,6 +121,12 @@ namespace oberon::detail {
     return m_atoms[static_cast<usize>(atom)];
   }
 
+  void io_subsystem::x_send_event(const xcb_window_t destination, const xcb_generic_event_t& event,
+                                  const u32 event_mask, const bool propagate) {
+    static_assert(sizeof(xcb_generic_event_t) >= 32, "libxcb needs 32-byte event buffers.");
+    xcb_send_event(m_connection, propagate, destination, event_mask, reinterpret_cast<readonly_ptr<char>>(&event));
+  }
+
   std::string io_subsystem::hostname() const {
     auto uname_res = utsname{ };
     if (uname(&uname_res) == -1)

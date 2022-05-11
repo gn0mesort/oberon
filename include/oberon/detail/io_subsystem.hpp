@@ -25,6 +25,8 @@ namespace oberon::detail {
 
     io_subsystem(const cstring display);
   public:
+    static constexpr usize x_event_size{ 32 };
+
     io_subsystem();
     io_subsystem(const std::string_view display);
 
@@ -33,6 +35,8 @@ namespace oberon::detail {
     ptr<xcb_connection_t> x_connection();
     ptr<xcb_screen_t> x_screen();
     xcb_atom_t x_atom(const enum x_atom atom);
+    void x_send_event(const xcb_window_t destination, const xcb_generic_event_t& event, const u32 event_mask,
+                      const bool propagate);
 
     std::string hostname() const;
     u32 process_id() const;

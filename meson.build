@@ -58,7 +58,7 @@ oberon_srcs += [
 
 if host_machine.system() == 'linux'
   oberon_srcs += [
-    files('src/oberon/application.cpp', 'src/oberon/window.cpp')
+    files('src/oberon/application.cpp', 'src/oberon/window.cpp', 'src/oberon/events.cpp')
   ]
   oberon_srcs += [
     files('src/oberon/detail/io_subsystem.cpp', 'src/oberon/detail/graphics_subsystem.cpp',
