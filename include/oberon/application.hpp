@@ -1,6 +1,8 @@
 #ifndef OBERON_APPLICATION_HPP
 #define OBERON_APPLICATION_HPP
 
+#include <functional>
+
 #include "basics.hpp"
 
 namespace oberon::detail {
@@ -36,7 +38,7 @@ namespace oberon {
   class application final {
   private:
   public:
-    using entry_point = int(context&);
+    using entry_point = std::function<int(context&)>;
 
     application() = default;
     application(const application& other) = delete;
@@ -47,7 +49,7 @@ namespace oberon {
     application& operator=(const application& other) = delete;
     application& operator=(application&& other) = delete;
 
-    int run(const ptr<entry_point> application_entry);
+    int run(const entry_point& application_entry);
   };
 
 }

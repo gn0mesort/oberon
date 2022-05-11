@@ -22,7 +22,7 @@ namespace oberon {
     return *m_graphics;
   }
 
-  int application::run(const ptr<entry_point> application_entry) {
+  int application::run(const entry_point& application_entry) {
     auto result_code = int{ 0 };
     {
       // Build up the application context.

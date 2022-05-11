@@ -6,16 +6,13 @@
 #include "types.hpp"
 
 #define OBERON_OPAQUE_BASE_FWD(type) \
-  namespace oberon::detail { \
-    class type##_impl;\
-    struct type##_impl_dtor final {\
-      void operator()(const ptr<type##_impl> p) const noexcept;\
-    };\
-  }\
-  static_assert(true)
+  class type##_impl; \
+  struct type##_impl_dtor final { \
+    void operator()(const oberon::ptr<type##_impl> p) const noexcept; \
+  } \
 
 #define OBERON_OPAQUE_BASE_PTR(type) \
-  std::unique_ptr<oberon::detail::type##_impl, oberon::detail::type##_impl_dtor> m_impl{ }
+  std::unique_ptr<type##_impl, type##_impl_dtor> m_impl{ }
 
 namespace oberon {
 

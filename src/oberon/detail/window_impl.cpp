@@ -168,13 +168,13 @@ namespace oberon::detail {
         auto buffer = xcb_generic_event_t{ };
         std::memcpy(reinterpret_cast<ptr<char>>(&buffer), client_message, sizeof(xcb_client_message_event_t));
         m_io->x_send_event(root, buffer, 0, false);
+        m_last_ping = client_message->data.data32[1];
       }
       if (client_message->data.data32[0] == m_io->x_atom(X_ATOM_WM_DELETE_WINDOW))
       {
         m_window_signals = m_window_signals | window_signal_bits::destroy_bit;
         hide();
       }
-      std::free(client_message);
     }
   }
 

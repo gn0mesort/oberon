@@ -9,24 +9,16 @@
 
 int oberon_main(oberon::context& ctx) {
   using namespace oberon;
-
-  auto win = window{ ctx, "Hello, X11", { { 100, 100 }, { 640, 480 } } };
-  auto ev = event_variant{ };
+  auto win = window{ ctx, "Hello, X11", { { 200, 200 }, { 640, 480 } } };
+  auto events = event_dispatcher{ ctx };
+  events.set_window_message_handler([&win](const u32, const ptr<void> message) {
+    win.accept_message(message);
+  });
   win.show();
-  while (!(win.get_signals() & window_signal_bits::destroy_bit))
+  while (!win.is_destroy_signaled())
   {
-    while ((ev = wait_for_event(ctx)).index())
-    {
-      std::visit([&](auto&& arg){
-        using EventType = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<EventType, window_message_event>)
-        {
-          win.accept_message(reinterpret_cast<window_message_event&&>(arg).data);
-        }
-      }, ev);
-    }
+    events.wait_for_event();
   }
-  win.hide();
 
   return 0;
 }

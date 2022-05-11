@@ -5,19 +5,9 @@
 
 #include "basics.hpp"
 
-OBERON_OPAQUE_BASE_FWD(window);
+namespace oberon::detail {
 
-namespace oberon::window_flag_bits {
-
-  OBERON_DEFINE_BIT(none, 0);
-  OBERON_DEFINE_BIT(shown, 1);
-
-}
-
-namespace oberon::window_signal_bits {
-
-  OBERON_DEFINE_BIT(none, 0);
-  OBERON_DEFINE_BIT(destroy, 1);
+  OBERON_OPAQUE_BASE_FWD(window);
 
 }
 
@@ -28,7 +18,7 @@ namespace oberon {
 
   class window final {
   private:
-    OBERON_OPAQUE_BASE_PTR(window);
+    OBERON_OPAQUE_BASE_PTR(detail::window);
   public:
     window(context& ctx, const std::string_view title, const bounding_rect& bounds);
     window(const window& other) = delete;
@@ -39,9 +29,9 @@ namespace oberon {
     window& operator=(const window& rhs) = delete;
     window& operator=(window&& rhs) = default;
 
-    bitmask get_signals() const;
-    void clear_signals(const bitmask signals);
-    bitmask get_flags() const;
+    bool is_destroy_signaled() const;
+    void clear_destroy_signal();
+    bool is_shown() const;
 
     void show();
     void hide();

@@ -10,8 +10,10 @@
 #include <concepts>
 #include <utility>
 
+// Defines a new bitmask bit. The second line supresses "unused" warnings but should always be true.
 #define OBERON_DEFINE_BIT(name, bit) \
-  constexpr oberon::bitmask name##_bit = (oberon::bitmask{ 1 } << oberon::bitmask{ bit })
+  constexpr const oberon::bitmask name##_bit = (oberon::bitmask{ 1 } << oberon::bitmask{ bit }); \
+  static_assert(name##_bit == (oberon::bitmask{ 1 } << oberon::bitmask{ bit }))
 
 namespace oberon {
 
