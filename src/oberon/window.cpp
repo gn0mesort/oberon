@@ -6,8 +6,8 @@
 
 namespace oberon {
 
-  window::window(context& ctx, const std::string_view title, const bounding_rect& bounds) :
-  m_impl{ new detail::window_impl{ ctx, title, bounds } } { }
+  window::window(context& ctx, const config& conf) :
+  m_impl{ new detail::window_impl{ ctx, conf } } { }
 
   bool window::is_destroy_signaled() const {
     return m_impl->get_signals() & window_signal_bits::destroy_bit;

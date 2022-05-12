@@ -9,7 +9,10 @@
 
 int oberon_main(oberon::context& ctx) {
   using namespace oberon;
-  auto win = window{ ctx, "Hello, X11", { { 200, 200 }, { 640, 480 } } };
+  auto win_conf = window::config{ };
+  win_conf.title = "Hello, X11";
+  win_conf.bounds = { { 200, 200 }, { 640, 480 } };
+  auto win = window{ ctx, win_conf };
   auto events = event_dispatcher{ ctx };
   events.set_window_message_handler([&win](const u32, const ptr<void> message) {
     win.accept_message(message);

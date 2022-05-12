@@ -2,6 +2,7 @@
 #define OBERON_DETAIL_WINDOW_IMPL_HPP
 
 #include <vector>
+#include <array>
 
 #include "../window.hpp"
 
@@ -22,6 +23,16 @@ namespace oberon::window_signal_bits {
 
 }
 
+namespace oberon::window_present_mode_bits {
+
+  OBERON_DEFINE_BIT(none, 0);
+  OBERON_DEFINE_BIT(immediate, 1);
+  OBERON_DEFINE_BIT(mailbox, 2);
+  OBERON_DEFINE_BIT(fifo, 3);
+  OBERON_DEFINE_BIT(fifo_relaxed, 4);
+
+}
+
 namespace oberon::detail {
 
   class io_subsystem;
@@ -38,9 +49,12 @@ namespace oberon::detail {
     xcb_timestamp_t m_last_ping{ };
     bitmask m_window_state{ window_flag_bits::none_bit };
     bitmask m_window_signals{ window_signal_bits::none_bit };
+    bounding_rect m_bounds{ };
 
     // Vulkan
     VkSurfaceKHR m_surface{ };
+    VkSurfaceCapabilitiesKHR m_surface_capabilities{ };
+    bitmask m_surface_present_modes{ };
     VkSwapchainKHR m_swapchain{ };
     std::vector<VkImage> m_swapchain_images{ };
     std::vector<VkImageView> m_swapchain_image_views{ };
@@ -49,7 +63,7 @@ namespace oberon::detail {
     void open_parent_systems(io_subsystem& io, graphics_subsystem& graphics);
     void open_x_window(const std::string_view title, const bounding_rect& bounds);
     void open_vk_surface();
-    void open_vk_swapchain();
+    void open_vk_swapchain(const u32 buffer_count, const bitmask present_mode);
     void open_vk_synch_artifacts();
     void close_vk_synch_artifacts();
     void close_vk_swapchain() noexcept;
@@ -57,7 +71,7 @@ namespace oberon::detail {
     void close_x_window() noexcept;
     void close_parent_systems() noexcept;
   public:
-    window_impl(context& ctx, const std::string_view title, const bounding_rect& bounds);
+    window_impl(context& ctx, const window::config& conf);
     window_impl(const window_impl& other) = delete;
     window_impl(window_impl&& other) = delete;
 

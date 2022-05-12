@@ -34,7 +34,7 @@
     inline oberon::i32 result() const noexcept override { return m_result; }\
   }
 
-// Enable skipping invariant checks. Risky!
+// Disable to skip invariant checks. Risky!
 #if !defined(OBERON_INVARIANTS_ENABLED)
   #define OBERON_INVARIANTS_ENABLED 1
 #endif
