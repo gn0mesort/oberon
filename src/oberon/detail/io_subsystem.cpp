@@ -27,14 +27,8 @@ namespace oberon::detail {
   // Pre: connection
   xcb_atom_t io_subsystem::x_intern_atom_reply(const xcb_intern_atom_cookie_t request) {
     OBERON_PRECONDITION(m_connection);
-    auto err = ptr<xcb_generic_error_t>{ };
-    auto rep = xcb_intern_atom_reply(m_connection, request, &err);
-    if (!rep)
-    {
-      auto code = err->error_code;
-      std::free(err);
-      throw oberon::errors::x_generic_error{ "Failed to intern X11 atom.", code };
-    }
+    auto rep = ptr<xcb_intern_atom_reply_t>{ };
+    OBERON_X_SUCCEEDS(rep, xcb_intern_atom_reply(m_connection, request, err));
     auto result = rep->atom;
     std::free(rep);
     return result;
@@ -47,10 +41,7 @@ namespace oberon::detail {
     OBERON_PRECONDITION(!m_screen);
     auto screen_pref = int{ 0 };
     m_connection = xcb_connect(display, &screen_pref);
-    if (xcb_connection_has_error(m_connection))
-    {
-      throw oberon::errors::x_connection_failed_error{ };
-    }
+    OBERON_INVARIANT(!xcb_connection_has_error(m_connection));
     xcb_set_close_down_mode(m_connection, XCB_CLOSE_DOWN_DESTROY_ALL);
     // Fire off X intern atom requests
     auto intern_atom_reqs = std::array<xcb_intern_atom_cookie_t, static_cast<usize>(X_ATOM_MAX)>{ };
@@ -129,10 +120,7 @@ namespace oberon::detail {
 
   std::string io_subsystem::hostname() const {
     auto uname_res = utsname{ };
-    if (uname(&uname_res) == -1)
-    {
-      throw get_hostname_failed_error{ };
-    }
+    OBERON_INVARIANT(uname(&uname_res) != -1);
     return uname_res.nodename;
   }
 

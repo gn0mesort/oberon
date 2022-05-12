@@ -45,10 +45,4 @@ namespace oberon::detail {
 
 }
 
-namespace oberon::errors {
-
-  OBERON_STATIC_EXCEPTION_TYPE(no_device_found, "No Vulkan device corresponding to the desired index was found.", 1);
-
-}
-
 #endif

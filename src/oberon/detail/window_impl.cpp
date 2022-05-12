@@ -71,7 +71,7 @@ namespace oberon::detail {
     xcb_change_property(conn, XCB_PROP_MODE_REPLACE, m_window_id, m_io->x_atom(X_ATOM_NET_WM_PID), XCB_ATOM_CARDINAL,
                         32, 1, &pid);
     auto hints = x_size_hints{ };
-    hints.flags = X_SIZE_HINT_PROGRAM_MIN_SIZE | X_SIZE_HINT_PROGRAM_MAX_SIZE;
+    hints.flags = x_size_hint_flag_bits::program_min_size_bit | x_size_hint_flag_bits::program_max_size_bit;
     hints.min_width = bounds.size.width;
     hints.min_height = bounds.size.height;
     hints.max_width = bounds.size.width;
@@ -105,20 +105,16 @@ namespace oberon::detail {
     surface_info.window = m_window_id;
     surface_info.connection = m_io->x_connection();
     OBERON_DECLARE_VK_PFN(vkdl, CreateXcbSurfaceKHR);
-    OBERON_VK_SUCCEEDS(vkCreateXcbSurfaceKHR(m_graphics->vk_instance(), &surface_info, nullptr, &m_surface),
-                       oberon::errors::vk_create_surface_failed_error{ });
+    OBERON_VK_SUCCEEDS(vkCreateXcbSurfaceKHR(m_graphics->vk_instance(), &surface_info, nullptr, &m_surface));
     const auto& physical_device = m_graphics->vk_physical_device();
     OBERON_DECLARE_VK_PFN(vkdl, GetPhysicalDeviceSurfaceCapabilitiesKHR);
-    OBERON_VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, m_surface, &m_surface_capabilities),
-                       oberon::errors::vk_create_surface_failed_error{ });
+    OBERON_VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, m_surface, &m_surface_capabilities));
     OBERON_DECLARE_VK_PFN(vkdl, GetPhysicalDeviceSurfacePresentModesKHR);
     auto sz = u32{ 0 };
-    OBERON_VK_SUCCEEDS(vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, m_surface, &sz, nullptr),
-                       oberon::errors::vk_create_surface_failed_error{ });
+    OBERON_VK_SUCCEEDS(vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, m_surface, &sz, nullptr));
     auto present_modes = std::vector<VkPresentModeKHR>(sz);
     OBERON_VK_SUCCEEDS(vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, m_surface, &sz,
-                                                                 std::data(present_modes)),
-                       oberon::errors::vk_create_surface_failed_error{ });
+                                                                 std::data(present_modes)));
     m_surface_present_modes ^= m_surface_present_modes;
     for (const auto present_mode : present_modes)
     {
@@ -213,12 +209,10 @@ namespace oberon::detail {
     {
       auto physical_device = m_graphics->vk_physical_device();
       OBERON_DECLARE_VK_PFN(vkdl, GetPhysicalDeviceSurfaceFormatsKHR);
-      OBERON_VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, m_surface, &sz, nullptr),
-                         oberon::errors::not_implemented_error{ });
+      OBERON_VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, m_surface, &sz, nullptr));
       auto surface_formats = std::vector<VkSurfaceFormatKHR>(sz);
       OBERON_VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, m_surface, &sz,
-                                                              std::data(surface_formats)),
-                         oberon::errors::not_implemented_error{ });
+                                                              std::data(surface_formats)));
       auto found = false;
       for (const auto& surface_format : surface_formats)
       {
@@ -236,14 +230,8 @@ namespace oberon::detail {
         swapchain_info.imageFormat = surface_formats[0].format;
       }
     }
-    auto err = ptr<xcb_generic_error_t>{ };
-    auto geometry_rep = xcb_get_geometry_reply(m_io->x_connection(), geometry_req, &err);
-    if (!geometry_rep)
-    {
-      auto code = err->error_code;
-      std::free(err);
-      throw oberon::errors::x_generic_error{ "Failed to get X window geometry.", code };
-    }
+    auto geometry_rep = ptr<xcb_get_geometry_reply_t>{ };
+    OBERON_X_SUCCEEDS(geometry_rep, xcb_get_geometry_reply(m_io->x_connection(), geometry_req, err));
     m_bounds.position = { geometry_rep->x, geometry_rep->y };
     m_bounds.size = { geometry_rep->width, geometry_rep->height };
     if (m_surface_capabilities.currentExtent.width != std::numeric_limits<u32>::max())
@@ -263,15 +251,12 @@ namespace oberon::detail {
     }
     OBERON_DECLARE_VK_PFN(vkdl, CreateSwapchainKHR);
     auto device = m_graphics->vk_device();
-    OBERON_VK_SUCCEEDS(vkCreateSwapchainKHR(device, &swapchain_info, nullptr, &m_swapchain),
-                       oberon::errors::not_implemented_error{ });
+    OBERON_VK_SUCCEEDS(vkCreateSwapchainKHR(device, &swapchain_info, nullptr, &m_swapchain));
     OBERON_DECLARE_VK_PFN(vkdl, GetSwapchainImagesKHR);
-    OBERON_VK_SUCCEEDS(vkGetSwapchainImagesKHR(device, m_swapchain, &sz, nullptr),
-                       oberon::errors::not_implemented_error{ });
+    OBERON_VK_SUCCEEDS(vkGetSwapchainImagesKHR(device, m_swapchain, &sz, nullptr));
     m_swapchain_images.resize(sz);
     m_swapchain_image_views.resize(sz);
-    OBERON_VK_SUCCEEDS(vkGetSwapchainImagesKHR(device, m_swapchain, &sz, std::data(m_swapchain_images)),
-                       oberon::errors::not_implemented_error{ });
+    OBERON_VK_SUCCEEDS(vkGetSwapchainImagesKHR(device, m_swapchain, &sz, std::data(m_swapchain_images)));
     {
       auto image_view_info = VkImageViewCreateInfo{ };
       image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -291,8 +276,7 @@ namespace oberon::detail {
       for (const auto& image : m_swapchain_images)
       {
         image_view_info.image = image;
-        OBERON_VK_SUCCEEDS(vkCreateImageView(device, &image_view_info, nullptr, &(*cur)),
-                           oberon::errors::not_implemented_error{ });
+        OBERON_VK_SUCCEEDS(vkCreateImageView(device, &image_view_info, nullptr, &(*cur)));
         ++cur;
       }
     }

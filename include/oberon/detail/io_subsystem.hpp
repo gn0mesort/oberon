@@ -42,8 +42,6 @@ namespace oberon::detail {
     u32 process_id() const;
   };
 
-  OBERON_STATIC_EXCEPTION_TYPE(get_hostname_failed, "Failed to get system hostname.", 1);
-
 }
 
 #endif

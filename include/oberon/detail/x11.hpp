@@ -33,6 +33,45 @@
   OBERON_X_ATOM_NAME(NET_WM_SYNC_REQUEST, "_NET_WM_SYNC_REQUEST") \
   OBERON_X_ATOM(UTF8_STRING)
 
+#if OBERON_INVARIANTS_ENABLED
+  #define OBERON_X_SUCCEEDS(target, reqexp) \
+    do \
+    { \
+      auto err_ptr = ptr<xcb_generic_error_t>{ }; \
+      auto err = &err_ptr; \
+      (target) = (reqexp); \
+      if (!(target)) \
+      { \
+        auto error_code = err_ptr->error_code; \
+        std::free(err_ptr); \
+        throw oberon::x11_error{ "Failed to get reply for \'" #reqexp "\'.", error_code }; \
+      } \
+    } \
+    while (0)
+#else
+  #define OBERON_X_SUCCEEDS(target, reqexp) \
+    do \
+    { \
+      auto err = ptr<ptr<xcb_generic_error_t>>{ nullptr }; \
+      (target) = (reqexp); \
+    } \
+    while (0)
+#endif
+
+namespace oberon::detail::x_size_hint_flag_bits {
+  OBERON_DEFINE_BIT(none, 0);
+  OBERON_DEFINE_BIT(user_position, 1);
+  OBERON_DEFINE_BIT(user_size, 2);
+  OBERON_DEFINE_BIT(program_position, 3);
+  OBERON_DEFINE_BIT(program_size, 4);
+  OBERON_DEFINE_BIT(program_min_size, 5);
+  OBERON_DEFINE_BIT(program_max_size, 6);
+  OBERON_DEFINE_BIT(program_resize_increment, 7);
+  OBERON_DEFINE_BIT(program_aspect, 8);
+  OBERON_DEFINE_BIT(program_base_size, 9);
+  OBERON_DEFINE_BIT(program_window_gravity, 10);
+}
+
 namespace oberon::detail {
 
 #define OBERON_X_ATOM_NAME(name, str) X_ATOM_##name,
@@ -41,20 +80,6 @@ namespace oberon::detail {
     X_ATOM_MAX
   };
 #undef OBERON_X_ATOM_NAME
-
-  enum x_size_hint_flags {
-    X_SIZE_HINT_NONE = 0,
-    X_SIZE_HINT_USER_POSITION = 0x1,
-    X_SIZE_HINT_USER_SIZE = 0x2,
-    X_SIZE_HINT_PROGRAM_POSITION = 0x4,
-    X_SIZE_HINT_PROGRAM_SIZE = 0x8,
-    X_SIZE_HINT_PROGRAM_MIN_SIZE = 0x10,
-    X_SIZE_HINT_PROGRAM_MAX_SIZE = 0x20,
-    X_SIZE_HINT_PROGRAM_RESIZE_INCREMENT = 0x40,
-    X_SIZE_HINT_PROGRAM_ASPECT = 0x60,
-    X_SIZE_HINT_PROGRAM_BASE_SIZE = 0x80,
-    X_SIZE_HINT_PROGRAM_WINDOW_GRAVITY = 0x100
-  };
 
   struct x_size_hints final {
     u32 flags{ };
@@ -77,13 +102,6 @@ namespace oberon::detail {
   struct x_generic_event final {
     std::array<char, 32> data{ };
   };
-
-}
-
-namespace oberon::errors {
-
-  OBERON_STATIC_EXCEPTION_TYPE(x_connection_failed, "Failed to connect to X11 server.", 1);
-  OBERON_DYNAMIC_EXCEPTION_TYPE(x_generic);
 
 }
 

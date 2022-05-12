@@ -18,26 +18,24 @@
   #error This header requires std::source_location.
 #endif
 
-#if !defined(NDEBUG)
-  #if !defined(OBERON_BYPASS_ASSERTIONS)
-    #define OBERON_BYPASS_ASSERTIONS 0
-  #endif
-#else
-  #if !defined(OBERON_BYPASS_ASSERTIONS)
-    #define OBERON_BYPASS_ASSERTIONS 1
+#if !defined(OBERON_ASSERTIONS_ENABLED)
+  #if !defined(NDEBUG)
+    #define OBERON_ASSERTIONS_ENABLED 1
+  #else
+    #define OBERON_ASSERTIONS_ENABLED 0
   #endif
 #endif
 
-#if OBERON_BYPASS_ASSERTIONS
-  #define OBERON_ASSERT(x) ((void) (x))
-
-  #define OBERON_ASSERT_MSG(x, msg, ...) ((void) (x))
-#else
+#if OBERON_ASSERTIONS_ENABLED
   #define OBERON_ASSERT(x) \
     oberon::assert(std::source_location::current(), (x), (#x))
 
   #define OBERON_ASSERT_MSG(x, msg, ...) \
     oberon::assert(std::source_location::current(), (x), (msg) __VA_OPT__(,) __VA_ARGS__)
+#else
+  #define OBERON_ASSERT(x) ((void) (x))
+
+  #define OBERON_ASSERT_MSG(x, msg, ...) ((void) (x))
 #endif
 
 #define OBERON_PRECONDITION(x) \

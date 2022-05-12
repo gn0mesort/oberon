@@ -34,12 +34,13 @@ int main() {
   }
   catch (const oberon::error& err)
   {
-    std::fprintf(stderr, "Error %s: %s\n", err.type(), err.message());
+    std::fprintf(stderr, "%s (%s:%d): \"%s\"\n", err.type(), err.location().file_name(), err.location().line(),
+                 err.message());
     return err.result();
   }
   catch (const std::exception& err)
   {
-    std::fprintf(stderr, "Error: %s\n", err.what());
+    std::fprintf(stderr, "exception: \"%s\"\n", err.what());
     return 1;
   }
 }

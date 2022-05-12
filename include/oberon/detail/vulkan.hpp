@@ -15,7 +15,21 @@
 
 #define OBERON_VK_STRUCT(name) VK_STRUCTURE_TYPE_##name
 
-#define OBERON_VK_SUCCEEDS(exp, error) OBERON_INVARIANT(((exp) == VK_SUCCESS), (error))
+// Vulkan success checks are a type of invariant.
+// Bypass at your own risk.
+#if OBERON_INVARIANTS_ENABLED
+  #define OBERON_VK_SUCCEEDS(exp) \
+    do\
+    {\
+      if (auto res = (exp); res < VK_SUCCESS) \
+      { \
+        throw oberon::vulkan_error{ "\'" #exp "\' failed.", res }; \
+      } \
+    }\
+    while (0)
+#else
+  #define OBERON_VK_SUCCEEDS(exp) ((void) (exp))
+#endif
 
 #ifndef OBERON_VK_LOG_LEVEL
   #define OBERON_VK_LOG_LEVEL VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
@@ -28,14 +42,5 @@ extern "C" VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugLog(VkDebugUtilsMessageSeverity
                                                      VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                                                      const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                                      void* pUserData);
-
-namespace oberon::errors {
-
-  OBERON_STATIC_EXCEPTION_TYPE(vk_create_instance_failed, "Failed to create Vulkan instance.", 1);
-  OBERON_STATIC_EXCEPTION_TYPE(vk_create_debug_messenger_failed, "Failed to create Vulkan debug messenger.", 1);
-  OBERON_STATIC_EXCEPTION_TYPE(vk_create_device_failed, "Failed to create Vulkan device.", 1);
-  OBERON_STATIC_EXCEPTION_TYPE(vk_create_surface_failed, "Failed to create Vulkan window surface.", 1);
-
-}
 
 #endif
