@@ -163,7 +163,7 @@ namespace oberon::detail {
     OBERON_PRECONDITION(m_swapchain == VK_NULL_HANDLE);
     OBERON_PRECONDITION(std::size(m_swapchain_images) == 0);
     OBERON_PRECONDITION(std::size(m_swapchain_image_views) == 0);
-    auto geometry_req = xcb_get_geometry(m_io->x_connection(), m_window_id);
+    auto bounds_update = start_bounds_update();
     auto swapchain_info = VkSwapchainCreateInfoKHR{ };
     swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     swapchain_info.surface = m_surface;
@@ -230,17 +230,13 @@ namespace oberon::detail {
         swapchain_info.imageFormat = surface_formats[0].format;
       }
     }
-    auto geometry_rep = ptr<xcb_get_geometry_reply_t>{ };
-    OBERON_X_SUCCEEDS(geometry_rep, xcb_get_geometry_reply(m_io->x_connection(), geometry_req, err));
-    m_bounds.position = { geometry_rep->x, geometry_rep->y };
-    m_bounds.size = { geometry_rep->width, geometry_rep->height };
+    finish_bounds_update(bounds_update);
     if (m_surface_capabilities.currentExtent.width != std::numeric_limits<u32>::max())
     {
       swapchain_info.imageExtent = m_surface_capabilities.currentExtent;
     }
     else
     {
-      std::free(geometry_rep);
       swapchain_info.imageExtent = VkExtent2D{ m_bounds.size.width, m_bounds.size.height };
       swapchain_info.imageExtent.width = std::clamp(swapchain_info.imageExtent.width,
                                                     m_surface_capabilities.minImageExtent.width,
@@ -285,6 +281,72 @@ namespace oberon::detail {
     OBERON_POSTCONDITION(std::size(m_swapchain_image_views) == std::size(m_swapchain_images));
   }
 
+  // Pre: device, device loaded, swapchain, swapchain images
+  // Post: command pool, command buffers == swapchain images
+  void window_impl::open_vk_command_buffers() {
+    OBERON_PRECONDITION(m_graphics->vk_device() != VK_NULL_HANDLE);
+    OBERON_PRECONDITION(m_graphics->vk_loader().loaded_device() == m_graphics->vk_device());
+    OBERON_PRECONDITION(m_swapchain != VK_NULL_HANDLE);
+    OBERON_PRECONDITION(std::size(m_swapchain_images) != 0);
+    const auto& vkdl = m_graphics->vk_loader();
+    const auto device = m_graphics->vk_device();
+    auto command_pool_info = VkCommandPoolCreateInfo{ };
+    command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    command_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    command_pool_info.queueFamilyIndex = m_graphics->vk_primary_queue_family();
+    OBERON_DECLARE_VK_PFN(vkdl, CreateCommandPool);
+    OBERON_VK_SUCCEEDS(vkCreateCommandPool(device, &command_pool_info, nullptr, &m_command_pool));
+    auto command_buffer_info = VkCommandBufferAllocateInfo{ };
+    command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    command_buffer_info.commandPool = m_command_pool;
+    command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    m_command_buffers.resize(std::size(m_swapchain_images));
+    command_buffer_info.commandBufferCount = std::size(m_command_buffers);
+    OBERON_DECLARE_VK_PFN(vkdl, AllocateCommandBuffers);
+    OBERON_VK_SUCCEEDS(vkAllocateCommandBuffers(device, &command_buffer_info, std::data(m_command_buffers)));
+    OBERON_POSTCONDITION(m_command_pool != VK_NULL_HANDLE);
+    OBERON_POSTCONDITION(std::size(m_command_buffers) == std::size(m_swapchain_images));
+  }
+
+  // Pre: device, device loaded
+  // Post: no command buffers, no command pool
+  void window_impl::close_vk_command_buffers() noexcept {
+    OBERON_PRECONDITION(m_graphics->vk_device() != VK_NULL_HANDLE);
+    OBERON_PRECONDITION(m_graphics->vk_loader().loaded_device() == m_graphics->vk_device());
+    if (m_command_pool != VK_NULL_HANDLE)
+    {
+      const auto& vkdl = m_graphics->vk_loader();
+      const auto device = m_graphics->vk_device();
+      OBERON_DECLARE_VK_PFN(vkdl, FreeCommandBuffers);
+      vkFreeCommandBuffers(device, m_command_pool, std::size(m_command_buffers), std::data(m_command_buffers));
+      m_command_buffers.resize(0);
+      OBERON_DECLARE_VK_PFN(vkdl, DestroyCommandPool);
+      vkDestroyCommandPool(device, m_command_pool, nullptr);
+      m_command_pool = VK_NULL_HANDLE;
+    }
+    OBERON_POSTCONDITION(m_command_pool == VK_NULL_HANDLE);
+    OBERON_POSTCONDITION(std::size(m_command_buffers) == 0);
+  }
+
+  // Pre: io, window
+  xcb_get_geometry_cookie_t window_impl::start_bounds_update() {
+    OBERON_PRECONDITION(m_io);
+    OBERON_PRECONDITION(m_window_id != XCB_NONE);
+    return xcb_get_geometry(m_io->x_connection(), m_window_id);
+  }
+
+
+  // Pre: io, window
+  void window_impl::finish_bounds_update(const xcb_get_geometry_cookie_t req) {
+    OBERON_PRECONDITION(m_io);
+    OBERON_PRECONDITION(m_window_id != XCB_NONE);
+    auto rep = ptr<xcb_get_geometry_reply_t>{ };
+    OBERON_X_SUCCEEDS(rep, xcb_get_geometry_reply(m_io->x_connection(), req, err));
+    m_bounds.position = { rep->x, rep->y };
+    m_bounds.size = { rep->width, rep->height };
+    std::free(rep);
+  }
+
   // Pre: device, device loaded
   // Post: no swapchain, no swapchain images, no swapchain image views
   void window_impl::close_vk_swapchain() noexcept {
@@ -315,9 +377,11 @@ namespace oberon::detail {
     open_x_window(conf.title, conf.bounds);
     open_vk_surface();
     open_vk_swapchain(conf.preferred_buffer_count, static_cast<bitmask>(conf.preferred_present_mode));
+    open_vk_command_buffers();
   }
 
   window_impl::~window_impl() noexcept {
+    close_vk_command_buffers();
     close_vk_swapchain();
     close_vk_surface();
     close_x_window();

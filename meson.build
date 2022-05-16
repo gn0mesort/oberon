@@ -16,7 +16,13 @@ project(
 
 #cmake = import('cmake')
 
-vkfl_proj = subproject('vkfl')
+project_root = meson.current_source_dir()
+
+vkfl_proj = subproject('vkfl', version: '>=1.3.0',
+                       default_options: [ 'api=1.3', 'build_c=disabled',
+                                          'extensions=VK_EXT_debug_utils,VK_EXT_validation_features,' +
+                                          'VK_KHR_xcb_surface,VK_KHR_surface,VK_KHR_swapchain',
+                                          'specification=@0@'.format(project_root / 'share/vulkan/registry/vk.xml') ])
 vkfl_dep = vkfl_proj.get_variable('vkfl_cpp_dep')
 
 # Configure VMA
@@ -40,7 +46,7 @@ oberon_deps = [
   vkfl_dep,
   #vma_dep,
   dependency('xcb'),
-  dependency('vulkan')
+  dependency('vulkan', version: '>=1.3.0')
 ]
 
 oberon_incs = [

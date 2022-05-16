@@ -58,18 +58,24 @@ namespace oberon::detail {
     VkSwapchainKHR m_swapchain{ };
     std::vector<VkImage> m_swapchain_images{ };
     std::vector<VkImageView> m_swapchain_image_views{ };
-
+    VkCommandPool m_command_pool{ };
+    std::vector<VkCommandBuffer> m_command_buffers{ };
 
     void open_parent_systems(io_subsystem& io, graphics_subsystem& graphics);
     void open_x_window(const std::string_view title, const bounding_rect& bounds);
     void open_vk_surface();
     void open_vk_swapchain(const u32 buffer_count, const bitmask present_mode);
+    void open_vk_command_buffers();
     void open_vk_synch_artifacts();
-    void close_vk_synch_artifacts();
+    void close_vk_synch_artifacts() noexcept;
+    void close_vk_command_buffers() noexcept;
     void close_vk_swapchain() noexcept;
     void close_vk_surface() noexcept;
     void close_x_window() noexcept;
     void close_parent_systems() noexcept;
+
+    xcb_get_geometry_cookie_t start_bounds_update();
+    void finish_bounds_update(const xcb_get_geometry_cookie_t req);
   public:
     window_impl(context& ctx, const window::config& conf);
     window_impl(const window_impl& other) = delete;

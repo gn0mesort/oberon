@@ -173,10 +173,21 @@ namespace oberon::detail {
       auto extensions = std::array<cstring, 1>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
       device_info.ppEnabledExtensionNames = std::data(extensions);
       device_info.enabledExtensionCount = std::size(extensions);
-      OBERON_DECLARE_VK_PFN(m_vkdl, GetPhysicalDeviceFeatures);
-      auto features = VkPhysicalDeviceFeatures{ };
-      vkGetPhysicalDeviceFeatures(m_physical_device, &features);
-      device_info.pEnabledFeatures = &features;
+      OBERON_DECLARE_VK_PFN(m_vkdl, GetPhysicalDeviceFeatures2);
+      auto vkfeatures = VkPhysicalDeviceFeatures2{ };
+      vkfeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+      auto vkfeatures_1_1 = VkPhysicalDeviceVulkan11Features{ };
+      vkfeatures_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+      auto vkfeatures_1_2 = VkPhysicalDeviceVulkan12Features{ };
+      vkfeatures_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+      auto vkfeatures_1_3 = VkPhysicalDeviceVulkan13Features{ };
+      vkfeatures_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+      vkfeatures.pNext = &vkfeatures_1_1;
+      vkfeatures_1_1.pNext = &vkfeatures_1_2;
+      vkfeatures_1_2.pNext = &vkfeatures_1_3;
+      vkGetPhysicalDeviceFeatures2(m_physical_device, &vkfeatures);
+      OBERON_INVARIANT(vkfeatures_1_3.dynamicRendering);
+      device_info.pNext = &vkfeatures;
       switch (m_physical_device_properties.vendorID)
       {
       // AMD, Intel, and Nvidia all implement a graphics/compute/transfer/present queue family as queue family 0.
