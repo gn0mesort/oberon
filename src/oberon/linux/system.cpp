@@ -158,101 +158,6 @@ namespace oberon::linux {
     return m_x_atoms[name];
   }
 
-  void null_key_event_callback(oberon::environment&) { }
-
-  void system::attach_key_event_callback(const std::function<key_event_callback>& fn) {
-    OBERON_SYSTEM_PRECONDITIONS;
-    m_key_event_callback = fn;
-  }
-
-  void system::detach_key_event_callback() {
-    OBERON_SYSTEM_PRECONDITIONS;
-    m_key_event_callback = null_key_event_callback;
-  }
-
-  void system::handle_x_error(const ptr<xcb_generic_error_t> err) {
-    OBERON_SYSTEM_PRECONDITIONS;
-    auto code = err->error_code;
-    std::free(err);
-    throw x_error{ "An error was read from the X server.", (static_cast<i32>(code) << 8 | 0x01) };
-  }
-
-  void system::handle_x_event(const u8 event_type, const ptr<xcb_generic_event_t> ev) {
-    OBERON_SYSTEM_PRECONDITIONS;
-    if (event_type == m_xkb_first_event)
-    {
-      m_attached_input->update_keyboard(ev);
-    }
-    switch (event_type)
-    {
-    case XCB_CLIENT_MESSAGE:
-      {
-        auto client_message = reinterpret_cast<ptr<xcb_client_message_event_t>>(ev);
-        if (client_message->type == m_x_atoms[OBERON_LINUX_X_ATOM_WM_PROTOCOLS])
-        {
-          // Handle WM_DELETE_WINDOW messages.
-          if (client_message->data.data32[0] == m_x_atoms[OBERON_LINUX_X_ATOM_WM_DELETE_WINDOW])
-          {
-            m_attached_window->request_quit();
-          }
-          // Handle _NET_WM_PING responses.
-          else if (client_message->data.data32[0] == m_x_atoms[OBERON_LINUX_X_ATOM_NET_WM_PING])
-          {
-            // sizeof(xcb_client_message_event_t) < sizeof(xcb_generic_event_t)
-            // The size of a message sent by xcb_send_event must be sizeof(xcb_generic_event). Since
-            // xcb_client_message_t is smaller it is necessary to play these games with the underlying buffer.
-            auto event = xcb_generic_event_t{ };
-            const auto client_message = reinterpret_cast<ptr<xcb_client_message_event_t>>(&event);
-            std::memcpy(client_message, ev, sizeof(xcb_client_message_event_t));
-            client_message->window = m_attached_window->unique_id();
-            // These parameters are required by EWMH.
-            // Per https://specifications.freedesktop.org/wm-spec/wm-spec-1.3.html#idm45240719179424
-            constexpr const auto mask = XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;
-            xcb_send_event(m_x_connection, false, m_x_screen->root, mask, reinterpret_cast<cstring>(&event));
-          }
-        }
-      }
-      break;
-    case XCB_KEY_PRESS:
-      {
-        auto key_press = reinterpret_cast<ptr<xcb_key_press_event_t>>(ev);
-        m_attached_input->update_key(key_press->detail, true);
-        auto env = environment{ *static_cast<ptr<system>>(this), *static_cast<ptr<input>>(m_attached_input),
-                                *static_cast<ptr<window>>(m_attached_window) };
-        m_key_event_callback(env);
-      }
-      break;
-    case XCB_KEY_RELEASE:
-      {
-        auto key_release = reinterpret_cast<ptr<xcb_key_release_event_t>>(ev);
-        m_attached_input->update_key(key_release->detail, false);
-        auto env = environment{ *static_cast<ptr<system>>(this), *static_cast<ptr<input>>(m_attached_input),
-                                *static_cast<ptr<window>>(m_attached_window) };
-        m_key_event_callback(env);
-      }
-      break;
-    default:
-      break;
-    }
-    std::free(ev);
-  }
-
-  void system::drain_event_queue() {
-    OBERON_SYSTEM_PRECONDITIONS;
-    auto ev = ptr<xcb_generic_event_t>{ };
-    while ((ev = xcb_poll_for_event(m_x_connection)))
-    {
-      const auto event_type = ev->response_type & ~event_flag_bits::synthetic_bit;
-      if (event_type)
-      {
-        handle_x_event(event_type, ev);
-      }
-      else
-      {
-        handle_x_error(reinterpret_cast<ptr<xcb_generic_error_t>>(ev));
-      }
-    }
-  }
 
   ptr<xkb_context> system::keyboard_context() {
     OBERON_SYSTEM_PRECONDITIONS;
@@ -267,17 +172,6 @@ namespace oberon::linux {
   u8 system::keyboard_event_code() const {
     OBERON_SYSTEM_PRECONDITIONS;
     return m_xkb_first_event;
-  }
-
-
-  void system::attach_input(input& inpt) {
-    OBERON_SYSTEM_PRECONDITIONS;
-    m_attached_input = &inpt;
-  }
-
-  void system::attach_window(window& win) {
-    OBERON_SYSTEM_PRECONDITIONS;
-    m_attached_window = &win;
   }
 
 }

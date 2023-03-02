@@ -22,6 +22,7 @@
 #include "oberon/linux/system.hpp"
 #include "oberon/linux/input.hpp"
 #include "oberon/linux/window.hpp"
+#include "oberon/linux/environment.hpp"
 #endif
 
 namespace oberon {
@@ -42,12 +43,9 @@ namespace oberon {
 #ifdef MESON_SYSTEM_LINUX
      auto platform_system = new linux::system{ "oberon", "oberon" };
      auto platform_input = new linux::input{ *platform_system };
-     platform_system->attach_input(*platform_input);
      auto platform_window = new linux::window{ *platform_system };
-     platform_system->attach_window(*platform_window);
+     auto env = linux::environment{ *platform_system, *platform_input, *platform_window };
 #endif
-     auto env = environment{ *static_cast<ptr<system>>(platform_system), *static_cast<ptr<input>>(platform_input),
-                             *static_cast<ptr<window>>(platform_window) };
       result = fn(env);
       // Tear down platform specific objects.
       delete platform_window;

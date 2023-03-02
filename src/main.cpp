@@ -18,23 +18,26 @@ void toggle_fullscreen(oberon::window& win) {
 }
 
 void on_key_press(oberon::environment& env) {
-  if (env.input.key_is_pressed(oberon::key::escape))
+  auto& inpt = env.input();
+  auto& win = env.window();
+  if (inpt.key_is_pressed(oberon::key::escape))
   {
-    env.window.request_quit();
+    win.request_quit();
   }
-  if (env.input.key_is_just_pressed(oberon::key::enter) && env.input.modifier_key_is_active(oberon::modifier_key::alt))
+  if (inpt.key_is_just_pressed(oberon::key::enter) && inpt.modifier_key_is_active(oberon::modifier_key::alt))
   {
-    toggle_fullscreen(env.window);
+    toggle_fullscreen(win);
   }
 }
 
 int app_run(oberon::environment& env) {
-  env.system.attach_key_event_callback(on_key_press);
-  env.window.resize({ 1280, 720 });
-  env.window.show();
-  while (!env.window.quit_requested())
+  auto& win = env.window();
+  env.attach_key_event_callback(on_key_press);
+  win.resize({ 1280, 720 });
+  win.show();
+  while (!win.quit_requested())
   {
-    env.system.drain_event_queue();
+    env.drain_event_queue();
   }
   return 0;
 }

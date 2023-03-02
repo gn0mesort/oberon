@@ -40,15 +40,8 @@ namespace oberon::linux {
     u8 m_xkb_first_error{ };
     std::array<xcb_atom_t, OBERON_LINUX_X_ATOM_MAX> m_x_atoms{ };
 
-    ptr<input> m_attached_input{ };
-    ptr<window> m_attached_window{ };
-
-    std::function<key_event_callback> m_key_event_callback{ };
-
     xcb_intern_atom_cookie_t begin_intern_atom(const cstring name);
     xcb_atom_t end_intern_atom(const xcb_intern_atom_cookie_t request);
-    void handle_x_error(const ptr<xcb_generic_error_t> err);
-    void handle_x_event(const u8 response_type, const ptr<xcb_generic_event_t> ev);
   public:
     /**
      * @brief Create a new system object.
@@ -77,14 +70,6 @@ namespace oberon::linux {
     /// @endcond
 
     /**
-     * @brief Attach the given input object to the system.
-     * @details Multiple calls to this method will override previous calls. There is only one input object attached to
-     *          the system at any time. A valid input object must be attached before drain_event_queue may be called.
-     * @param inpt The input object to attach.
-     */
-    void attach_input(input& inpt);
-
-    /**
      * @brief Attach the given window object to the system.
      * @details Multiple calls to this method will override previous calls. There is only one window object attached
      *          to the system at any time. A valid window object must be attached before drain_event_queue may be
@@ -92,24 +77,6 @@ namespace oberon::linux {
      * @param window The window object to attach.
      */
     void attach_window(window& win);
-
-    /**
-     * @brief Attach a new key event callback.
-     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
-     *          handled as a list. There can only be one callback.
-     */
-    void attach_key_event_callback(const std::function<key_event_callback>& fn) override;
-
-    /**
-     * @brief Detach the currently attached key event callback.
-     */
-    void detach_key_event_callback() override;
-
-    /**
-     * @brief Poll the system event queue until no more events are found.
-     * @details This empties the system event queue and dispatches events to their corresponding subsystems.
-     */
-    void drain_event_queue() override;
 
     /**
      * @brief Retrieve the instance name associated with the application.

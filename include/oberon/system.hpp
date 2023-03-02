@@ -8,8 +8,6 @@
 #ifndef OBERON_SYSTEM_HPP
 #define OBERON_SYSTEM_HPP
 
-#include <functional>
-
 #include "types.hpp"
 #include "keys.hpp"
 
@@ -22,10 +20,6 @@ namespace oberon {
    */
   class system {
   public:
-    /**
-     * @brief A function to be called when key press or key release events occur.
-     */
-    using key_event_callback = void(environment&);
 
     /**
      * @brief Construct a new system object.
@@ -62,24 +56,6 @@ namespace oberon {
      * @return A reference to the assigned object.
      */
     system& operator=(system&& rhs) = default;
-
-    /**
-     * @brief Attach a new key event callback.
-     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
-     *          handled as a list. There can only be one callback.
-     */
-    virtual void attach_key_event_callback(const std::function<key_event_callback>& fn) = 0;
-
-    /**
-     * @brief Detach the currently attached key event callback.
-     */
-    virtual void detach_key_event_callback() = 0;
-
-    /**
-     * @brief Poll the system event queue until no more events are found.
-     * @details This empties the system event queue and dispatches events to their corresponding subsystems.
-     */
-    virtual void drain_event_queue() = 0;
   };
 
   system::~system() noexcept { }
