@@ -1,12 +1,41 @@
-# Build and Distribution directories
-build/**
-dist/**
+# Prerequisites
+*.d
 
-# Object files
+# Compiled Object files
+*.slo
+*.lo
 *.o
+*.obj
 
-# clangd cache
-.cache/**
+# Precompiled Headers
+*.gch
+*.pch
 
-# ignore python caching
-__pycache__/
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Meson build directory
+build/
+
+# Python virtual environment
+.venv/
+
+# Clangd cache
+.cache/

@@ -1,68 +1,74 @@
+##
+# @file meson.build
+# @brief Project level Meson build script.
+# @author Alexander Rothman <gnomesort@megate.ch>
+# @date 2023
+# @copyright AGPL-3.0+
+#
 project(
   'oberon',
-  [ 'c', 'cpp' ],
-  version: '0.1.0',
-  license: 'AGPL-3.0',
+  [ 'cpp' ],
+  version: '1.0.0',
+  license: 'AGPL-3.0+',
   default_options: [
-    'c_std=c18',
-    'c_link_args=-Wl,-rpath=$ORIGIN/../lib',
     'cpp_std=c++20',
-    'cpp_link_args=-Wl,-rpath=$ORIGIN/../lib',
     'warning_level=3',
     'b_ndebug=if-release',
     'b_pie=true'
-  ]
+  ],
+  subproject_dir: 'lib'
 )
 
-glslc = generator(find_program('glslangValidator'),
-                  output: '@PLAINNAME@.spv',
-                  arguments: [ '-t', '-Os', '-g0', '--quiet', '--target-env', 'vulkan1.2', '-o', '@OUTPUT@',
-                               '@EXTRA_ARGS@', '@INPUT@' ])
+cxx = meson.get_compiler('cpp')
 
-spv2cpp = find_program('tools/spv2cpp.py')
-
-oberon_deps = [
-  dependency('xcb'),
-  dependency('xcb-randr'),
-  dependency('vulkan')
-]
-
+oberon_deps = [ ]
+oberon_link_args = [ ]
+oberon_args = [ ]
 oberon_incs = [
   include_directories('include')
 ]
-
-shader_srcs = [ ]
-subdir('src/shaders')
-
 oberon_srcs = [
-  files(
-    'src/oberon/debug.cpp',
-    'src/oberon/errors.cpp',
-    'src/oberon/object.cpp',
-    'src/oberon/context.cpp',
-    'src/oberon/debug_context.cpp',
-    'src/oberon/window.cpp',
-    'src/oberon/renderer_3d.cpp',
-    'src/oberon/shader_config.cpp'
-  ),
-  files(
-    'src/oberon/detail/vulkan_function_table.cpp',
-    'src/oberon/detail/x11.cpp'
-  ),
-  shader_srcs
+  files('src/main.cpp'),
+  files('src/oberon/application.cpp', 'src/oberon/debug.cpp', 'src/oberon/errors.cpp', 'src/oberon/keys.cpp')
 ]
 
-oberon_lib = library(
-  meson.project_name(),
-  oberon_srcs,
-  include_directories:  oberon_incs,
-  dependencies: oberon_deps,
-  version: meson.project_version()
-)
 
-oberon_dep = declare_dependency(
-  link_with: oberon_lib,
-  include_directories: oberon_incs
-)
 
-subdir('examples')
+if cxx.get_id() == 'clang' or cxx.get_id() == 'clang-cl'
+  oberon_args += [ '-DUSING_CLANG' ]
+endif
+
+if host_machine.system() == 'linux'
+  oberon_linux_args = [
+    '-DMESON_SYSTEM="linux"',
+    '-DMESON_SYSTEM_LINUX=1'
+  ]
+  oberon_linux_deps = [
+    dependency('x11'),
+    dependency('xcb'),
+    dependency('xcb-xkb'),
+    dependency('xkbcommon'),
+    dependency('xkbcommon-x11'),
+    dependency('x11-xcb')
+  ]
+  oberon_linux_srcs = [
+    files('src/oberon/linux/system.cpp', 'src/oberon/linux/input.cpp', 'src/oberon/linux/window.cpp')
+  ]
+  oberon_args += oberon_linux_args
+  oberon_deps += oberon_linux_deps
+  oberon_srcs += oberon_linux_srcs
+endif
+
+foreach link_arg : oberon_link_args
+  add_project_link_arguments(link_arg, language: [ 'cpp' ])
+endforeach
+
+foreach arg : oberon_args
+  add_project_arguments(arg, language: [ 'cpp' ])
+endforeach
+
+if host_machine.system() == 'linux'
+  subdir('tools/linux')
+endif
+
+oberon = executable('oberon', oberon_srcs, include_directories: oberon_incs, dependencies: oberon_deps)
