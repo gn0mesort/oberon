@@ -31,7 +31,7 @@ void on_key_press(oberon::platform& plt) {
   }
 }
 
-int app_run(const int argc, oberon::ptr<oberon::csequence> argv, oberon::platform& plt) {
+int app_run(const int argc, const oberon::ptr<oberon::csequence> argv, oberon::platform& plt) {
   auto& win = plt.window();
   plt.attach_key_event_callback(on_key_press);
   win.resize({ 1280, 720 });

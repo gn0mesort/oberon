@@ -42,8 +42,8 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
 - *MUST* support X11
     Q: Should XInitThreads be called before XOpenDisplay
     A: For the sake of sanity, yes.
-    - *MUST* support `RESOURCE_NAME`
-    - *MUST* support `-name` argument
+    + *MUST* support `RESOURCE_NAME`
+    + *MUST* support `-name` argument
     + *MUST* properly set `WM_PROTOCOLS`
     + *MUST* handle `WM_DELETE_WINDOW` messages
     + *MUST* handle `_NET_WM_PING` messages

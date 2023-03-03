@@ -14,7 +14,7 @@ namespace oberon {
     /**
      * @brief Platform generic entry point procedure.
      */
-    using entry_point = int(const int argc, const ptr<ptr<char>> argv, platform&);
+    using entry_point = int(const int argc, const ptr<csequence> argv, platform&);
 
     /**
      * @brief Create a new application object.
