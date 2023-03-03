@@ -1,12 +1,12 @@
 /**
- * @file environment.hpp
- * @brief Enviroment class.
+ * @file platform.hpp
+ * @brief Platform class.
  * @author Alexander Rothman <gnomesort@megate.ch>
  * @date 2023
  * @copyright AGPL-3.0+
  */
-#ifndef OBERON_ENVIRONMENT_HPP
-#define OBERON_ENVIRONMENT_HPP
+#ifndef OBERON_PLATFORM_HPP
+#define OBERON_PLATFORM_HPP
 
 #include <functional>
 
@@ -17,50 +17,50 @@ namespace oberon {
   class window;
 
   /**
-   * @brief The runtime environment of an Oberon application.
+   * @brief The runtime platform of an Oberon application.
    */
-  class environment {
+  class platform {
   public:
     /**
      * @brief A function to be called when key press or key release events occur.
      */
-    using key_event_callback = void(environment&);
+    using key_event_callback = void(platform&);
 
     /**
-     * @brief Create a new environment object.
+     * @brief Create a new platform object.
      */
-    environment() = default;
+    platform() = default;
 
     /**
-     * @brief Copy an environment object.
-     * @param other The environment to copy.
+     * @brief Copy an platform object.
+     * @param other The platform to copy.
      */
-    environment(const environment& other) = default;
+    platform(const platform& other) = default;
 
     /**
-     * @brief Move a environment object.
+     * @brief Move a platform object.
      * @param other The environement to move.
      */
-    environment(environment&& other) = default;
+    platform(platform&& other) = default;
 
     /**
-     * @brief Destroy an environment object.
+     * @brief Destroy a platform object.
      */
-    inline virtual ~environment() noexcept = 0;
+    inline virtual ~platform() noexcept = 0;
 
     /**
-     * @brief Copy an environment object.
-     * @param rhs The environment to copy.
+     * @brief Copy a platform object.
+     * @param rhs The platform to copy.
      * @return A reference to the assigned object.
      */
-    environment& operator=(const environment& rhs) = default;
+    platform& operator=(const platform& rhs) = default;
 
     /**
-     * @brief Move an environment object.
-     * @param rhs The environment to move.
+     * @brief Move a platform object.
+     * @param rhs The platform to move.
      * @return A reference to the assigned object.
      */
-    environment& operator=(environment& rhs) = default;
+    platform& operator=(platform& rhs) = default;
 
     /**
      * @brief Retrieve the current system handle.
@@ -94,13 +94,13 @@ namespace oberon {
     virtual void detach_key_event_callback() = 0;
 
     /**
-     * @brief Poll the system event queue until no more events are found.
-     * @details This empties the system event queue and dispatches events to their corresponding subsystems.
+     * @brief Poll the platform event queue until no more events are found.
+     * @details This empties the platform event queue and dispatches events to their corresponding subsystems.
      */
     virtual void drain_event_queue() = 0;
   };
 
-  environment::~environment() noexcept { }
+  platform::~platform() noexcept { }
 
 }
 

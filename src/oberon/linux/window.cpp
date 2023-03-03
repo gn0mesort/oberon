@@ -52,6 +52,11 @@ namespace oberon::linux {
     xcb_create_window(connection, depth, m_window_id, parent, 0, 0, 320, 180, border, window_class,
                       visual, value_mask, value_array.data());
     // Set WM_CLASS
+    // WM_CLASS is an odd value in that both strings are explicitly null terminated (i.e., cstrings). Other string
+    // atoms don't necessarily care about the null terminator.
+    // Additionally, the first value (i.e., the instance name) must be acquired in accordance with ICCCM. This means
+    // that the -name argument is checked first, then RESOURCE_NAME, and finally basename(argv[0]) is used.
+    // see https://www.x.org/releases/current/doc/xorg-docs/icccm/icccm.html#WM_CLASS_Property
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, m_window_id,
                         m_parent->atom_from_name(OBERON_LINUX_X_ATOM_WM_CLASS), XCB_ATOM_STRING, 8,
                         instance_name.size() + 1, instance_name.c_str());

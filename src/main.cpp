@@ -1,25 +1,26 @@
-#include <cstdio>
-
-#include <unistd.h>
-
+/**
+ * @file main.cpp
+ * @brief Main application entry point.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/oberon.hpp"
 
 void toggle_fullscreen(oberon::window& win) {
   if (win.current_display_style() == oberon::window::display_style::windowed)
   {
-    std::printf("Toggling fullscreen.\n");
     win.change_display_style(oberon::window::display_style::fullscreen_composited);
   }
   else if (win.current_display_style() == oberon::window::display_style::fullscreen_composited)
   {
-    std::printf("Toggling windowed.\n");
     win.change_display_style(oberon::window::display_style::windowed);
   }
 }
 
-void on_key_press(oberon::environment& env) {
-  auto& inpt = env.input();
-  auto& win = env.window();
+void on_key_press(oberon::platform& plt) {
+  auto& inpt = plt.input();
+  auto& win = plt.window();
   if (inpt.key_is_pressed(oberon::key::escape))
   {
     win.request_quit();
@@ -30,19 +31,19 @@ void on_key_press(oberon::environment& env) {
   }
 }
 
-int app_run(oberon::environment& env) {
-  auto& win = env.window();
-  env.attach_key_event_callback(on_key_press);
+int app_run(const int argc, oberon::ptr<oberon::csequence> argv, oberon::platform& plt) {
+  auto& win = plt.window();
+  plt.attach_key_event_callback(on_key_press);
   win.resize({ 1280, 720 });
   win.show();
   while (!win.quit_requested())
   {
-    env.drain_event_queue();
+    plt.drain_event_queue();
   }
   return 0;
 }
 
 int main(int argc, char** argv) {
   auto app = oberon::application{ };
-  return app.run(app_run);
+  return app.run(app_run, argc, argv);
 }

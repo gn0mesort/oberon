@@ -1,11 +1,11 @@
 /**
- * @file environment.cpp
- * @brief Linux implementation of the enviroment class.
+ * @file platform.cpp
+ * @brief Linux implementation of the platform class.
  * @author Alexander Rothman <gnomesort@megate.ch>
  * @date 2023
  * @copyright AGPL-3.0+
  */
-#include "oberon/linux/environment.hpp"
+#include "oberon/linux/platform.hpp"
 
 #include <cstring>
 
@@ -15,58 +15,58 @@
 #include "oberon/linux/input.hpp"
 #include "oberon/linux/window.hpp"
 
-#define OBERON_ENVIRONMENT_PRECONDITIONS \
+#define OBERON_PLATFORM_PRECONDITIONS \
   OBERON_PRECONDITION(m_system); \
   OBERON_PRECONDITION(m_input); \
   OBERON_PRECONDITION(m_window)
 
 namespace {
 
-  void null_key_event_cb(oberon::environment&) { }
+  void null_key_event_cb(oberon::platform&) { }
 
 }
 
 namespace oberon::linux {
 
-  environment::environment(class system& sys, class input& inpt, class window& win) :
+  platform::platform(class system& sys, class input& inpt, class window& win) :
   m_system{ &sys }, m_input{ &inpt }, m_window{ &win } {
     attach_key_event_callback(null_key_event_cb);
   }
 
-  oberon::system& environment::system() {
-    OBERON_ENVIRONMENT_PRECONDITIONS;
+  oberon::system& platform::system() {
+    OBERON_PLATFORM_PRECONDITIONS;
     return *m_system;
   }
 
-  oberon::input& environment::input() {
-    OBERON_ENVIRONMENT_PRECONDITIONS;
+  oberon::input& platform::input() {
+    OBERON_PLATFORM_PRECONDITIONS;
     return *m_input;
   }
 
-  oberon::window& environment::window() {
-    OBERON_ENVIRONMENT_PRECONDITIONS;
+  oberon::window& platform::window() {
+    OBERON_PLATFORM_PRECONDITIONS;
     return static_cast<oberon::window&>(*m_window);
   }
 
-  void environment::attach_key_event_callback(const std::function<key_event_callback>& fn) {
-    OBERON_ENVIRONMENT_PRECONDITIONS;
+  void platform::attach_key_event_callback(const std::function<key_event_callback>& fn) {
+    OBERON_PLATFORM_PRECONDITIONS;
     m_key_event_cb = fn;
   }
 
-  void environment::detach_key_event_callback() {
-    OBERON_ENVIRONMENT_PRECONDITIONS;
+  void platform::detach_key_event_callback() {
+    OBERON_PLATFORM_PRECONDITIONS;
     attach_key_event_callback(null_key_event_cb);
   }
 
-  void environment::handle_x_error(const ptr<xcb_generic_error_t> err) {
-    OBERON_ENVIRONMENT_PRECONDITIONS;
+  void platform::handle_x_error(const ptr<xcb_generic_error_t> err) {
+    OBERON_PLATFORM_PRECONDITIONS;
     auto code = err->error_code;
     std::free(err);
     throw x_error{ "An error was read from the X server.", (static_cast<i32>(code) << 8 | 0x01) };
   }
 
-  void environment::handle_x_event(const u8 event_type, const ptr<xcb_generic_event_t> ev) {
-    OBERON_ENVIRONMENT_PRECONDITIONS;
+  void platform::handle_x_event(const u8 event_type, const ptr<xcb_generic_event_t> ev) {
+    OBERON_PLATFORM_PRECONDITIONS;
     if (event_type == m_system->keyboard_event_code())
     {
       m_input->update_keyboard(ev);
@@ -121,8 +121,8 @@ namespace oberon::linux {
     }
     std::free(ev);
   }
-  void environment::drain_event_queue() {
-    OBERON_ENVIRONMENT_PRECONDITIONS;
+  void platform::drain_event_queue() {
+    OBERON_PLATFORM_PRECONDITIONS;
     auto ev = ptr<xcb_generic_event_t>{ };
     while ((ev = xcb_poll_for_event(m_system->connection())))
     {

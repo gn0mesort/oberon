@@ -51,10 +51,44 @@ namespace oberon::inline pointer_types {
   template <typename Type>
   using readonly_ptr = const Type*;
 
+
+  /**
+   * @brief Templated alias for a C-style pointer to an array of `Type` values.
+   * @details C-style arrays, especially arrays of characters, may have terminators (of various types) but they are
+   *          not guaranteed.
+   * @tparam Type The data type of the pointed to sequence.
+   */
+  template <typename Type>
+  using basic_sequence = ptr<Type>;
+
+  /**
+   * @brief A sequence of `char`s
+   * @details csequences may or may not contain a null terminator.
+   */
+  using csequence = basic_sequence<char>;
+
+  /**
+   * @brief A sequence of `utf8`s
+   * @details utf8_sequences may or may not contain a null terminator.
+   */
+  using utf8_sequence = basic_sequence<utf8>;
+
+  /**
+   * @brief A sequence of `utf16`s
+   * @details utf16_sequences may or may not contain a null terminator.
+   */
+  using utf16_sequence = basic_sequence<utf16>;
+
+  /**
+   * @brief A sequence of `utf32`s
+   * @details utf32_sequences may or may not contain a null terminator.
+   */
+  using utf32_sequence = basic_sequence<utf32>;
+
   /**
    * @brief Templated alias for a C-style string of `CharType` values.
    * @details C-style strings should always contain a terminating '\0' character.
-   * @tparam CharType the character type for the aliased C-style string type.
+   * @tparam CharType The character type for the aliased C-style string type.
    */
   template <typename CharType>
   using basic_cstring = readonly_ptr<CharType>;

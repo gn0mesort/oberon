@@ -53,7 +53,7 @@ if host_machine.system() == 'linux'
   ]
   oberon_linux_srcs = [
     files('src/oberon/linux/system.cpp', 'src/oberon/linux/input.cpp', 'src/oberon/linux/window.cpp',
-          'src/oberon/linux/environment.cpp')
+          'src/oberon/linux/platform.cpp')
   ]
   oberon_args += oberon_linux_args
   oberon_deps += oberon_linux_deps

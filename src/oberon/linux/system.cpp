@@ -11,7 +11,6 @@
 #include <cstdlib>
 
 #include "oberon/debug.hpp"
-#include "oberon/environment.hpp"
 
 #include "oberon/linux/input.hpp"
 #include "oberon/linux/window.hpp"

@@ -1,15 +1,15 @@
 /**
- * @file environment.hpp
- * @brief Linux implementation of the enviroment class.
+ * @file platform.hpp
+ * @brief Linux implementation of the platform class.
  * @author Alexander Rothman <gnomesort@megate.ch>
  * @date 2023
  * @copyright AGPL-3.0+
  */
-#ifndef OBERON_LINUX_ENVIRONMENT_HPP
-#define OBERON_LINUX_ENVIRONMENT_HPP
+#ifndef OBERON_LINUX_PLATFORM_HPP
+#define OBERON_LINUX_PLATFORM_HPP
 
 #include "../memory.hpp"
-#include "../environment.hpp"
+#include "../platform.hpp"
 
 #include "x11.hpp"
 
@@ -19,7 +19,7 @@ namespace oberon::linux {
   class input;
   class window;
 
-  class environment final : public oberon::environment {
+  class platform final : public oberon::platform {
   private:
     ptr<class system> m_system{ };
     ptr<class input> m_input{ };
@@ -31,26 +31,26 @@ namespace oberon::linux {
     void handle_x_event(const u8 response_type, const ptr<xcb_generic_event_t> ev);
   public:
     /**
-     * @brief Create a new environment object.
+     * @brief Create a new platform object.
      * @param sys The underlying system object.
      * @param inpt The underlying input object.
      * @param win The underlying window object.
      */
-    environment(class system& sys, class input& inpt, class window& win);
+    platform(class system& sys, class input& inpt, class window& win);
 
     /// @cond
-    environment(const environment& other) = delete;
-    environment(environment&& other) = delete;
+    platform(const platform& other) = delete;
+    platform(platform&& other) = delete;
     /// @endcond
 
     /**
-     * @brief Destroy an environment object.
+     * @brief Destroy a platform object.
      */
-    ~environment() noexcept = default;
+    ~platform() noexcept = default;
 
     /// @cond
-    environment& operator=(const environment& rhs) = delete;
-    environment& operator=(environment&& rhs) = delete;
+    platform& operator=(const platform& rhs) = delete;
+    platform& operator=(platform&& rhs) = delete;
     /// @endcond
 
     /**
@@ -85,8 +85,8 @@ namespace oberon::linux {
     void detach_key_event_callback() override;
 
     /**
-     * @brief Poll the system event queue until no more events are found.
-     * @details This empties the system event queue and dispatches events to their corresponding subsystems.
+     * @brief Poll the platform event queue until no more events are found.
+     * @details This empties the platform event queue and dispatches events to their corresponding subsystems.
      */
     void drain_event_queue() override;
   };

@@ -7,11 +7,14 @@
  */
 #include "oberon/application.hpp"
 
+#include <cstdlib>
+#include <cstring>
+
 #include <iostream>
 
-#include "oberon/memory.hpp"
+#include "oberon/debug.hpp"
 #include "oberon/errors.hpp"
-#include "oberon/environment.hpp"
+#include "oberon/platform.hpp"
 
 // Platform specific includes should be selected here.
 // The proper set of enabled macros should be selected during build configuration by Meson.
@@ -19,15 +22,19 @@
 // "linux". Additional platforms should follow the same scheme (e.g., define MESON_SYSTEM_WINDOWS as 1 and set
 // MESON_SYSTEM to an appropriate string).
 #ifdef MESON_SYSTEM_LINUX
+#include <getopt.h>
+#include <libgen.h>
+
 #include "oberon/linux/system.hpp"
 #include "oberon/linux/input.hpp"
 #include "oberon/linux/window.hpp"
-#include "oberon/linux/environment.hpp"
+#include "oberon/linux/platform.hpp"
 #endif
 
 namespace oberon {
 
-  int application::run(const std::function<entry_point>& fn) {
+  int application::run(const std::function<entry_point>& fn, const int argc, const ptr<csequence> argv) {
+    OBERON_CHECK(argv[argc] == nullptr);
     // The result *as-if* returned from a standard main procedure.
     // If an error occurs the least significant byte of the result must not be 0.
     // If the entry point function exits normally (e.g., via user request) the least significant byte must be 0.
@@ -39,14 +46,48 @@ namespace oberon {
 // Platform selection should occur here.
 // Based on compilation settings (and the underlying compilation platform), Meson should select the correct set of
 // macros for the target platform.
-// The order should be the reverse of the generic tear down.
+// The order of subsystem creation should be the reverse of the generic tear down.
 #ifdef MESON_SYSTEM_LINUX
-     auto platform_system = new linux::system{ "oberon", "oberon" };
-     auto platform_input = new linux::input{ *platform_system };
-     auto platform_window = new linux::window{ *platform_system };
-     auto env = linux::environment{ *platform_system, *platform_input, *platform_window };
+      // Parse arguments to find the ICCCM instance name. This is used by WM_CLASS.
+      // see https://www.x.org/releases/current/doc/xorg-docs/icccm/icccm.html#WM_CLASS_Property
+      auto name = std::string{ };
+      {
+        enum { NAME_FOUND };
+        auto longopts = std::array<::option, 2>{  ::option{ "name", required_argument, nullptr, NAME_FOUND },
+                                                  ::option{ nullptr, 0, nullptr, 0 } };
+        auto option_index = int{ };
+        for (auto opt = -1; (opt = getopt_long_only(argc, argv, "", longopts.data(), &option_index)) != -1;)
+        {
+          switch (opt)
+          {
+          case NAME_FOUND:
+            name = optarg;
+            break;
+          default:
+            break;
+          }
+        }
+        if (name.empty())
+        {
+          auto env_name = std::getenv("RESOURCE_NAME");
+          if (env_name && std::strlen(env_name))
+          {
+            name = env_name;
+          }
+          else
+          {
+            auto path = strdup(argv[0]);
+            name = basename(path);
+            std::free(path);
+          }
+        }
+      }
+      auto platform_system = new linux::system{ name, "oberon" };
+      auto platform_input = new linux::input{ *platform_system };
+      auto platform_window = new linux::window{ *platform_system };
+      auto plt = linux::platform{ *platform_system, *platform_input, *platform_window };
 #endif
-      result = fn(env);
+      result = fn(argc, argv, plt);
       // Tear down platform specific objects.
       delete platform_window;
       delete platform_input;
