@@ -21,14 +21,36 @@ namespace oberon::linux {
 
   class platform final : public oberon::platform {
   private:
+    using event_handler = void(platform&, const u8, const ptr<xcb_generic_event_t>);
+    using xi_event_handler = void(platform&, const u16, const ptr<xcb_ge_generic_event_t>);
+    using xkb_event_handler = void(platform&, const u8, const ptr<xcb_xkb_generic_event_t>);
+
+    static void handle_error(platform& plt, const u8 type, const ptr<xcb_generic_event_t> ev);
+    static void handle_client_message(platform& plt, const u8 type, const ptr<xcb_generic_event_t> ev);
+    static void handle_ge_generic_event(platform& plt, const u8 type, const ptr<xcb_generic_event_t> ev);
+    static void handle_xi_key_press_event(platform& plt, const u16 type, const ptr<xcb_ge_generic_event_t> ev);
+    static void handle_xi_key_release_event(platform& plt, const u16 type, const ptr<xcb_ge_generic_event_t> ev);
+    static void handle_xi_button_press_event(platform& plt, const u16 type, const ptr<xcb_ge_generic_event_t> ev);
+    static void handle_xi_button_release_event(platform& plt, const u16 type, const ptr<xcb_ge_generic_event_t> ev);
+    static void handle_xi_motion_event(platform& plt, const u16 type, const ptr<xcb_ge_generic_event_t> ev);
+    static void handle_xkb_event(platform& plt, const u8 type, const ptr<xcb_generic_event_t> ev);
+    static void handle_xkb_state_notify(platform& plt, const u8 type, const ptr<xcb_xkb_generic_event_t> ev);
+    static void handle_xkb_new_keyboard_notify_and_map_notify(platform& plt, const u8 type,
+                                                              const ptr<xcb_xkb_generic_event_t> ev);
+
     ptr<class system> m_system{ };
     ptr<class input> m_input{ };
     ptr<class window> m_window{ };
 
-    std::function<key_event_callback> m_key_event_cb{ };
+    key_press_event_fn m_key_press_event_cb{ };
+    key_release_event_fn m_key_release_event_cb{ };
+    mouse_movement_event_fn m_mouse_movement_event_cb{ };
+    mouse_button_press_event_fn m_mouse_button_press_event_cb{ };
+    mouse_button_release_event_fn m_mouse_button_release_event_cb{ };
 
-    void handle_x_error(const ptr<xcb_generic_error_t> err);
-    void handle_x_event(const u8 response_type, const ptr<xcb_generic_event_t> ev);
+    std::array<ptr<event_handler>, OBERON_LINUX_X_EVENT_MAX> m_event_handlers{ };
+    std::array<ptr<xi_event_handler>, OBERON_LINUX_X_XI_EVENT_MAX> m_xi_event_handlers{ };
+    std::array<ptr<xkb_event_handler>, OBERON_LINUX_X_XKB_EVENT_MAX> m_xkb_event_handlers{ };
   public:
     /**
      * @brief Create a new platform object.
@@ -73,16 +95,69 @@ namespace oberon::linux {
 
 
     /**
-     * @brief Attach a new key event callback.
+     * @brief Attach a new key press event callback.
      * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
      *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
      */
-    void attach_key_event_callback(const std::function<key_event_callback>& fn) override;
+    void attach_key_press_event_callback(const key_press_event_fn& fn) override;
 
     /**
-     * @brief Detach the currently attached key event callback.
+     * @brief Detach the currently attached key press event callback.
      */
-    void detach_key_event_callback() override;
+    void detach_key_press_event_callback() override;
+
+    /**
+     * @brief Attach a new key release event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
+    void attach_key_release_event_callback(const key_release_event_fn& fn) override;
+
+    /**
+     * @brief Detach the currently attached key release event callback.
+     */
+    void detach_key_release_event_callback() override;
+
+    /**
+     * @brief Attach a new mouse movement event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
+    void attach_mouse_movement_event_callback(const mouse_movement_event_fn& fn) override;
+
+    /**
+     * @brief Detach the currently attached mouse movement event callback.
+     */
+    void detach_mouse_movement_event_callback() override;
+
+    /**
+     * @brief Attach a new mouse button press event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
+    void attach_mouse_button_press_event_callback(const mouse_button_press_event_fn& fn) override;
+
+    /**
+     * @brief Detach the currently attached mouse button press event callback.
+     */
+    void detach_mouse_button_press_event_callback() override;
+
+    /**
+     * @brief Attach a new mouse button release event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
+    void attach_mouse_button_release_event_callback(const mouse_button_release_event_fn& fn) override;
+
+    /**
+     * @brief Detach the currently attached mouse button release event callback.
+     */
+    void detach_mouse_button_release_event_callback() override;
 
     /**
      * @brief Poll the platform event queue until no more events are found.

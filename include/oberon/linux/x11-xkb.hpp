@@ -7,6 +7,7 @@
  */
 #ifndef OBERON_LINUX_X11_XKB_HPP
 #define OBERON_LINUX_X11_XKB_HPP
+
 // Don't use C++ keywords in C headers please!
 // GCC doesn't emit a warning for this currently.
 #if defined(USING_CLANG)
@@ -21,6 +22,8 @@
 #if defined(USING_CLANG)
 #pragma clang diagnostic pop
 #endif
+
+#include "../types.hpp"
 
 /**
  * @def OBERON_LINUX_X_KEYCODES
@@ -405,5 +408,81 @@
   OBERON_LINUX_X_MODIFIER_KEY_MAPPING(alt, XKB_MOD_NAME_ALT) \
   OBERON_LINUX_X_MODIFIER_KEY_MAPPING(num_lock, XKB_MOD_NAME_NUM) \
   OBERON_LINUX_X_MODIFIER_KEY_MAPPING(window, XKB_MOD_NAME_LOGO)
+
+/**
+ * @brief A generic XKB event.
+ * @details Neither libxcb nor libxcb-xkb provides this event type. Therefore it is provided here.
+ * @see https://www.x.org/releases/current/doc/kbproto/xkbproto.html#appD::Events
+ */
+struct xcb_xkb_generic_event_t final {
+  /**
+   * @brief The event type code.
+   * @details This is equivalent to xcb_generic_event_t::response_type.
+   */
+  oberon::u8 code{ };
+
+  /**
+   * @brief The XKB event code.
+   * @details When enabled, the XKB extension provides a base event code. The XKB protocol uses this code for all of
+   *          its events. To further differentiate, every XKB event also carries this XKB code value that can be
+   *          used to identify the specific type of XKB event.
+   */
+  oberon::u8 xkb_code{ };
+
+  /**
+   * @brief Padding values.
+   */
+  oberon::u8 pad[30];
+};
+
+namespace oberon::linux {
+
+/// @cond
+#define OBERON_LINUX_X_KEYCODE_MAPPING(name, str) OBERON_LINUX_X_KEY_##name,
+/// @endcond
+
+  /**
+   * @brief An enumeration X11 keys.
+   * @details This should correspond to the oberon::key enumeration.
+   */
+  enum x_key : usize {
+    OBERON_LINUX_X_KEYCODE_MAP
+    OBERON_LINUX_X_KEY_MAX
+  };
+
+/// @cond
+#undef OBERON_LINUX_X_KEYCODE_MAPPING
+/// @endcond
+
+/// @cond
+#define OBERON_LINUX_X_MODIFIER_KEY_MAPPING(name, str) OBERON_LINUX_X_MODIFIER_KEY_##name,
+/// @endcond
+
+  /**
+   * @brief An enumeration of X11 key modifiers.
+   * @details This should correspond to the oberon::modifier_key enumeration.
+   */
+  enum x_modifier_key : usize {
+    OBERON_LINUX_X_MODIFIER_KEY_MAP
+    OBERON_LINUX_X_MODIFIER_KEY_MAX
+  };
+
+/// @cond
+#undef OBERON_LINUX_X_MODIFIER_KEY_MAPPING
+/// @endcond
+
+  /**
+   * @brief The maximum number of keys allowed in XKB
+   * @details The actual range of acceptable key codes is defined by the server. XKB, generally, expects 8 to be the
+   *          lowest valid key code.
+   */
+  constexpr const usize MAX_KEY_COUNT{ 256 };
+
+  /**
+   * @brief The maximum number of XKB events.
+   */
+  constexpr const usize OBERON_LINUX_X_XKB_EVENT_MAX{ 12 };
+
+}
 
 #endif

@@ -41,12 +41,49 @@ namespace oberon::linux {
           m_x_screen = roots.data;
         }
       }
+      // Initialize XInput
+      // Not the Microsoft gamepad thing. The X11 extension
+      {
+        auto xinput = xcb_get_extension_data(m_x_connection, &xcb_input_id);
+        OBERON_CHECK_ERROR_MSG(xinput->present, 1, "The XInput extension is not available.");
+        {
+          auto request = xcb_input_xi_query_version(m_x_connection, 2, 0);
+          auto reply = ptr<xcb_input_xi_query_version_reply_t>{ };
+          OBERON_LINUX_X_SUCCEEDS(reply, xcb_input_xi_query_version_reply(m_x_connection, request, err));
+          auto major = reply->major_version;
+          auto minor = reply->minor_version;
+          std::free(reply);
+          OBERON_CHECK_ERROR_MSG(major == 2 && minor >= 0, 1, "XInput 2 is not supported.");
+        }
+        m_xi_major_opcode = xinput->major_opcode;
+        {
+          auto request = xcb_input_xi_query_device(m_x_connection, XCB_INPUT_DEVICE_ALL_MASTER);
+          auto reply = ptr<xcb_input_xi_query_device_reply_t>{ };
+          OBERON_LINUX_X_SUCCEEDS(reply, xcb_input_xi_query_device_reply(m_x_connection, request, err));
+          auto kbd_found = false;
+          auto ptr_found = false;
+          for (auto itr = xcb_input_xi_query_device_infos_iterator(reply); itr.rem;
+               xcb_input_xi_device_info_next(&itr))
+          {
+            if (!kbd_found && itr.data->enabled && itr.data->type == XCB_INPUT_DEVICE_TYPE_MASTER_KEYBOARD)
+            {
+              m_xi_master_keyboard_id = itr.data->deviceid;
+            }
+            if (!ptr_found && itr.data->enabled && itr.data->type == XCB_INPUT_DEVICE_TYPE_MASTER_POINTER)
+            {
+              m_xi_master_pointer_id = itr.data->deviceid;
+            }
+          }
+          std::free(reply);
+        }
+      }
       {
         xkb_x11_setup_xkb_extension(m_x_connection, XKB_X11_MIN_MAJOR_XKB_VERSION, XKB_X11_MIN_MINOR_XKB_VERSION,
                                     XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS, nullptr, nullptr, &m_xkb_first_event,
-                                    &m_xkb_first_error);
-        m_xkb_keyboard = xkb_x11_get_core_keyboard_device_id(m_x_connection);
-        OBERON_CHECK(m_xkb_keyboard >= 0);
+                                    nullptr);
+        // m_xkb_keyboard = xkb_x11_get_core_keyboard_device_id(m_x_connection);
+        // std::printf("XKB Keyboard = %hu\nXI Keyboard = %hu\n", m_xkb_keyboard, m_xi_master_keyboard_id);
+        OBERON_CHECK(m_xi_master_keyboard_id >= 0);
         // No XKB events are actually selected at this point.
         // Inexplicable code per libxkbcommon
         // (https://github.com/xkbcommon/libxkbcommon/blob/master/tools/interactive-x11.c)
@@ -64,12 +101,12 @@ namespace oberon::linux {
         details.newKeyboardDetails = XCB_XKB_NKN_DETAIL_KEYCODES;
         details.affectState = state_details;
         details.stateDetails = state_details;
-        xcb_xkb_select_events(m_x_connection, m_xkb_keyboard, required_events, 0, 0, map_parts, map_parts,
+        xcb_xkb_select_events(m_x_connection, m_xi_master_keyboard_id, required_events, 0, 0, map_parts, map_parts,
                                   &details);
         m_xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
         {
           constexpr const auto mask = XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT;
-          auto request = xcb_xkb_per_client_flags(m_x_connection, m_xkb_keyboard, mask, mask, 0, 0, 0);
+          auto request = xcb_xkb_per_client_flags(m_x_connection, m_xi_master_keyboard_id, mask, mask, 0, 0, 0);
           auto reply = ptr<xcb_xkb_per_client_flags_reply_t>{ };
           OBERON_LINUX_X_SUCCEEDS(reply, xcb_xkb_per_client_flags_reply(m_x_connection, request, err));
           OBERON_CHECK(reply->supported & mask);
@@ -163,14 +200,24 @@ namespace oberon::linux {
     return m_xkb_context;
   }
 
-  xcb_xkb_device_spec_t system::keyboard() {
+  xcb_input_device_id_t system::keyboard() {
     OBERON_SYSTEM_PRECONDITIONS;
-    return m_xkb_keyboard;
+    return m_xi_master_keyboard_id;
   }
 
-  u8 system::keyboard_event_code() const {
+  xcb_input_device_id_t system::pointer() {
+    OBERON_SYSTEM_PRECONDITIONS;
+    return m_xi_master_pointer_id;
+  }
+
+  u8 system::xkb_event_code() const {
     OBERON_SYSTEM_PRECONDITIONS;
     return m_xkb_first_event;
+  }
+
+  u8 system::xi_major_opcode() const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    return m_xi_major_opcode;
   }
 
 }

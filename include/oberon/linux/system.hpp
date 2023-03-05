@@ -35,9 +35,11 @@ namespace oberon::linux {
     ptr<xcb_connection_t> m_x_connection{ };
     ptr<xcb_screen_t> m_x_screen{ };
     ptr<xkb_context> m_xkb_context{ };
-    xcb_xkb_device_spec_t m_xkb_keyboard{ };
+    //xcb_xkb_device_spec_t m_xkb_keyboard{ };
     u8 m_xkb_first_event{ };
-    u8 m_xkb_first_error{ };
+    u8 m_xi_major_opcode{ };
+    xcb_input_device_id_t m_xi_master_keyboard_id{ };
+    xcb_input_device_id_t m_xi_master_pointer_id{ };
     std::array<xcb_atom_t, OBERON_LINUX_X_ATOM_MAX> m_x_atoms{ };
 
     xcb_intern_atom_cookie_t begin_intern_atom(const cstring name);
@@ -124,13 +126,20 @@ namespace oberon::linux {
      * @brief Retrieve the XKB keyboard ID.
      * @return The core keyboard ID provided by the system.
      */
-    xcb_xkb_device_spec_t keyboard();
+    xcb_input_device_id_t keyboard();
+    xcb_input_device_id_t pointer();
 
     /**
      * @brief Retrieve the event code indicating an XKB event.
      * @return An 8-bit value indicating when an XKB event has been received.
      */
-    u8 keyboard_event_code() const;
+    u8 xkb_event_code() const;
+
+    /**
+     * @brief Retrieve the major opcode indicating XInput 2 events.
+     * @return An 8-bit major opcode.
+     */
+    u8 xi_major_opcode() const;
   };
 
 }

@@ -10,6 +10,10 @@
 
 #include <string>
 
+/**
+ * @def OBERON_KEYS
+ * @brief A list of physical keyboard keys.
+ */
 #define OBERON_KEYS \
   OBERON_KEY(escape) \
   OBERON_KEY(function_01) \
@@ -116,6 +120,10 @@
   OBERON_KEY(key_pad_add) \
   OBERON_KEY(key_pad_enter)
 
+/**
+ * @def OBERON_MODIFIER_KEYS
+ * @brief A list of physical modifier keys.
+ */
 #define OBERON_MODIFIER_KEYS \
   OBERON_MODIFIER_KEY(shift) \
   OBERON_MODIFIER_KEY(caps_lock) \
@@ -126,7 +134,10 @@
 
 namespace oberon {
 
+/// @cond
 #define OBERON_KEY(name) name,
+/// @endcond
+
   /**
    * @brief An enumeration of physical keyboard keys.
    * @details The key names correspond to the US layout.
@@ -135,9 +146,15 @@ namespace oberon {
     none,
     OBERON_KEYS
   };
-#undef OBERON_KEY
 
+/// @cond
+#undef OBERON_KEY
+/// @endcond
+
+/// @cond
 #define OBERON_MODIFIER_KEY(name) name,
+/// @endcond
+
   /**
    * @brief An enumeration of logical modifier keys.
    * @details The key names correspond to the US modifier names.
@@ -146,7 +163,10 @@ namespace oberon {
     none,
     OBERON_MODIFIER_KEYS
   };
+
+/// @cond
 #undef OBERON_MODIFIER_KEY
+/// @endcond
 
   /**
    * @brief Get a string representing the name of the given key.

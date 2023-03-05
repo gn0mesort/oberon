@@ -10,6 +10,10 @@
 
 #include <functional>
 
+#include "types.hpp"
+#include "keys.hpp"
+#include "mouse.hpp"
+
 namespace oberon {
 
   class system;
@@ -22,9 +26,55 @@ namespace oberon {
   class platform {
   public:
     /**
-     * @brief A function to be called when key press or key release events occur.
+     * @brief A function to be called when key press events occur.
      */
-    using key_event_callback = void(platform&);
+    using key_press_event_callback = void(platform&, const u32 code, const key k, const bool echoing);
+
+    /**
+     * @brief A std::function wrapper for key press event callbacks.
+     */
+    using key_press_event_fn = std::function<key_press_event_callback>;
+
+    /**
+     * @brief A function to be called when key release events occur.
+     */
+    using key_release_event_callback = void(platform&, const u32 code, const key k);
+
+    /**
+     * @brief A std::function wrapper for key release event callbacks.
+     */
+    using key_release_event_fn = std::function<key_release_event_callback>;
+
+    /**
+     * @brief A function to be called when mouse movement events occur.
+     */
+    using mouse_movement_event_callback = void(platform&, const mouse_offset& screen_position,
+                                               const mouse_offset& window_position);
+
+    /**
+     * @brief A std::function wrapper for mouse movement event callbacks.
+     */
+    using mouse_movement_event_fn = std::function<mouse_movement_event_callback>;
+
+    /**
+     * @brief A function to be called when mouse button press events occur.
+     */
+    using mouse_button_press_event_callback = void(platform&, const u32 code, const mouse_button mb);
+
+    /**
+     * @brief A std::function wrapper for mouse button press events.
+     */
+    using mouse_button_press_event_fn = std::function<mouse_button_press_event_callback>;
+
+    /**
+     * @brief A function to be called when mouse button release events occur.
+     */
+    using mouse_button_release_event_callback = void(platform&, const u32 code, const mouse_button mb);
+
+    /**
+     * @brief A std::function wrapper for mouse button release events.
+     */
+    using mouse_button_release_event_fn = std::function<mouse_button_release_event_callback>;
 
     /**
      * @brief Create a new platform object.
@@ -80,18 +130,71 @@ namespace oberon {
      */
     virtual class window& window() = 0;
 
-
     /**
-     * @brief Attach a new key event callback.
+     * @brief Attach a new key press event callback.
      * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
      *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
      */
-    virtual void attach_key_event_callback(const std::function<key_event_callback>& fn) = 0;
+    virtual void attach_key_press_event_callback(const key_press_event_fn& fn) = 0;
 
     /**
-     * @brief Detach the currently attached key event callback.
+     * @brief Detach the currently attached key press event callback.
      */
-    virtual void detach_key_event_callback() = 0;
+    virtual void detach_key_press_event_callback() = 0;
+
+    /**
+     * @brief Attach a new key release event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
+    virtual void attach_key_release_event_callback(const key_release_event_fn& fn) = 0;
+
+    /**
+     * @brief Detach the currently attached key release event callback.
+     */
+    virtual void detach_key_release_event_callback() = 0;
+
+    /**
+     * @brief Attach a new mouse movement event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
+    virtual void attach_mouse_movement_event_callback(const mouse_movement_event_fn& fn) = 0;
+
+
+    /**
+     * @brief Detach the currently attached mouse movement event callback.
+     */
+    virtual void detach_mouse_movement_event_callback() = 0;
+
+    /**
+     * @brief Attach a new mouse button press event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
+    virtual void attach_mouse_button_press_event_callback(const mouse_button_press_event_fn& fn) = 0;
+
+    /**
+     * @brief Detach the currently attached mouse button press event callback.
+     */
+    virtual void detach_mouse_button_press_event_callback() = 0;
+
+    /**
+     * @brief Attach a new mouse button release event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
+    virtual void attach_mouse_button_release_event_callback(const mouse_button_release_event_fn& fn) = 0;
+
+    /**
+     * @brief Detach the currently attached mouse button release event callback.
+     */
+    virtual void detach_mouse_button_release_event_callback() = 0;
 
     /**
      * @brief Poll the platform event queue until no more events are found.

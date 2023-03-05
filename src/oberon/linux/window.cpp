@@ -51,6 +51,20 @@ namespace oberon::linux {
     auto value_array = std::array<u32, 3>{ screen->black_pixel, override_redirect, event_mask };
     xcb_create_window(connection, depth, m_window_id, parent, 0, 0, 320, 180, border, window_class,
                       visual, value_mask, value_array.data());
+    // Select XInput events
+    {
+      auto masks = std::array<x_input_event_mask_list, 2>{ };
+      masks[0].head.deviceid = m_parent->keyboard();
+      masks[0].head.mask_len = sizeof(xcb_input_xi_event_mask_t) >> 2;
+      masks[0].mask = static_cast<xcb_input_xi_event_mask_t>(XCB_INPUT_XI_EVENT_MASK_KEY_PRESS |
+                                                             XCB_INPUT_XI_EVENT_MASK_KEY_RELEASE);
+      masks[1].head.deviceid = m_parent->pointer();
+      masks[1].head.mask_len = sizeof(xcb_input_xi_event_mask_t) >> 2;
+      masks[1].mask = static_cast<xcb_input_xi_event_mask_t>(XCB_INPUT_XI_EVENT_MASK_MOTION |
+                                                             XCB_INPUT_XI_EVENT_MASK_BUTTON_PRESS |
+                                                             XCB_INPUT_XI_EVENT_MASK_BUTTON_RELEASE);
+      xcb_input_xi_select_events(m_parent->connection(), m_window_id, masks.size(), &masks[0].head);
+    }
     // Set WM_CLASS
     // WM_CLASS is an odd value in that both strings are explicitly null terminated (i.e., cstrings). Other string
     // atoms don't necessarily care about the null terminator.

@@ -174,6 +174,7 @@ namespace oberon {
    * @param message_format A custom message to provide when the check failes. This is a `std::printf`-style format
    *        string.
    * @param ... 0 or more format arguments corresponding to the format specifiers in `message_format`.
+   * @throws check_failed_error If `condition` is false.
    */
   void check(const std::source_location& location, const bool condition, const i32 result,
              const cstring message_format, ...);

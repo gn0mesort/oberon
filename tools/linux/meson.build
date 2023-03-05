@@ -9,3 +9,4 @@ executable('dump_keycodes', files('dump_keycodes.cpp'),
            dependencies: [ dependency('xcb'), dependency('xkbcommon'), dependency('xkbcommon-x11') ])
 executable('dump_mods', files('dump_mods.cpp'),
            dependencies: [ dependency('xcb'), dependency('xkbcommon'), dependency('xkbcommon-x11') ])
+executable('dump_buttons', files('dump_buttons.cpp'), dependencies: [ dependency('xcb') ])

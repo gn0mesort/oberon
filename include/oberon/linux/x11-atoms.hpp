@@ -8,6 +8,8 @@
 #ifndef OBERON_LINUX_X11_ATOMS_HPP
 #define OBERON_LINUX_X11_ATOMS_HPP
 
+#include "../types.hpp"
+
 /// @cond
 #define OBERON_LINUX_X_ATOM(name) OBERON_LINUX_X_ATOM_NAME(name, #name)
 /// @endcond
@@ -44,5 +46,25 @@
   OBERON_LINUX_X_ATOM_NAME(NET_WM_STATE_DEMANDS_ATTENTION, "_NET_WM_STATE_DEMANDS_ATTENTION") \
   OBERON_LINUX_X_ATOM_NAME(NET_WM_BYPASS_COMPOSITOR, "_NET_WM_BYPASS_COMPOSITOR") \
   OBERON_LINUX_X_ATOM_NAME(NET_FRAME_EXTENTS, "_NET_FRAME_EXTENTS")
+
+namespace oberon::linux {
+
+/// @cond
+#define OBERON_LINUX_X_ATOM_NAME(name, str) OBERON_LINUX_X_ATOM_##name,
+/// @endcond
+
+  /**
+   * @brief An enumeration of X11 atoms
+   */
+  enum x_atom_name : usize {
+    OBERON_LINUX_X_ATOMS
+    OBERON_LINUX_X_ATOM_MAX
+  };
+
+/// @cond
+#undef OBERON_LINUX_X_ATOM_NAME
+/// @endcond
+
+}
 
 #endif

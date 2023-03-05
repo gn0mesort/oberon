@@ -18,6 +18,7 @@
 #include "platform.hpp"
 #include "application.hpp"
 #include "keys.hpp"
+#include "mouse.hpp"
 #include "system.hpp"
 #include "input.hpp"
 #include "window.hpp"

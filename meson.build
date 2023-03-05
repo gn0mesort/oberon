@@ -29,7 +29,8 @@ oberon_incs = [
 ]
 oberon_srcs = [
   files('src/main.cpp'),
-  files('src/oberon/application.cpp', 'src/oberon/debug.cpp', 'src/oberon/errors.cpp', 'src/oberon/keys.cpp')
+  files('src/oberon/application.cpp', 'src/oberon/debug.cpp', 'src/oberon/errors.cpp', 'src/oberon/keys.cpp',
+        'src/oberon/mouse.cpp')
 ]
 
 
@@ -47,13 +48,14 @@ if host_machine.system() == 'linux'
     dependency('x11'),
     dependency('xcb'),
     dependency('xcb-xkb'),
+    dependency('xcb-xinput'),
     dependency('xkbcommon'),
     dependency('xkbcommon-x11'),
     dependency('x11-xcb')
   ]
   oberon_linux_srcs = [
     files('src/oberon/linux/system.cpp', 'src/oberon/linux/input.cpp', 'src/oberon/linux/window.cpp',
-          'src/oberon/linux/platform.cpp')
+          'src/oberon/linux/platform.cpp', 'src/oberon/linux/x11-errors.cpp')
   ]
   oberon_args += oberon_linux_args
   oberon_deps += oberon_linux_deps

@@ -14,110 +14,14 @@
 
 #include "../types.hpp"
 #include "../memory.hpp"
-#include "../errors.hpp"
 
-#include "x11-xkb.hpp"
+#include "x11-errors.hpp"
 #include "x11-atoms.hpp"
+#include "x11-xkb.hpp"
+#include "x11-xinput.hpp"
 
-// No one defines this :(
-/**
- * @def XCB_ERROR
- * @brief The xcb_generic_event_t::response_type indicating an error.
- */
-#define XCB_ERROR 0
-
-#if OBERON_CHECKS_ENABLED
-  /**
-   * @def OBERON_LINUX_X_SUCCEEDS
-   * @brief Assign the return value of reqexp to target if reqexp succeeds.
-   * @details This simplifies (somewhat) XCB error handling. For requests that do not send errors to the event queue.
-   *          Importantly, it provides a value (err) that should be passed to the XCB reply function to retrieve the
-   *          possible error. In the case that an error occurs, an x_error is thrown indicating the corresponding
-   *          reqexp failed. In the case that the reply is successfully received, target is assigned a pointer to the
-   *          reply. In this case the reply must be freed by the client code.
-   * @param target The target value to assign to on success.
-   * @param reqexp The request expression that will generate the necessary reply.
-   */
-  #define OBERON_LINUX_X_SUCCEEDS(target, reqexp) \
-    do \
-    { \
-      auto err_ptr = oberon::ptr<xcb_generic_error_t>{ }; \
-      auto err = &err_ptr; \
-      (target) = (reqexp); \
-      if (!(target)) \
-      { \
-        auto error_code = err_ptr->error_code; \
-        std::free(err_ptr); \
-        throw oberon::linux::x_error{ "Failed to get reply for \"" #reqexp "\".", error_code }; \
-      } \
-    } \
-    while (0)
-#else
-  #define OBERON_LINUX_X_SUCCEEDS(target, reqexp) \
-    do \
-    { \
-      auto err = oberon::ptr<oberon::ptr<xcb_generic_error_t>>{ nullptr }; \
-      (target) = (reqexp); \
-    } \
-    while (0)
-#endif
 
 namespace oberon::linux {
-
-  /**
-   * @brief An exception representing X11 errors.
-   */
-  OBERON_DYNAMIC_EXCEPTION_TYPE(x_error);
-
-/// @cond
-#define OBERON_LINUX_X_ATOM_NAME(name, str) OBERON_LINUX_X_ATOM_##name,
-/// @endcond
-
-  /**
-   * @brief An enumeration of X11 atoms
-   */
-  enum x_atom_name : usize {
-    OBERON_LINUX_X_ATOMS
-    OBERON_LINUX_X_ATOM_MAX
-  };
-
-/// @cond
-#undef OBERON_LINUX_X_ATOM_NAME
-/// @endcond
-
-/// @cond
-#define OBERON_LINUX_X_KEYCODE_MAPPING(name, str) OBERON_LINUX_X_KEY_##name,
-/// @endcond
-
-  /**
-   * @brief An enumeration X11 keys.
-   * @details This should correspond to the oberon::key enumeration.
-   */
-  enum x_key : usize {
-    OBERON_LINUX_X_KEYCODE_MAP
-    OBERON_LINUX_X_KEY_MAX
-  };
-
-/// @cond
-#undef OBERON_LINUX_X_KEYCODE_MAPPING
-/// @endcond
-
-/// @cond
-#define OBERON_LINUX_X_MODIFIER_KEY_MAPPING(name, str) OBERON_LINUX_X_MODIFIER_KEY_##name,
-/// @endcond
-
-  /**
-   * @brief An enumeration of X11 key modifiers.
-   * @details This should correspond to the oberon::modifier_key enumeration.
-   */
-  enum x_modifier_key : usize {
-    OBERON_LINUX_X_MODIFIER_KEY_MAP
-    OBERON_LINUX_X_MODIFIER_KEY_MAX
-  };
-
-/// @cond
-#undef OBERON_LINUX_X_MODIFIER_KEY_MAPPING
-/// @endcond
 
 
 namespace event_flag_bits {
@@ -272,32 +176,6 @@ namespace size_hint_flag_bits {
 
 
   /**
-   * @brief A generic XKB event.
-   * @details Neither libxcb nor libxcb-xkb provides this event type. Therefore it is provided here.
-   * @see https://www.x.org/releases/current/doc/kbproto/xkbproto.html#appD::Events
-   */
-  struct xcb_xkb_generic_event_t {
-    /**
-     * @brief The event type code.
-     * @details This is equivalent to xcb_generic_event_t::response_type.
-     */
-    u8 code{ };
-
-    /**
-     * @brief The XKB event code.
-     * @details When enabled, the XKB extension provides a base event code. The XKB protocol uses this code for all of
-     *          its events. To further differentiate, every XKB event also carries this XKB code value that can be
-     *          used to identify the specific type of XKB event.
-     */
-    u8 xkb_code{ };
-
-    /**
-     * @brief Padding values.
-     */
-    u8 pad[30];
-  };
-
-  /**
    * @brief A WM_SIZE_HINTS structure compatible with the X11 protocol.
    * @details libxcb does not provide this type. Therefore, it is provided here.
    *          Additionally, when flags & (size_hints_flag_bits::min_size | size_hints_flag_bits::max_size) is not 0
@@ -383,11 +261,13 @@ namespace size_hint_flag_bits {
   };
 
   /**
-   * @brief The maximum number of keys allowed in XKB
-   * @details The actual range of acceptable key codes is defined by the server. XKB, generally, expects 8 to be the
-   *          lowest valid key code.
+   * @brief The maximum number of event types allowed by X11.
+   * @details X11 dictates that events have a response_type field between 0 and 127. The 0 type indicates a protocol
+   *          error that was received on the event queue. Events 1 to 63 (inclusive) are core protocol events
+   *          (although only 33 are actually used). Events 64 to 127 are reserved for extensions.
+   * @see https://www.x.org/releases/current/doc/xproto/x11protocol.html#event_format
    */
-  constexpr const usize MAX_KEY_COUNT{ 256 };
+  constexpr const usize OBERON_LINUX_X_EVENT_MAX{ 128 };
 
   /**
    * @brief A structure representing the state of a keyboard key.
@@ -402,6 +282,10 @@ namespace size_hint_flag_bits {
      * @brief Whether or not the key is sending echo press events.
      */
     bool echo{ };
+  };
+
+  struct button_state final {
+    bool pressed{ };
   };
 
 }
