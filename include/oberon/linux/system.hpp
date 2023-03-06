@@ -10,6 +10,7 @@
 
 #include <array>
 #include <string>
+#include <vector>
 
 #include "../system.hpp"
 #include "../memory.hpp"
@@ -17,6 +18,7 @@
 #include "../keys.hpp"
 
 #include "x11.hpp"
+#include "vk.hpp"
 
 namespace oberon::linux {
 
@@ -35,12 +37,14 @@ namespace oberon::linux {
     ptr<xcb_connection_t> m_x_connection{ };
     ptr<xcb_screen_t> m_x_screen{ };
     ptr<xkb_context> m_xkb_context{ };
-    //xcb_xkb_device_spec_t m_xkb_keyboard{ };
     u8 m_xkb_first_event{ };
     u8 m_xi_major_opcode{ };
     xcb_input_device_id_t m_xi_master_keyboard_id{ };
     xcb_input_device_id_t m_xi_master_pointer_id{ };
     std::array<xcb_atom_t, OBERON_LINUX_X_ATOM_MAX> m_x_atoms{ };
+    vkfl::loader m_vkdl{ vkGetInstanceProcAddr };
+    VkInstance m_vk_instance{ };
+    VkDebugUtilsMessengerEXT m_vk_debug_messenger{ };
 
     xcb_intern_atom_cookie_t begin_intern_atom(const cstring name);
     xcb_atom_t end_intern_atom(const xcb_intern_atom_cookie_t request);
@@ -53,8 +57,10 @@ namespace oberon::linux {
      *                      precedence must be the value provided with "-name", the value of "RESOURCE_NAME",
      *                      and finally argv[0].
      * @param application_name The canonical name of the application.
+     * @param desired_layers A list of 0 or more desired Vulkan instance layers.
      */
-    system(const std::string& instance_name, const std::string& application_name);
+    system(const std::string& instance_name, const std::string& application_name,
+           const std::vector<std::string>& desired_layers);
 
     /// @cond
     system(const system& other) = delete;
@@ -140,6 +146,10 @@ namespace oberon::linux {
      * @return An 8-bit major opcode.
      */
     u8 xi_major_opcode() const;
+
+    VkInstance instance();
+    const vkfl::loader& vk_dl() const;
+    void vk_dl_load_device(const VkDevice device);
   };
 
 }

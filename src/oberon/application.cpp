@@ -11,6 +11,8 @@
 #include <cstring>
 
 #include <iostream>
+#include <vector>
+#include <string>
 
 #include "oberon/debug.hpp"
 #include "oberon/errors.hpp"
@@ -82,7 +84,23 @@ namespace oberon {
           }
         }
       }
-      auto platform_system = new linux::system{ name, "oberon" };
+      // Get desired Vulkan layer list, if any, and split it.
+      auto desired_vk_layers = std::vector<std::string>{ };
+      {
+        auto env_vk_layers = std::getenv("OBERON_VK_LAYERS");
+        if (env_vk_layers)
+        {
+          auto vk_layer_list = strdup(env_vk_layers);
+          auto vk_layer_list_ptr = &vk_layer_list;
+          auto res = cstring{ };
+          while ((res = strsep(vk_layer_list_ptr, ",")))
+          {
+            desired_vk_layers.emplace_back(res);
+          }
+          std::free(vk_layer_list);
+        }
+      }
+      auto platform_system = new linux::system{ name, "oberon", desired_vk_layers };
       auto platform_input = new linux::input{ *platform_system };
       auto platform_window = new linux::window{ *platform_system };
       auto plt = linux::platform{ *platform_system, *platform_input, *platform_window };

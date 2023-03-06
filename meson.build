@@ -21,7 +21,13 @@ project(
 
 cxx = meson.get_compiler('cpp')
 
-oberon_deps = [ ]
+vkfl_sub = subproject('vkfl', default_options: [ 'build_c=disabled', 'build_examples=disabled',
+                                                 'build_tests=disabled'])
+
+oberon_deps = [
+  dependency('vulkan'),
+  vkfl_sub.get_variable('vkfl_cpp_dep')
+]
 oberon_link_args = [ ]
 oberon_args = [ ]
 oberon_incs = [
@@ -51,11 +57,11 @@ if host_machine.system() == 'linux'
     dependency('xcb-xinput'),
     dependency('xkbcommon'),
     dependency('xkbcommon-x11'),
-    dependency('x11-xcb')
+    dependency('x11-xcb'),
   ]
   oberon_linux_srcs = [
     files('src/oberon/linux/system.cpp', 'src/oberon/linux/input.cpp', 'src/oberon/linux/window.cpp',
-          'src/oberon/linux/platform.cpp', 'src/oberon/linux/x11-errors.cpp')
+          'src/oberon/linux/platform.cpp', 'src/oberon/linux/x11-errors.cpp', 'src/oberon/linux/vk.cpp')
   ]
   oberon_args += oberon_linux_args
   oberon_deps += oberon_linux_deps

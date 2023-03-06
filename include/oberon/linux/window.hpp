@@ -11,6 +11,7 @@
 #include "../window.hpp"
 
 #include "x11.hpp"
+#include "vk.hpp"
 
 namespace oberon::linux {
 
@@ -25,6 +26,7 @@ namespace oberon::linux {
     xcb_window_t m_window_id{ };
     display_style m_display_style{ };
     bool m_quit_requested{ };
+    VkSurfaceKHR m_vk_surface{ };
 
     void wm_send_message(const xcb_atom_t atom, const std::array<u32, 5>& message);
     void wm_change_state(const wm_state_mode mode, const xcb_atom_t first, const xcb_atom_t second);

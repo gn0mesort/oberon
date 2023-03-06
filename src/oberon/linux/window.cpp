@@ -17,9 +17,16 @@
 #include "oberon/debug.hpp"
 #include "oberon/linux/system.hpp"
 
-#define OBERON_WINDOW_PRECONDITIONS \
+#define OBERON_WINDOW_X11_PRECONDITIONS \
   OBERON_PRECONDITION(m_parent); \
   OBERON_PRECONDITION(m_window_id != XCB_NONE)
+
+#define OBERON_WINDOW_VK_PRECONDITIONS \
+  OBERON_PRECONDITION(m_vk_surface != VK_NULL_HANDLE)
+
+#define OBERON_WINDOW_PRECONDITIONS \
+  OBERON_WINDOW_X11_PRECONDITIONS; \
+  OBERON_WINDOW_VK_PRECONDITIONS
 
 namespace oberon::linux {
 
@@ -99,16 +106,27 @@ namespace oberon::linux {
     wm_change_compositor_mode(OBERON_LINUX_X_NET_WM_BYPASS_COMPOSITOR_NO_PREFERENCE);
     // Set WM_NORMAL_HINTS
     wm_lock_resize({ 320, 180 });
+    // Create Vulkan surface.
+    {
+      auto surface_info = VkXcbSurfaceCreateInfoKHR{ };
+      surface_info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+      surface_info.connection = m_parent->connection();
+      surface_info.window = m_window_id;
+      OBERON_LINUX_VK_DECLARE_PFN(m_parent->vk_dl(), vkCreateXcbSurfaceKHR);
+      OBERON_LINUX_VK_SUCCEEDS(vkCreateXcbSurfaceKHR(m_parent->instance(), &surface_info, nullptr, &m_vk_surface));
+    }
   }
 
   window::~window() noexcept {
     OBERON_WINDOW_PRECONDITIONS;
+    OBERON_LINUX_VK_DECLARE_PFN(m_parent->vk_dl(), vkDestroySurfaceKHR);
+    vkDestroySurfaceKHR(m_parent->instance(), m_vk_surface, nullptr);
     xcb_destroy_window(m_parent->connection(), m_window_id);
     xcb_flush(m_parent->connection());
   }
 
   void window::wm_send_message(const xcb_atom_t atom, const std::array<u32, 5>& message) {
-    OBERON_WINDOW_PRECONDITIONS;
+    OBERON_WINDOW_X11_PRECONDITIONS;
     // This is the proper form of an EWMH client message.
     // https://specifications.freedesktop.org/wm-spec/latest/ar01s03.html
     auto event = xcb_generic_event_t{ };
@@ -124,13 +142,13 @@ namespace oberon::linux {
   }
 
   void window::wm_change_state(const wm_state_mode mode, const xcb_atom_t first, const xcb_atom_t second) {
-    OBERON_WINDOW_PRECONDITIONS;
+    OBERON_WINDOW_X11_PRECONDITIONS;
     wm_send_message(m_parent->atom_from_name(OBERON_LINUX_X_ATOM_NET_WM_STATE),
                     { mode, first, second, OBERON_LINUX_X_SOURCE_INDICATION_APPLICATION });
   }
 
   void window::wm_change_compositor_mode(const compositor_mode mode) {
-    OBERON_WINDOW_PRECONDITIONS;
+    OBERON_WINDOW_X11_PRECONDITIONS;
     xcb_change_property(m_parent->connection(), XCB_PROP_MODE_REPLACE, m_window_id,
                         m_parent->atom_from_name(OBERON_LINUX_X_ATOM_NET_WM_BYPASS_COMPOSITOR), XCB_ATOM_CARDINAL,
                         32, 1, &mode);
@@ -256,7 +274,7 @@ namespace oberon::linux {
   }
 
   void window::wm_unlock_resize() {
-    OBERON_WINDOW_PRECONDITIONS;
+    OBERON_WINDOW_X11_PRECONDITIONS;
     auto sz = size_hints{ };
     sz.flags = size_hint_flag_bits::program_max_size_bit | size_hint_flag_bits::program_min_size_bit |
                size_hint_flag_bits::user_position_bit | size_hint_flag_bits::user_size_bit;
@@ -272,7 +290,7 @@ namespace oberon::linux {
   }
 
   void window::wm_lock_resize(const window_extent& extent) {
-    OBERON_WINDOW_PRECONDITIONS;
+    OBERON_WINDOW_X11_PRECONDITIONS;
     auto sz = size_hints{ };
     sz.flags = size_hint_flag_bits::program_max_size_bit | size_hint_flag_bits::program_min_size_bit |
                size_hint_flag_bits::user_position_bit | size_hint_flag_bits::user_size_bit;
@@ -348,7 +366,7 @@ namespace oberon::linux {
   }
 
   void window::wm_set_title(const std::string& title) {
-    OBERON_WINDOW_PRECONDITIONS;
+    OBERON_WINDOW_X11_PRECONDITIONS;
     auto connection = m_parent->connection();
     // The encoding of WM_NAME is ambiguous.
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, m_window_id,
