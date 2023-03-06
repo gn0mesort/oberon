@@ -48,6 +48,9 @@ ninja -C build
 ### Linux
 
 Oberon supports the following environment variables
-| Environment Variable | Value Type                      | Description                                                                                | Example Values                                                                                                         |
-| -------------------- | ------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `OBERON_VK_LAYERS`   | Comma separated list of strings | A list of Vulkan instance layer names that should be loaded during program initialization. | `OBERON_VK_LAYERS=VK_LAYER_KHRONOS_validation` or `OBERON_VK_LAYERS=VK_LAYER_KHRONOS_validation,VK_LAYER_MESA_overlay` |
+| Environment Variable | Value Type                      | Description                                                                                | Example Values                                                       |
+| -------------------- | ------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| `OBERON_VK_LAYERS`   | Comma separated list of strings | A list of Vulkan instance layer names that should be loaded during program initialization. | `OBERON_VK_LAYERS=VK_LAYER_KHRONOS_validation` or                    |
+|                      |                                 | If the application is built in debug mode (i.e., `NDEBUG` is not defined) and this         | `OBERON_VK_LAYERS=VK_LAYER_KHRONOS_validation,VK_LAYER_MESA_overlay` |
+|                      |                                 | variable is set then the value *MUST* include a layer providing `VK_EXT_debug_utils` and   |                                                                      |
+|                      |                                 | `VK_EXT_validation_features` (if they are not supported by the instance directly).         |                                                                      |

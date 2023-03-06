@@ -95,10 +95,19 @@ namespace oberon {
           auto res = cstring{ };
           while ((res = strsep(vk_layer_list_ptr, ",")))
           {
-            desired_vk_layers.emplace_back(res);
+            if (std::strcmp(res, ""))
+            {
+              desired_vk_layers.emplace_back(res);
+            }
           }
           std::free(vk_layer_list);
         }
+  #ifndef NDEBUG
+        if (desired_vk_layers.empty())
+        {
+          desired_vk_layers.emplace_back("VK_LAYER_KHRONOS_validation");
+        }
+  #endif
       }
       auto platform_system = new linux::system{ name, "oberon", desired_vk_layers };
       auto platform_input = new linux::input{ *platform_system };
