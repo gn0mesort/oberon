@@ -35,7 +35,7 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
        `VK_EXT_acquire_xlib_display`. EWMH seems to support a fullscreen window across 4 monitors (or maybe more if
        they are arranged in a rectangle).
 + *MUST* support keyboard
-- *MUST* support mouse input
++ *MUST* support mouse input
 - *SHOULD* support gamepad input
 + *MUST* support managed fullscreen windows
 
@@ -59,7 +59,7 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
     + *MUST* support window resizing via menus/input
     + *SHOULD* support window resizing via window manager
     + *MUST* support US layout keyboard via events
-    - *MUST* support mice via events
+    + *MUST* support mice via events
     - *SHOULD* support non-US keyboard layouts
 
 - *SHOULD* support Win32
@@ -67,8 +67,8 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
 ## Hardware Accelerated Graphics
 
 - *MUST* use Vulkan 1.3
-    - *MUST* support debug output
-    - *MUST* support validation features and layers
+    + *MUST* support debug output
+    + *MUST* support validation features and layers
     - *MUST* support manual device selection
     - *SHOULD* support later Vulkan versions
     - *SHOULD* support earlier Vulkan versions
@@ -76,7 +76,7 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
     - *MUST* support single VkQueue operation
     - *SHOULD* support multi-VkQueue operation
     - *MUST* support rendering to window surface
-        - *MUST* support rendering to XCB surfaces
+        + *MUST* support rendering to XCB surfaces
         - *SHOULD* support rendering to Win32 surfaces
     - *MUST* support VkSwapchainKHR
     - *SHOULD* support rendering to off screen images
