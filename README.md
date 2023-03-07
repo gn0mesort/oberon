@@ -15,7 +15,7 @@ following libraries:
 - libxkbcommon-x11
 - libvulkan
 
-Additionally, the Vulkan features require [vkfl](https://github.com/gn0mesort/vkfl). vkfl is provided as a submodule
+Additionally, the Vulkan features require [VKFL](https://github.com/gn0mesort/vkfl). VKFL is provided as a submodule
 and requires the following dependencies:
 - Mako
 - defusedxml
