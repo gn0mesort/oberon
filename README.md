@@ -18,7 +18,7 @@ following libraries:
 Additionally, the Vulkan features require [vkfl](https://github.com/gn0mesort/vkfl). vkfl is provided as a submodule
 and requires the following dependencies:
 - Mako
-- defusedml
+- defusedxml
 
 Once all of the required dependencies are installed run the following commands within the source directory to build
 the software:
@@ -50,4 +50,4 @@ ninja -C build
 Oberon supports the following environment variables
 | Environment Variable | Value Type | Description | Example Values |
 | -------------------- | ---------- | ----------- | -------------- |
-| `OBERON_VK_LAYERS`   | Comma separated list of strings | A list of Vulkan instance layer names that should be loaded during program initialization. If the application is built in debug mode (i.e., `NDEBUG` is not defined) and this variable is set then the value *MUST* include a layer providing `VK_EXT_debug_utils` and `VK_EXT_validation_features` (if they are not supported by the instance directly). | `OBERON_VK_LAYERS=VK_LAYER_KHRONOS_validation,VK_LAYER_MESA_overlay` |
+| `OBERON_VK_LAYERS`   | Comma separated list of strings | A list of Vulkan instance layer names that should be loaded during program initialization. If the application is built in debug mode (i.e., `NDEBUG` is not defined) and this variable is set then the value **MUST** include a layer providing `VK_EXT_debug_utils` and `VK_EXT_validation_features` (if they are not supported by the instance directly). | `OBERON_VK_LAYERS=VK_LAYER_KHRONOS_validation,VK_LAYER_MESA_overlay` |
