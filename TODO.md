@@ -69,7 +69,7 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
 - *MUST* use Vulkan 1.3
     + *MUST* support debug output
     + *MUST* support validation features and layers
-    - *MUST* support manual device selection
+    + *MUST* support manual device selection
     - *SHOULD* support later Vulkan versions
     - *SHOULD* support earlier Vulkan versions
     - *MUST* support single device rendering
