@@ -11,6 +11,7 @@
 
 #include <vkfl.hpp>
 
+#include "../types.hpp"
 #include "../errors.hpp"
 
 /// @cond
@@ -59,6 +60,10 @@ namespace oberon::linux {
 
   VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_log(VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
                                               const VkDebugUtilsMessengerCallbackDataEXT*, void*);
+
+  constexpr const u32 OBERON_LINUX_VK_PCI_VENDOR_ID_AMD{ 0x1002 };
+  constexpr const u32 OBERON_LINUX_VK_PCI_VENDOR_ID_NVIDIA{ 0x10de };
+  constexpr const u32 OBERON_LINUX_VK_PCI_VENDOR_ID_INTEL{ 0x8086 };
 
 }
 

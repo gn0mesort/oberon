@@ -14,11 +14,13 @@
 #include "oberon/linux/system.hpp"
 #include "oberon/linux/input.hpp"
 #include "oberon/linux/window.hpp"
+#include "oberon/linux/graphics.hpp"
 
 #define OBERON_PLATFORM_PRECONDITIONS \
   OBERON_PRECONDITION(m_system); \
   OBERON_PRECONDITION(m_input); \
-  OBERON_PRECONDITION(m_window)
+  OBERON_PRECONDITION(m_window); \
+  OBERON_PRECONDITION(m_graphics)
 
 namespace {
 
@@ -165,8 +167,8 @@ namespace oberon::linux {
     plt.m_input->reinitialize_keyboard();
   }
 
-  platform::platform(class system& sys, class input& inpt, class window& win) :
-  m_system{ &sys }, m_input{ &inpt }, m_window{ &win } {
+  platform::platform(class system& sys, class input& inpt, class window& win, class graphics& gfx) :
+  m_system{ &sys }, m_input{ &inpt }, m_window{ &win }, m_graphics{ &gfx } {
     // Initialize event handlers.
     for (auto& handler : m_event_handlers)
     {
@@ -216,6 +218,11 @@ namespace oberon::linux {
   oberon::window& platform::window() {
     OBERON_PLATFORM_PRECONDITIONS;
     return *m_window;
+  }
+
+  oberon::graphics& platform::graphics() {
+    OBERON_PLATFORM_PRECONDITIONS;
+    return *m_graphics;
   }
 
   void platform::attach_key_press_event_callback(const key_press_event_fn& fn) {

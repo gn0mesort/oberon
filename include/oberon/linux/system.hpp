@@ -148,8 +148,7 @@ namespace oberon::linux {
     u8 xi_major_opcode() const;
 
     VkInstance instance();
-    const vkfl::loader& vk_dl() const;
-    void vk_dl_load_device(const VkDevice device);
+    vkfl::loader& vk_dl();
   };
 
 }

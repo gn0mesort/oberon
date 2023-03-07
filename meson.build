@@ -28,7 +28,12 @@ oberon_deps = [
   dependency('vulkan'),
   vkfl_sub.get_variable('vkfl_cpp_dep')
 ]
-oberon_link_args = [ ]
+oberon_link_args = [
+  '-DMESON_PROJECT_VERSION="1.0.0"',
+  '-DMESON_PROJECT_VERSION_MAJOR=1',
+  '-DMESON_PROJECT_VERSION_MINOR=0',
+  '-DMESON_PROJECT_VERSION_PATCH=0'
+]
 oberon_args = [ ]
 oberon_incs = [
   include_directories('include')
@@ -36,7 +41,7 @@ oberon_incs = [
 oberon_srcs = [
   files('src/main.cpp'),
   files('src/oberon/application.cpp', 'src/oberon/debug.cpp', 'src/oberon/errors.cpp', 'src/oberon/keys.cpp',
-        'src/oberon/mouse.cpp')
+        'src/oberon/mouse.cpp', 'src/oberon/graphics.cpp')
 ]
 
 
@@ -61,7 +66,8 @@ if host_machine.system() == 'linux'
   ]
   oberon_linux_srcs = [
     files('src/oberon/linux/system.cpp', 'src/oberon/linux/input.cpp', 'src/oberon/linux/window.cpp',
-          'src/oberon/linux/platform.cpp', 'src/oberon/linux/x11-errors.cpp', 'src/oberon/linux/vk.cpp')
+          'src/oberon/linux/platform.cpp', 'src/oberon/linux/x11-errors.cpp', 'src/oberon/linux/vk.cpp',
+          'src/oberon/linux/graphics.cpp')
   ]
   oberon_args += oberon_linux_args
   oberon_deps += oberon_linux_deps

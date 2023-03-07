@@ -149,6 +149,8 @@ namespace oberon::linux {
      * @return A reference back to the calling window.
      */
     window& clear_quit_request() override;
+
+    VkSurfaceKHR surface();
   };
 
 }

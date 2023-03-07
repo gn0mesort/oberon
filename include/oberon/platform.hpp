@@ -19,6 +19,7 @@ namespace oberon {
   class system;
   class input;
   class window;
+  class graphics;
 
   /**
    * @brief The runtime platform of an Oberon application.
@@ -129,6 +130,8 @@ namespace oberon {
      * @return A reference to the window object.
      */
     virtual class window& window() = 0;
+
+    virtual class graphics& graphics() = 0;
 
     /**
      * @brief Attach a new key press event callback.

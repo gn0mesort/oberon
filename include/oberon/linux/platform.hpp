@@ -18,6 +18,7 @@ namespace oberon::linux {
   class system;
   class input;
   class window;
+  class graphics;
 
   class platform final : public oberon::platform {
   private:
@@ -41,6 +42,7 @@ namespace oberon::linux {
     ptr<class system> m_system{ };
     ptr<class input> m_input{ };
     ptr<class window> m_window{ };
+    ptr<class graphics> m_graphics{ };
 
     key_press_event_fn m_key_press_event_cb{ };
     key_release_event_fn m_key_release_event_cb{ };
@@ -58,7 +60,7 @@ namespace oberon::linux {
      * @param inpt The underlying input object.
      * @param win The underlying window object.
      */
-    platform(class system& sys, class input& inpt, class window& win);
+    platform(class system& sys, class input& inpt, class window& win, class graphics& gfx);
 
     /// @cond
     platform(const platform& other) = delete;
@@ -93,6 +95,7 @@ namespace oberon::linux {
      */
     oberon::window& window() override;
 
+    oberon::graphics& graphics() override;
 
     /**
      * @brief Attach a new key press event callback.

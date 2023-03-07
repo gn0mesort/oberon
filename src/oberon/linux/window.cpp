@@ -420,4 +420,9 @@ namespace oberon::linux {
     return *this;
   }
 
+  VkSurfaceKHR window::surface() {
+    OBERON_WINDOW_PRECONDITIONS;
+    return m_vk_surface;
+  }
+
 }

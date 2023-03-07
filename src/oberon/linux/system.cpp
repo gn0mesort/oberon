@@ -379,7 +379,7 @@ namespace oberon::linux {
     return m_vk_instance;
   }
 
-  const vkfl::loader& system::vk_dl() const {
+  vkfl::loader& system::vk_dl() {
     OBERON_SYSTEM_PRECONDITIONS;
     return m_vkdl;
   }

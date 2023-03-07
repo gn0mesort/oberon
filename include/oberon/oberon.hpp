@@ -22,6 +22,6 @@
 #include "system.hpp"
 #include "input.hpp"
 #include "window.hpp"
-
+#include "graphics.hpp"
 
 #endif

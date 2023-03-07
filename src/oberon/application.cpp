@@ -30,6 +30,7 @@
 #include "oberon/linux/system.hpp"
 #include "oberon/linux/input.hpp"
 #include "oberon/linux/window.hpp"
+#include "oberon/linux/graphics.hpp"
 #include "oberon/linux/platform.hpp"
 #endif
 
@@ -112,10 +113,12 @@ namespace oberon {
       auto platform_system = new linux::system{ name, "oberon", desired_vk_layers };
       auto platform_input = new linux::input{ *platform_system };
       auto platform_window = new linux::window{ *platform_system };
-      auto plt = linux::platform{ *platform_system, *platform_input, *platform_window };
+      auto platform_graphics = new linux::graphics{ *platform_system, *platform_window };
+      auto plt = linux::platform{ *platform_system, *platform_input, *platform_window, *platform_graphics };
 #endif
       result = fn(argc, argv, plt);
       // Tear down platform specific objects.
+      delete platform_graphics;
       delete platform_window;
       delete platform_input;
       delete platform_system;

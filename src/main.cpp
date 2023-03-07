@@ -5,6 +5,9 @@
  * @date 2023
  * @copyright AGPL-3.0+
  */
+#include <iostream>
+#include <iomanip>
+
 #include "oberon/oberon.hpp"
 
 void toggle_fullscreen(oberon::window& win) {
@@ -36,6 +39,16 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::platform& p
   plt.attach_key_press_event_callback(on_key_press);
   win.resize({ 1280, 720 });
   win.show();
+  auto i = 0;
+  for (const auto& gfx_device : plt.graphics().available_devices())
+  {
+    std::cout << "Graphics Device " << i++ <<  ": " << std::endl
+              << "\t  Type: " << oberon::to_string(gfx_device.type) << std::endl
+              << "\t  Name: " << gfx_device.name << std::endl
+              << "\tDriver: " << gfx_device.driver_name << std::endl
+              << "\t  Info: " << gfx_device.driver_info << std::endl
+              << "\tHandle: 0x" << std::hex << gfx_device.handle << std::dec << std::endl;
+  }
   while (!win.quit_requested())
   {
     plt.drain_event_queue();
