@@ -222,7 +222,7 @@ namespace oberon::linux {
   { \
     if (!available_extensions.contains((ext))) \
     { \
-      throw vk_error { "The Vulkan instance does not support \"" ext "\"", 1 }; \
+      throw vk_error { "The selected Vulkan device does not support \"" ext "\"", 1 }; \
     } \
   } \
   while (0)

@@ -214,6 +214,14 @@ namespace oberon::linux {
               available_extensions.insert(extension_property.extensionName);
             }
           }
+          // Remove deprecated and promoted extensions.
+          // This suppresses validation warnings.
+          available_extensions.erase(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+          available_extensions.erase(VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME);
+          available_extensions.erase(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+          available_extensions.erase(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
+          available_extensions.erase(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
+          available_extensions.erase(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME);
         }
         // Select desired extensions.
         // Currently, I think it's easiest to just enable every available extension. Selecting specific extensions
