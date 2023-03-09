@@ -44,6 +44,9 @@ namespace oberon {
     virtual const std::vector<graphics_device>& available_devices() const = 0;
     virtual void select_device(const graphics_device& device) = 0;
     virtual void wait_for_device_to_idle() = 0;
+    virtual void reinitialize_renderer() = 0;
+    virtual void begin_frame() = 0;
+    virtual void end_frame() = 0;
   };
 
   graphics::~graphics() noexcept { }

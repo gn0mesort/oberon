@@ -65,6 +65,11 @@ namespace oberon::linux {
   constexpr const u32 OBERON_LINUX_VK_PCI_VENDOR_ID_NVIDIA{ 0x10de };
   constexpr const u32 OBERON_LINUX_VK_PCI_VENDOR_ID_INTEL{ 0x8086 };
 
+  constexpr const u32 OBERON_LINUX_VK_TRIPLE_BUFFER_IMAGE_COUNT{ 3 };
+  constexpr const u32 OBERON_LINUX_VK_DOUBLE_BUFFER_IMAGE_COUNT{ 2 };
+
+  constexpr const usize OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT{ 2 };
+
 }
 
 #endif

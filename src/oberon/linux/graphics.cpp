@@ -1,6 +1,8 @@
 #include "oberon/linux/graphics.hpp"
 
 #include <unordered_set>
+#include <limits>
+#include <algorithm>
 
 #include "oberon/debug.hpp"
 
@@ -148,6 +150,7 @@ namespace oberon::linux {
       }
     }
     initialize_device(m_physical_devices.front());
+    initialize_renderer(VK_NULL_HANDLE);
   }
 
   void graphics::initialize_device(const VkPhysicalDevice device) {
@@ -224,6 +227,7 @@ namespace oberon::linux {
     { \
       throw vk_error { "The selected Vulkan device does not support \"" ext "\"", 1 }; \
     } \
+    selected_extensions.emplace_back((ext)); \
   } \
   while (0)
       OBERON_LINUX_VK_REQUIRE_EXTENSION(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
@@ -239,11 +243,9 @@ namespace oberon::linux {
       // feature is not enabled. I'm going to just assume (since I enable everything that is available) that
       // everything is fine.
 #undef OBERON_LINUX_VK_REQUIRE_EXTENSION
-      for (const auto& extension : available_extensions)
-      {
-        selected_extensions.emplace_back(extension.c_str());
-      }
     }
+    device_info.ppEnabledExtensionNames = selected_extensions.data();
+    device_info.enabledExtensionCount = selected_extensions.size();
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateDevice);
     OBERON_LINUX_VK_SUCCEEDS(vkCreateDevice(device, &device_info, nullptr, &m_vk_device));
     dl.load(m_vk_device);
@@ -251,15 +253,210 @@ namespace oberon::linux {
     vkGetDeviceQueue(m_vk_device, m_selected_queue_families.graphics_queue, 0, &m_vk_graphics_queue);
     vkGetDeviceQueue(m_vk_device, m_selected_queue_families.presentation_queue, 0, &m_vk_present_queue);
     m_vk_selected_physical_device = device;
+    {
+      auto command_pool_info = VkCommandPoolCreateInfo{ };
+      command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+      command_pool_info.queueFamilyIndex = m_selected_queue_families.graphics_queue;
+      command_pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+      OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateCommandPool);
+      OBERON_LINUX_VK_SUCCEEDS(vkCreateCommandPool(m_vk_device, &command_pool_info, nullptr, &m_vk_command_pool));
+      auto command_buffer_info = VkCommandBufferAllocateInfo{ };
+      command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+      command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+      command_buffer_info.commandPool = m_vk_command_pool;
+      command_buffer_info.commandBufferCount = m_vk_command_buffers.size();
+      OBERON_LINUX_VK_DECLARE_PFN(dl, vkAllocateCommandBuffers);
+      OBERON_LINUX_VK_SUCCEEDS(vkAllocateCommandBuffers(m_vk_device, &command_buffer_info,
+                                                        m_vk_command_buffers.data()));
+    }
+    {
+      auto semaphore_info = VkSemaphoreCreateInfo{ };
+      semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+      auto fence_info = VkFenceCreateInfo{ };
+      fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+      fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+      OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateSemaphore);
+      OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateFence);
+      for (auto i = usize{ 0 }; i < OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT; ++i)
+      {
+        OBERON_LINUX_VK_SUCCEEDS(vkCreateSemaphore(m_vk_device, &semaphore_info, nullptr,
+                                                   &m_vk_image_available_sems[i]));
+        OBERON_LINUX_VK_SUCCEEDS(vkCreateSemaphore(m_vk_device, &semaphore_info, nullptr,
+                                                   &m_vk_render_finished_sems[i]));
+        OBERON_LINUX_VK_SUCCEEDS(vkCreateFence(m_vk_device, &fence_info, nullptr,
+                                              &m_vk_in_flight_frame_fences[i]));
+      }
+    }
   }
 
   void graphics::deinitialize_device() {
-    OBERON_LINUX_VK_DECLARE_PFN(m_parent->vk_dl(), vkDestroyDevice);
+    const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroySemaphore);
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyFence);
+    for (auto i = usize{ 0 }; i < OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+      vkDestroySemaphore(m_vk_device, m_vk_image_available_sems[i], nullptr);
+      vkDestroySemaphore(m_vk_device, m_vk_render_finished_sems[i], nullptr);
+      vkDestroyFence(m_vk_device, m_vk_in_flight_frame_fences[i], nullptr);
+    }
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkFreeCommandBuffers);
+    vkFreeCommandBuffers(m_vk_device, m_vk_command_pool, m_vk_command_buffers.size(), m_vk_command_buffers.data());
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyCommandPool);
+    vkDestroyCommandPool(m_vk_device, m_vk_command_pool, nullptr);
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyDevice);
     vkDestroyDevice(m_vk_device, nullptr);
+  }
+
+  void graphics::initialize_renderer(const VkSwapchainKHR old) {
+    auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
+    auto capabilities = VkSurfaceCapabilitiesKHR{ };
+    OBERON_LINUX_VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_vk_selected_physical_device,
+                                                                       m_target->surface(), &capabilities));
+    auto swapchain_info = VkSwapchainCreateInfoKHR{ };
+    swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchain_info.surface = m_target->surface();
+    // TODO: allow users to select between double and triple buffering.
+    // maxImageCount can be 0 to indicate no limits
+    auto sz = capabilities.maxImageCount;
+    swapchain_info.minImageCount = std::clamp(OBERON_LINUX_VK_TRIPLE_BUFFER_IMAGE_COUNT, capabilities.minImageCount,
+                                              (std::numeric_limits<u32>::max() & -!sz) + sz);
+    // Find image format
+    {
+      OBERON_LINUX_VK_DECLARE_PFN(dl, vkGetPhysicalDeviceSurfaceFormatsKHR);
+      OBERON_LINUX_VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceFormatsKHR(m_vk_selected_physical_device,
+                                                                    swapchain_info.surface, &sz, nullptr));
+      auto formats = std::vector<VkSurfaceFormatKHR>(sz);
+      OBERON_LINUX_VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceFormatsKHR(m_vk_selected_physical_device,
+                                                                    swapchain_info.surface, &sz, formats.data()));
+      auto found = false;
+      // On my system there are exactly 2 available surface formats (i.e., image formats and color spaces that can
+      // be displayed on the screen). These are B8G8R8A8_SRGB with COLOR_SPACE_SRGB_NONLINEAR_KHR and B8G8R8A8_UNORM
+      // with COLOR_SPACE_SRGB_NONLINEAR_KHR. I don't know if other devices and window systems support vastly more
+      // surface formats but it seems doubtful. In any case, this searches for a common surface format (gpuinfo.org
+      // reports that B8G8R8A8_SRGB is available on 62% of devices). If that surface format isn't found it defaults
+      // to the first reported format.
+      for (const auto& format : formats)
+      {
+        if (format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
+          swapchain_info.imageFormat = format.format;
+          swapchain_info.imageColorSpace = format.colorSpace;
+          found = true;
+          break;
+        }
+      }
+      if (!found)
+      {
+        swapchain_info.imageFormat = formats.front().format;
+        swapchain_info.imageColorSpace = formats.front().colorSpace;
+      }
+    }
+    auto drawable_area = m_target->current_drawable_rect();
+    // Unreasonable hypothetical scenario described in the Vulkan specification where the surface size is determined
+    // by the swapchain and not by the window system. That is to say, the case where the window resizes to fit
+    // the swapchain.
+    if (capabilities.currentExtent.width == std::numeric_limits<u32>::max() &&
+        capabilities.currentExtent.height == std::numeric_limits<u32>::max())
+    {
+      swapchain_info.imageExtent.width = std::clamp(static_cast<u32>(drawable_area.extent.width),
+                                                    capabilities.minImageExtent.width,
+                                                    capabilities.maxImageExtent.width);
+      swapchain_info.imageExtent.height = std::clamp(static_cast<u32>(drawable_area.extent.height),
+                                                     capabilities.minImageExtent.height,
+                                                     capabilities.maxImageExtent.height);
+    }
+    // More realistic scenario where the swapchain size is the surface size.
+    else
+    {
+      swapchain_info.imageExtent.width = capabilities.currentExtent.width;
+      swapchain_info.imageExtent.height = capabilities.currentExtent.height;
+    }
+    m_vk_render_area.extent = swapchain_info.imageExtent;
+
+    // Array layers are for head mounted displays and other stereoscopic environments.
+    swapchain_info.imageArrayLayers = 1;
+    swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                                VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    // Branchless selection of mode
+    // If both queues are the same then mask = 0 otherwise it equals -1 (i.e., 0xff'ff'ff'ff)
+    // VK_SHARING_MODE_EXCLUSIVE = 0
+    // VK_SHARING_MODE_CONCURRENT = 1
+    const auto mask = -(m_selected_queue_families.graphics_queue != m_selected_queue_families.presentation_queue);
+    swapchain_info.imageSharingMode = static_cast<VkSharingMode>(VK_SHARING_MODE_CONCURRENT & mask);
+    // If concurrent sharing
+    if (mask)
+    {
+      swapchain_info.queueFamilyIndexCount = 2;
+      auto queue_indices = std::vector<u32>(swapchain_info.queueFamilyIndexCount);
+      queue_indices[0] = m_selected_queue_families.graphics_queue;
+      queue_indices[1] = m_selected_queue_families.presentation_queue;
+      swapchain_info.pQueueFamilyIndices = queue_indices.data();
+    }
+    swapchain_info.preTransform = capabilities.currentTransform;
+    swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    // Only FIFO is guaranteed to be available.
+    // TODO: allow the present mode to be selected.
+    swapchain_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    swapchain_info.clipped = true;
+    swapchain_info.oldSwapchain = old;
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateSwapchainKHR);
+    OBERON_LINUX_VK_SUCCEEDS(vkCreateSwapchainKHR(m_vk_device, &swapchain_info, nullptr, &m_vk_swapchain));
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkGetSwapchainImagesKHR);
+    OBERON_LINUX_VK_SUCCEEDS(vkGetSwapchainImagesKHR(m_vk_device, m_vk_swapchain, &sz, nullptr));
+    m_vk_swapchain_images.resize(sz);
+    m_vk_swapchain_image_views.resize(sz);
+    OBERON_LINUX_VK_SUCCEEDS(vkGetSwapchainImagesKHR(m_vk_device, m_vk_swapchain, &sz, m_vk_swapchain_images.data()));
+    auto image_view_info = VkImageViewCreateInfo{ };
+    image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    image_view_info.format = swapchain_info.imageFormat;
+    image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    image_view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    image_view_info.subresourceRange.baseMipLevel = 0;
+    image_view_info.subresourceRange.levelCount = 1;
+    image_view_info.subresourceRange.baseArrayLayer = 0;
+    image_view_info.subresourceRange.layerCount = 1;
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateImageView);
+    {
+      auto cur = m_vk_swapchain_image_views.begin();
+      for (const auto& image : m_vk_swapchain_images)
+      {
+        image_view_info.image = image;
+        OBERON_LINUX_VK_SUCCEEDS(vkCreateImageView(m_vk_device, &image_view_info, nullptr, &(*cur)));
+        ++cur;
+      }
+    }
+  }
+
+  // This is probably bad. It's easy to miss this.
+  // TODO: refactor this
+  void graphics::deinitialize_image_views() {
+    const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyImageView);
+    for (auto& image_view : m_vk_swapchain_image_views)
+    {
+      vkDestroyImageView(m_vk_device, image_view, nullptr);
+    }
+  }
+
+  void graphics::deinitialize_renderer(const VkSwapchainKHR old) {
+    const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroySwapchainKHR);
+    vkDestroySwapchainKHR(m_vk_device, old, nullptr);
+  }
+
+  void graphics::deinitialize_renderer() {
+    deinitialize_renderer(m_vk_swapchain);
   }
 
   graphics::~graphics() noexcept {
     wait_for_device_to_idle();
+    deinitialize_image_views();
+    deinitialize_renderer();
     deinitialize_device();
   }
 
@@ -269,13 +466,139 @@ namespace oberon::linux {
 
   void graphics::select_device(const graphics_device& device) {
     wait_for_device_to_idle();
+    deinitialize_image_views();
+    deinitialize_renderer();
     deinitialize_device();
     initialize_device(*reinterpret_cast<ptr<VkPhysicalDevice>>(device.handle));
+    initialize_renderer(VK_NULL_HANDLE);
   }
 
   void graphics::wait_for_device_to_idle() {
     OBERON_LINUX_VK_DECLARE_PFN(m_parent->vk_dl(), vkDeviceWaitIdle);
     vkDeviceWaitIdle(m_vk_device);
+  }
+
+  void graphics::reinitialize_renderer() {
+    wait_for_device_to_idle();
+    auto old = m_vk_swapchain;
+    deinitialize_image_views();
+    initialize_renderer(old);
+    deinitialize_renderer(old);
+  }
+
+  void graphics::begin_frame() {
+    const auto& dl = m_parent->vk_dl();
+    auto color_attachment_info = VkRenderingAttachmentInfo{ };
+    color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    // Neutral gray
+    color_attachment_info.clearValue.color = { { 0.2f, 0.2f, 0.2f, 1.0f } };
+    // Clear depth-stencil
+    color_attachment_info.clearValue.depthStencil.depth = 0.0f;
+    color_attachment_info.clearValue.depthStencil.stencil = 0.0f;
+    auto rendering_info = VkRenderingInfo{ };
+    rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    rendering_info.renderArea = m_vk_render_area;
+    rendering_info.layerCount = 1;
+    rendering_info.colorAttachmentCount = 1;
+    rendering_info.pColorAttachments = &color_attachment_info;
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkWaitForFences);
+    constexpr const auto FOREVER = std::numeric_limits<u64>::max();
+    OBERON_LINUX_VK_SUCCEEDS(vkWaitForFences(m_vk_device, 1, &m_vk_in_flight_frame_fences[m_frame_index], true,
+                                             FOREVER));
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkResetFences);
+    OBERON_LINUX_VK_SUCCEEDS(vkResetFences(m_vk_device, 1, &m_vk_in_flight_frame_fences[m_frame_index]));
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkAcquireNextImageKHR);
+    auto res = vkAcquireNextImageKHR(m_vk_device, m_vk_swapchain, FOREVER, m_vk_image_available_sems[m_frame_index],
+                                     VK_NULL_HANDLE, &m_image_index);
+    switch (res)
+    {
+    case VK_SUBOPTIMAL_KHR:
+      //reinitialize_renderer();
+      return;
+    case VK_SUCCESS:
+      break;
+    default:
+      throw vk_error{ "Failed to acquire image for rendering.", res };
+    }
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkBeginCommandBuffer);
+    auto begin_info = VkCommandBufferBeginInfo{ };
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    OBERON_LINUX_VK_SUCCEEDS(vkBeginCommandBuffer(m_vk_command_buffers[m_frame_index], &begin_info));
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdBeginRendering);
+    color_attachment_info.imageView = m_vk_swapchain_image_views[m_image_index];
+    vkCmdBeginRendering(m_vk_command_buffers[m_frame_index], &rendering_info);
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdPipelineBarrier);
+    auto image_memory_barrier = VkImageMemoryBarrier{ };
+    image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    image_memory_barrier.image = m_vk_swapchain_images[m_image_index];
+    image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    image_memory_barrier.subresourceRange.baseMipLevel = 0;
+    image_memory_barrier.subresourceRange.levelCount = 1;
+    image_memory_barrier.subresourceRange.baseArrayLayer = 0;
+    image_memory_barrier.subresourceRange.layerCount = 1;
+    vkCmdPipelineBarrier(m_vk_command_buffers[m_frame_index], VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
+  }
+
+  void graphics::end_frame() {
+    const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdPipelineBarrier);
+    auto image_memory_barrier = VkImageMemoryBarrier{ };
+    image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    image_memory_barrier.image = m_vk_swapchain_images[m_image_index];
+    image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    image_memory_barrier.subresourceRange.baseMipLevel = 0;
+    image_memory_barrier.subresourceRange.levelCount = 1;
+    image_memory_barrier.subresourceRange.baseArrayLayer = 0;
+    image_memory_barrier.subresourceRange.layerCount = 1;
+    vkCmdPipelineBarrier(m_vk_command_buffers[m_frame_index], VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdEndRendering);
+    vkCmdEndRendering(m_vk_command_buffers[m_frame_index]);
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkEndCommandBuffer);
+    OBERON_LINUX_VK_SUCCEEDS(vkEndCommandBuffer(m_vk_command_buffers[m_frame_index]));
+    auto submit_info = VkSubmitInfo{ };
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &m_vk_command_buffers[m_frame_index];
+    submit_info.pWaitSemaphores = &m_vk_image_available_sems[m_frame_index];
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &m_vk_render_finished_sems[m_frame_index];
+    submit_info.signalSemaphoreCount = 1;
+    auto wait_dst_stage = VkPipelineStageFlags{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submit_info.pWaitDstStageMask = &wait_dst_stage;
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkQueueSubmit);
+    OBERON_LINUX_VK_SUCCEEDS(vkQueueSubmit(m_vk_graphics_queue, 1, &submit_info,
+                                           m_vk_in_flight_frame_fences[m_frame_index]));
+    auto present_info = VkPresentInfoKHR{ };
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.pSwapchains = &m_vk_swapchain;
+    present_info.swapchainCount = 1;
+    present_info.pImageIndices = &m_image_index;
+    present_info.pWaitSemaphores = &m_vk_render_finished_sems[m_frame_index];
+    present_info.waitSemaphoreCount = 1;
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkQueuePresentKHR);
+    auto res = vkQueuePresentKHR(m_vk_present_queue, &present_info);
+    switch (res)
+    {
+    case VK_ERROR_OUT_OF_DATE_KHR:
+    case VK_SUBOPTIMAL_KHR:
+      reinitialize_renderer();
+    case VK_SUCCESS:
+      break;
+    default:
+      throw vk_error{ "Failed to present image.", res };
+    }
+    m_frame_index = (m_frame_index + 1) & (OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT - 1);
   }
 
 }

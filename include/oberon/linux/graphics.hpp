@@ -34,9 +34,24 @@ namespace oberon::linux {
     VkDevice m_vk_device{ };
     VkQueue m_vk_graphics_queue{ };
     VkQueue m_vk_present_queue{ };
+    VkCommandPool m_vk_command_pool{ };
+    std::array<VkCommandBuffer, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_command_buffers{ };
+    std::array<VkSemaphore, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_image_available_sems{ };
+    std::array<VkSemaphore, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_render_finished_sems{ };
+    std::array<VkFence, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_in_flight_frame_fences{ };
+    VkRect2D m_vk_render_area{ { 0, 0 }, { 640, 360 } };
+    VkSwapchainKHR m_vk_swapchain{ };
+    std::vector<VkImage> m_vk_swapchain_images{ };
+    std::vector<VkImageView> m_vk_swapchain_image_views{ };
+    u32 m_frame_index{ 0 };
+    u32 m_image_index{ 0 };
 
     void initialize_device(const VkPhysicalDevice physical_device);
     void deinitialize_device();
+    void initialize_renderer(const VkSwapchainKHR old);
+    void deinitialize_image_views();
+    void deinitialize_renderer(const VkSwapchainKHR old);
+    void deinitialize_renderer();
   public:
     graphics(system& sys, window& win);
     graphics(const graphics& other) = delete;
@@ -50,6 +65,9 @@ namespace oberon::linux {
     const std::vector<graphics_device>& available_devices() const override;
     void select_device(const graphics_device& device) override;
     void wait_for_device_to_idle() override;
+    void reinitialize_renderer() override;
+    void begin_frame() override;
+    void end_frame() override;
   };
 
 }

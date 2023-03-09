@@ -25,6 +25,7 @@ namespace oberon::linux {
     ptr<system> m_parent{ };
     xcb_window_t m_window_id{ };
     display_style m_display_style{ };
+    window_rect m_current_rect{ };
     bool m_quit_requested{ };
     VkSurfaceKHR m_vk_surface{ };
 
@@ -151,6 +152,10 @@ namespace oberon::linux {
     window& clear_quit_request() override;
 
     VkSurfaceKHR surface();
+
+    void update_window_rect(const window_rect& rect);
+    bool matches_current_extent(const window_extent& extent) const;
+    bool matches_current_offset(const window_offset& offset) const;
   };
 
 }

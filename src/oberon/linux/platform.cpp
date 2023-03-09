@@ -35,6 +35,8 @@ namespace {
   void null_mouse_movement_event_cb(oberon::platform&, const oberon::mouse_offset&, const oberon::mouse_offset&) { }
   void null_mouse_button_press_event_cb(oberon::platform&, const oberon::u32, const oberon::mouse_button) { }
   void null_mouse_button_release_event_cb(oberon::platform&, const oberon::u32, const oberon::mouse_button) { }
+  void null_window_move_event_cb(oberon::platform&, const oberon::window_offset&) { }
+  void null_window_resize_event_cb(oberon::platform&, const oberon::window_extent&) { }
 
 }
 
@@ -79,6 +81,23 @@ namespace oberon::linux {
     }
   }
 
+  void platform::handle_configure_notify(platform& plt, const u8 type, const ptr<xcb_generic_event_t> ev) {
+    OBERON_PRECONDITION(type == XCB_CONFIGURE_NOTIFY);
+    auto configure_notify = reinterpret_cast<ptr<xcb_configure_notify_event_t>>(ev);
+    auto& win = *plt.m_window;
+    auto is_move = !win.matches_current_offset({ configure_notify->x, configure_notify->y });
+    auto is_resize = !win.matches_current_extent({ configure_notify->width, configure_notify->height });
+    win.update_window_rect({ { configure_notify->x, configure_notify->y },
+                             { configure_notify->width, configure_notify ->height } });
+    if (is_move)
+    {
+      plt.m_window_move_event_cb(plt, { configure_notify->x, configure_notify->y });
+    }
+    if (is_resize)
+    {
+      plt.m_window_resize_event_cb(plt, { configure_notify->width, configure_notify->height });
+    }
+  }
 
   void platform::handle_ge_generic_event(platform& plt, const u8 type, const ptr<xcb_generic_event_t> ev) {
     OBERON_PRECONDITION(type == XCB_GE_GENERIC);
@@ -176,6 +195,7 @@ namespace oberon::linux {
     }
     m_event_handlers[XCB_ERROR] = handle_error;
     m_event_handlers[XCB_CLIENT_MESSAGE] = handle_client_message;
+    m_event_handlers[XCB_CONFIGURE_NOTIFY] = handle_configure_notify;
     // XKB uses only a single event code
     m_event_handlers[m_system->xkb_event_code()] = handle_xkb_event;
     m_event_handlers[XCB_GE_GENERIC] = handle_ge_generic_event;
@@ -203,6 +223,8 @@ namespace oberon::linux {
     attach_mouse_movement_event_callback(null_mouse_movement_event_cb);
     attach_mouse_button_press_event_callback(null_mouse_button_press_event_cb);
     attach_mouse_button_release_event_callback(null_mouse_button_press_event_cb);
+    attach_window_move_event_callback(null_window_move_event_cb);
+    attach_window_resize_event_callback(null_window_resize_event_cb);
   }
 
   oberon::system& platform::system() {
@@ -273,6 +295,27 @@ namespace oberon::linux {
   void platform::detach_mouse_button_release_event_callback() {
     OBERON_PLATFORM_PRECONDITIONS;
     attach_mouse_button_release_event_callback(null_mouse_button_release_event_cb);
+  }
+
+
+  void platform::attach_window_move_event_callback(const window_move_event_fn& fn) {
+    OBERON_PLATFORM_PRECONDITIONS;
+    m_window_move_event_cb = fn;
+  }
+
+  void platform::detach_window_move_event_callback() {
+    OBERON_PLATFORM_PRECONDITIONS;
+    attach_window_move_event_callback(null_window_move_event_cb);
+  }
+
+  void platform::attach_window_resize_event_callback(const window_resize_event_fn& fn) {
+    OBERON_PLATFORM_PRECONDITIONS;
+    m_window_resize_event_cb = fn;
+  }
+
+  void platform::detach_window_resize_event_callback() {
+    OBERON_PLATFORM_PRECONDITIONS;
+    attach_window_resize_event_callback(null_window_resize_event_cb);
   }
 
   void platform::drain_event_queue() {

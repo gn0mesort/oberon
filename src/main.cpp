@@ -34,9 +34,16 @@ void on_key_press(oberon::platform& plt, const oberon::u32, const oberon::key, c
   }
 }
 
+void on_window_resize(oberon::platform& plt, const oberon::window_extent& extent) {
+  std::cout << "Rebuilding Vulkan Swapchain with extent: { " << extent.width << ", " << extent.height
+            << " }" << std::endl;
+  plt.graphics().reinitialize_renderer();
+}
+
 int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::platform& plt) {
   auto& win = plt.window();
   plt.attach_key_press_event_callback(on_key_press);
+  plt.attach_window_resize_event_callback(on_window_resize);
   win.resize({ 1280, 720 });
   win.show();
   auto i = 0;
@@ -52,6 +59,8 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::platform& p
   while (!win.quit_requested())
   {
     plt.drain_event_queue();
+    plt.graphics().begin_frame();
+    plt.graphics().end_frame();
   }
   return 0;
 }

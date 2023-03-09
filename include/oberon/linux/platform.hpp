@@ -28,6 +28,7 @@ namespace oberon::linux {
 
     static void handle_error(platform& plt, const u8 type, const ptr<xcb_generic_event_t> ev);
     static void handle_client_message(platform& plt, const u8 type, const ptr<xcb_generic_event_t> ev);
+    static void handle_configure_notify(platform& plt, const u8 type, const ptr<xcb_generic_event_t> ev);
     static void handle_ge_generic_event(platform& plt, const u8 type, const ptr<xcb_generic_event_t> ev);
     static void handle_xi_key_press_event(platform& plt, const u16 type, const ptr<xcb_ge_generic_event_t> ev);
     static void handle_xi_key_release_event(platform& plt, const u16 type, const ptr<xcb_ge_generic_event_t> ev);
@@ -49,6 +50,8 @@ namespace oberon::linux {
     mouse_movement_event_fn m_mouse_movement_event_cb{ };
     mouse_button_press_event_fn m_mouse_button_press_event_cb{ };
     mouse_button_release_event_fn m_mouse_button_release_event_cb{ };
+    window_move_event_fn m_window_move_event_cb{ };
+    window_resize_event_fn m_window_resize_event_cb{ };
 
     std::array<ptr<event_handler>, OBERON_LINUX_X_EVENT_MAX> m_event_handlers{ };
     std::array<ptr<xi_event_handler>, OBERON_LINUX_X_XI_EVENT_MAX> m_xi_event_handlers{ };
@@ -161,6 +164,10 @@ namespace oberon::linux {
      * @brief Detach the currently attached mouse button release event callback.
      */
     void detach_mouse_button_release_event_callback() override;
+    virtual void attach_window_move_event_callback(const window_move_event_fn& fn) override;
+    virtual void detach_window_move_event_callback() override;
+    void attach_window_resize_event_callback(const window_resize_event_fn& fn) override;
+    void detach_window_resize_event_callback() override;
 
     /**
      * @brief Poll the platform event queue until no more events are found.

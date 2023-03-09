@@ -115,6 +115,7 @@ namespace oberon::linux {
       OBERON_LINUX_VK_DECLARE_PFN(m_parent->vk_dl(), vkCreateXcbSurfaceKHR);
       OBERON_LINUX_VK_SUCCEEDS(vkCreateXcbSurfaceKHR(m_parent->instance(), &surface_info, nullptr, &m_vk_surface));
     }
+    m_current_rect = current_drawable_rect();
   }
 
   window::~window() noexcept {
@@ -256,6 +257,7 @@ namespace oberon::linux {
 
   window& window::hide() {
     OBERON_WINDOW_PRECONDITIONS;
+
     xcb_unmap_window(m_parent->connection(), m_window_id);
     xcb_flush(m_parent->connection());
     return *this;
@@ -423,6 +425,19 @@ namespace oberon::linux {
   VkSurfaceKHR window::surface() {
     OBERON_WINDOW_PRECONDITIONS;
     return m_vk_surface;
+  }
+
+  void window::update_window_rect(const window_rect& rect) {
+    OBERON_WINDOW_PRECONDITIONS;
+    m_current_rect = rect;
+  }
+
+  bool window::matches_current_extent(const window_extent& extent) const {
+    return extent.width == m_current_rect.extent.width && extent.height == m_current_rect.extent.height;
+  }
+
+  bool window::matches_current_offset(const window_offset& offset) const {
+    return offset.x == m_current_rect.offset.x && offset.y == m_current_rect.offset.y;
   }
 
 }

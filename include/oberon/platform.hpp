@@ -21,6 +21,9 @@ namespace oberon {
   class window;
   class graphics;
 
+  struct window_offset;
+  struct window_extent;
+
   /**
    * @brief The runtime platform of an Oberon application.
    */
@@ -29,7 +32,7 @@ namespace oberon {
     /**
      * @brief A function to be called when key press events occur.
      */
-    using key_press_event_callback = void(platform&, const u32 code, const key k, const bool echoing);
+    using key_press_event_callback = void(platform& plt, const u32 code, const key k, const bool echoing);
 
     /**
      * @brief A std::function wrapper for key press event callbacks.
@@ -39,7 +42,7 @@ namespace oberon {
     /**
      * @brief A function to be called when key release events occur.
      */
-    using key_release_event_callback = void(platform&, const u32 code, const key k);
+    using key_release_event_callback = void(platform& plt, const u32 code, const key k);
 
     /**
      * @brief A std::function wrapper for key release event callbacks.
@@ -49,7 +52,7 @@ namespace oberon {
     /**
      * @brief A function to be called when mouse movement events occur.
      */
-    using mouse_movement_event_callback = void(platform&, const mouse_offset& screen_position,
+    using mouse_movement_event_callback = void(platform& plt, const mouse_offset& screen_position,
                                                const mouse_offset& window_position);
 
     /**
@@ -60,7 +63,7 @@ namespace oberon {
     /**
      * @brief A function to be called when mouse button press events occur.
      */
-    using mouse_button_press_event_callback = void(platform&, const u32 code, const mouse_button mb);
+    using mouse_button_press_event_callback = void(platform& plt, const u32 code, const mouse_button mb);
 
     /**
      * @brief A std::function wrapper for mouse button press events.
@@ -70,12 +73,16 @@ namespace oberon {
     /**
      * @brief A function to be called when mouse button release events occur.
      */
-    using mouse_button_release_event_callback = void(platform&, const u32 code, const mouse_button mb);
+    using mouse_button_release_event_callback = void(platform& plt, const u32 code, const mouse_button mb);
 
     /**
      * @brief A std::function wrapper for mouse button release events.
      */
     using mouse_button_release_event_fn = std::function<mouse_button_release_event_callback>;
+    using window_move_event_callback = void(platform& plt, const window_offset& offset);
+    using window_move_event_fn = std::function<window_move_event_callback>;
+    using window_resize_event_callback = void(platform& plt, const window_extent& extent);
+    using window_resize_event_fn = std::function<window_resize_event_callback>;
 
     /**
      * @brief Create a new platform object.
@@ -198,6 +205,11 @@ namespace oberon {
      * @brief Detach the currently attached mouse button release event callback.
      */
     virtual void detach_mouse_button_release_event_callback() = 0;
+
+    virtual void attach_window_move_event_callback(const window_move_event_fn& fn) = 0;
+    virtual void detach_window_move_event_callback() = 0;
+    virtual void attach_window_resize_event_callback(const window_resize_event_fn& fn) = 0;
+    virtual void detach_window_resize_event_callback() = 0;
 
     /**
      * @brief Poll the platform event queue until no more events are found.
