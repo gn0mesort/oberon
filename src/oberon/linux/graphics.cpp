@@ -493,22 +493,6 @@ namespace oberon::linux {
     {
       reinitialize_renderer();
     }
-    auto color_attachment_info = VkRenderingAttachmentInfo{ };
-    color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-    color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    // Neutral gray
-    color_attachment_info.clearValue.color = { { 0.2f, 0.2f, 0.2f, 1.0f } };
-    // Clear depth-stencil
-    color_attachment_info.clearValue.depthStencil.depth = 0.0f;
-    color_attachment_info.clearValue.depthStencil.stencil = 0.0f;
-    auto rendering_info = VkRenderingInfo{ };
-    rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    rendering_info.renderArea = m_vk_render_area;
-    rendering_info.layerCount = 1;
-    rendering_info.colorAttachmentCount = 1;
-    rendering_info.pColorAttachments = &color_attachment_info;
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkWaitForFences);
     constexpr const auto FOREVER = std::numeric_limits<u64>::max();
     OBERON_LINUX_VK_SUCCEEDS(vkWaitForFences(m_vk_device, 1, &m_vk_in_flight_frame_fences[m_frame_index], true,
@@ -531,8 +515,21 @@ namespace oberon::linux {
     auto begin_info = VkCommandBufferBeginInfo{ };
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     OBERON_LINUX_VK_SUCCEEDS(vkBeginCommandBuffer(m_vk_command_buffers[m_frame_index], &begin_info));
-    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdBeginRendering);
+    auto color_attachment_info = VkRenderingAttachmentInfo{ };
+    color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    // Neutral gray
+    color_attachment_info.clearValue.color = { { 0.2f, 0.2f, 0.2f, 1.0f } };
+    auto rendering_info = VkRenderingInfo{ };
+    rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    rendering_info.renderArea = m_vk_render_area;
+    rendering_info.layerCount = 1;
+    rendering_info.colorAttachmentCount = 1;
+    rendering_info.pColorAttachments = &color_attachment_info;
     color_attachment_info.imageView = m_vk_swapchain_image_views[m_image_index];
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdBeginRendering);
     vkCmdBeginRendering(m_vk_command_buffers[m_frame_index], &rendering_info);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdPipelineBarrier);
     auto image_memory_barrier = VkImageMemoryBarrier{ };
