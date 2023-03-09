@@ -45,6 +45,7 @@ namespace oberon::linux {
     std::vector<VkImageView> m_vk_swapchain_image_views{ };
     u32 m_frame_index{ 0 };
     u32 m_image_index{ 0 };
+    VkResult m_vk_last_frame{ VK_SUCCESS };
 
     void initialize_device(const VkPhysicalDevice physical_device);
     void deinitialize_device();

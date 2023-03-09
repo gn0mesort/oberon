@@ -484,10 +484,15 @@ namespace oberon::linux {
     deinitialize_image_views();
     initialize_renderer(old);
     deinitialize_renderer(old);
+    m_vk_last_frame = VK_SUCCESS;
   }
 
   void graphics::begin_frame() {
     const auto& dl = m_parent->vk_dl();
+    if (m_vk_last_frame == VK_ERROR_OUT_OF_DATE_KHR || m_vk_last_frame == VK_SUBOPTIMAL_KHR)
+    {
+      reinitialize_renderer();
+    }
     auto color_attachment_info = VkRenderingAttachmentInfo{ };
     color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
@@ -511,17 +516,16 @@ namespace oberon::linux {
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkResetFences);
     OBERON_LINUX_VK_SUCCEEDS(vkResetFences(m_vk_device, 1, &m_vk_in_flight_frame_fences[m_frame_index]));
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkAcquireNextImageKHR);
-    auto res = vkAcquireNextImageKHR(m_vk_device, m_vk_swapchain, FOREVER, m_vk_image_available_sems[m_frame_index],
-                                     VK_NULL_HANDLE, &m_image_index);
-    switch (res)
+    m_vk_last_frame = vkAcquireNextImageKHR(m_vk_device, m_vk_swapchain, FOREVER,
+                                            m_vk_image_available_sems[m_frame_index], VK_NULL_HANDLE, &m_image_index);
+    switch (m_vk_last_frame)
     {
+    case VK_ERROR_OUT_OF_DATE_KHR:
     case VK_SUBOPTIMAL_KHR:
-      //reinitialize_renderer();
-      return;
     case VK_SUCCESS:
       break;
     default:
-      throw vk_error{ "Failed to acquire image for rendering.", res };
+      throw vk_error{ "Failed to acquire image for rendering.", m_vk_last_frame };
     }
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkBeginCommandBuffer);
     auto begin_info = VkCommandBufferBeginInfo{ };
@@ -587,16 +591,15 @@ namespace oberon::linux {
     present_info.pWaitSemaphores = &m_vk_render_finished_sems[m_frame_index];
     present_info.waitSemaphoreCount = 1;
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkQueuePresentKHR);
-    auto res = vkQueuePresentKHR(m_vk_present_queue, &present_info);
-    switch (res)
+    m_vk_last_frame = vkQueuePresentKHR(m_vk_present_queue, &present_info);
+    switch (m_vk_last_frame)
     {
     case VK_ERROR_OUT_OF_DATE_KHR:
     case VK_SUBOPTIMAL_KHR:
-      reinitialize_renderer();
     case VK_SUCCESS:
       break;
     default:
-      throw vk_error{ "Failed to present image.", res };
+      throw vk_error{ "Failed to present image.", m_vk_last_frame };
     }
     m_frame_index = (m_frame_index + 1) & (OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT - 1);
   }
