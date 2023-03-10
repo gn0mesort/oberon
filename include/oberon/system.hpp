@@ -11,6 +11,8 @@
 #include "types.hpp"
 #include "keys.hpp"
 
+#include <filesystem>
+
 namespace oberon {
 
   struct environment;
@@ -56,6 +58,8 @@ namespace oberon {
      * @return A reference to the assigned object.
      */
     system& operator=(system&& rhs) = default;
+
+    virtual std::filesystem::path executable_path() const = 0;
   };
 
   system::~system() noexcept { }

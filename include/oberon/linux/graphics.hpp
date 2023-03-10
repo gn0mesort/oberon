@@ -41,11 +41,15 @@ namespace oberon::linux {
     std::array<VkFence, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_in_flight_frame_fences{ };
     VkRect2D m_vk_render_area{ { 0, 0 }, { 640, 360 } };
     VkSwapchainKHR m_vk_swapchain{ };
+    VkFormat m_vk_swapchain_image_format{ };
     std::vector<VkImage> m_vk_swapchain_images{ };
     std::vector<VkImageView> m_vk_swapchain_image_views{ };
     u32 m_frame_index{ 0 };
     u32 m_image_index{ 0 };
     VkResult m_vk_last_frame{ VK_SUCCESS };
+    std::vector<VkPipelineShaderStageCreateInfo> m_vk_shader_stages{ };
+    std::vector<VkPipeline> m_vk_graphics_pipelines{ };
+    std::vector<VkPipelineLayout> m_vk_graphics_pipeline_layouts{ };
 
     void initialize_device(const VkPhysicalDevice physical_device);
     void deinitialize_device();
@@ -53,6 +57,8 @@ namespace oberon::linux {
     void deinitialize_image_views();
     void deinitialize_renderer(const VkSwapchainKHR old);
     void deinitialize_renderer();
+    pipeline_stage_binary intern_pipeline_stage_binary(const pipeline_stage stage, const readonly_ptr<char> bin,
+                                                       const usize sz) override;
   public:
     graphics(system& sys, window& win);
     graphics(const graphics& other) = delete;
@@ -69,6 +75,8 @@ namespace oberon::linux {
     void reinitialize_renderer() override;
     void begin_frame() override;
     void end_frame() override;
+    usize intern_render_program(const render_program& program) override;
+    void draw(const usize vertices, const usize program) override;
   };
 
 }

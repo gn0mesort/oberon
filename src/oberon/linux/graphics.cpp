@@ -291,6 +291,24 @@ namespace oberon::linux {
 
   void graphics::deinitialize_device() {
     const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyPipeline);
+    for (const auto& pipeline : m_vk_graphics_pipelines)
+    {
+      vkDestroyPipeline(m_vk_device, pipeline, nullptr);
+    }
+    m_vk_graphics_pipelines.clear();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyPipelineLayout);
+    for (const auto& layout : m_vk_graphics_pipeline_layouts)
+    {
+      vkDestroyPipelineLayout(m_vk_device, layout, nullptr);
+    }
+    m_vk_graphics_pipeline_layouts.clear();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyShaderModule);
+    for (const auto& shader_stage : m_vk_shader_stages)
+    {
+      vkDestroyShaderModule(m_vk_device, shader_stage.module, nullptr);
+    }
+    m_vk_shader_stages.clear();
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroySemaphore);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyFence);
     for (auto i = usize{ 0 }; i < OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT; ++i)
@@ -402,6 +420,7 @@ namespace oberon::linux {
     swapchain_info.oldSwapchain = old;
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateSwapchainKHR);
     OBERON_LINUX_VK_SUCCEEDS(vkCreateSwapchainKHR(m_vk_device, &swapchain_info, nullptr, &m_vk_swapchain));
+    m_vk_swapchain_image_format = swapchain_info.imageFormat;
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkGetSwapchainImagesKHR);
     OBERON_LINUX_VK_SUCCEEDS(vkGetSwapchainImagesKHR(m_vk_device, m_vk_swapchain, &sz, nullptr));
     m_vk_swapchain_images.resize(sz);
@@ -515,6 +534,23 @@ namespace oberon::linux {
     auto begin_info = VkCommandBufferBeginInfo{ };
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     OBERON_LINUX_VK_SUCCEEDS(vkBeginCommandBuffer(m_vk_command_buffers[m_frame_index], &begin_info));
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdPipelineBarrier);
+    auto image_memory_barrier = VkImageMemoryBarrier{ };
+    image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    image_memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    image_memory_barrier.srcQueueFamilyIndex = -1;
+    image_memory_barrier.dstQueueFamilyIndex = -1;
+    image_memory_barrier.image = m_vk_swapchain_images[m_image_index];
+    image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    image_memory_barrier.subresourceRange.baseMipLevel = 0;
+    image_memory_barrier.subresourceRange.levelCount = UINT32_MAX;
+    image_memory_barrier.subresourceRange.baseArrayLayer = 0;
+    image_memory_barrier.subresourceRange.layerCount = UINT32_MAX;;
+    vkCmdPipelineBarrier(m_vk_command_buffers[m_frame_index], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                         &image_memory_barrier);
     auto color_attachment_info = VkRenderingAttachmentInfo{ };
     color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -531,40 +567,28 @@ namespace oberon::linux {
     color_attachment_info.imageView = m_vk_swapchain_image_views[m_image_index];
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdBeginRendering);
     vkCmdBeginRendering(m_vk_command_buffers[m_frame_index], &rendering_info);
-    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdPipelineBarrier);
-    auto image_memory_barrier = VkImageMemoryBarrier{ };
-    image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    image_memory_barrier.image = m_vk_swapchain_images[m_image_index];
-    image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    image_memory_barrier.subresourceRange.baseMipLevel = 0;
-    image_memory_barrier.subresourceRange.levelCount = 1;
-    image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-    image_memory_barrier.subresourceRange.layerCount = 1;
-    vkCmdPipelineBarrier(m_vk_command_buffers[m_frame_index], VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
   }
 
   void graphics::end_frame() {
     const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdEndRendering);
+    vkCmdEndRendering(m_vk_command_buffers[m_frame_index]);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdPipelineBarrier);
     auto image_memory_barrier = VkImageMemoryBarrier{ };
     image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    image_memory_barrier.srcQueueFamilyIndex = -1;
+    image_memory_barrier.dstQueueFamilyIndex = -1;
     image_memory_barrier.image = m_vk_swapchain_images[m_image_index];
     image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     image_memory_barrier.subresourceRange.baseMipLevel = 0;
-    image_memory_barrier.subresourceRange.levelCount = 1;
+    image_memory_barrier.subresourceRange.levelCount = UINT32_MAX;
     image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-    image_memory_barrier.subresourceRange.layerCount = 1;
+    image_memory_barrier.subresourceRange.layerCount = UINT32_MAX;
     vkCmdPipelineBarrier(m_vk_command_buffers[m_frame_index], VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                          VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
-    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdEndRendering);
-    vkCmdEndRendering(m_vk_command_buffers[m_frame_index]);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkEndCommandBuffer);
     OBERON_LINUX_VK_SUCCEEDS(vkEndCommandBuffer(m_vk_command_buffers[m_frame_index]));
     auto submit_info = VkSubmitInfo{ };
@@ -599,6 +623,131 @@ namespace oberon::linux {
       throw vk_error{ "Failed to present image.", m_vk_last_frame };
     }
     m_frame_index = (m_frame_index + 1) & (OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT - 1);
+  }
+
+  pipeline_stage_binary graphics::intern_pipeline_stage_binary(const pipeline_stage stage,
+                                                               const readonly_ptr<char> bin, const usize sz) {
+    // 4 divides sz
+    OBERON_PRECONDITION(!(sz & 3));
+    OBERON_PRECONDITION(stage != pipeline_stage::none);
+    const auto& dl = m_parent->vk_dl();
+    auto shader_info = VkShaderModuleCreateInfo{ };
+    shader_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    shader_info.pCode = reinterpret_cast<readonly_ptr<u32>>(bin);
+    shader_info.codeSize = sz;
+    auto pipeline_info = VkPipelineShaderStageCreateInfo{ };
+    pipeline_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipeline_info.stage = static_cast<VkShaderStageFlagBits>(stage);
+    pipeline_info.pName = "main";
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateShaderModule);
+    OBERON_LINUX_VK_SUCCEEDS(vkCreateShaderModule(m_vk_device, &shader_info, nullptr, &pipeline_info.module));
+    m_vk_shader_stages.push_back(pipeline_info);
+    return { stage, m_vk_shader_stages.size() - 1 };
+  }
+
+  usize graphics::intern_render_program(const render_program& program) {
+    const auto& dl = m_parent->vk_dl();
+    auto graphics_pipeline_info = VkGraphicsPipelineCreateInfo{ };
+    graphics_pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    auto pipeline_rendering_info = VkPipelineRenderingCreateInfo{ };
+    pipeline_rendering_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    pipeline_rendering_info.colorAttachmentCount = 1;
+    pipeline_rendering_info.pColorAttachmentFormats = &m_vk_swapchain_image_format;
+    graphics_pipeline_info.pNext = &pipeline_rendering_info;
+    auto selected_stages = std::vector<VkPipelineShaderStageCreateInfo>{ };
+    {
+      const auto stages_as_array = reinterpret_cast<readonly_ptr<usize>>(&program);
+      constexpr const auto SUPPORTED_STAGE_COUNT = sizeof(render_program) / sizeof(usize);
+      for (auto i = usize{ 0 }; i < SUPPORTED_STAGE_COUNT; ++i)
+      {
+        OBERON_CHECK(stages_as_array[i] < m_vk_shader_stages.size());
+        selected_stages.push_back(m_vk_shader_stages[stages_as_array[i]]);
+      }
+    }
+    graphics_pipeline_info.stageCount = selected_stages.size();
+    graphics_pipeline_info.pStages = selected_stages.data();
+    auto vertex_input = VkPipelineVertexInputStateCreateInfo{ };
+    vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    // TODO: useful vertex inputs
+    graphics_pipeline_info.pVertexInputState = &vertex_input;
+    auto input_assembly = VkPipelineInputAssemblyStateCreateInfo{ };
+    input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    input_assembly.primitiveRestartEnable = false;
+    graphics_pipeline_info.pInputAssemblyState = &input_assembly;
+    // TODO: tesselation
+    auto viewport = VkPipelineViewportStateCreateInfo{ };
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+    graphics_pipeline_info.pViewportState = &viewport;
+    auto rasterization = VkPipelineRasterizationStateCreateInfo{ };
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.lineWidth = 1.0f;
+    rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    graphics_pipeline_info.pRasterizationState = &rasterization;
+    auto multisample = VkPipelineMultisampleStateCreateInfo{ };
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisample.minSampleShading = 1.0f;
+    graphics_pipeline_info.pMultisampleState = &multisample;
+    // TODO: depth_stencil
+    auto color_blend = VkPipelineColorBlendStateCreateInfo{ };
+    color_blend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    color_blend.attachmentCount = 1;
+    auto color_blend_attachment = VkPipelineColorBlendAttachmentState{ };
+    color_blend_attachment.blendEnable = true;
+    color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+    color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    color_blend.pAttachments = &color_blend_attachment;
+    graphics_pipeline_info.pColorBlendState = &color_blend;
+    auto dynamic_state = VkPipelineDynamicStateCreateInfo{ };
+    dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    auto dynamic_states = std::array<VkDynamicState, 2>{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    dynamic_state.dynamicStateCount = dynamic_states.size();
+    dynamic_state.pDynamicStates = dynamic_states.data();
+    graphics_pipeline_info.pDynamicState = &dynamic_state;
+    // TODO: obviously some uniforms would be useful.
+    auto layout_info = VkPipelineLayoutCreateInfo{ };
+    layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreatePipelineLayout);
+    OBERON_LINUX_VK_SUCCEEDS(vkCreatePipelineLayout(m_vk_device, &layout_info, nullptr,
+                                                    &graphics_pipeline_info.layout));
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateGraphicsPipelines);
+    auto pipeline = VkPipeline{ };
+    OBERON_LINUX_VK_SUCCEEDS(vkCreateGraphicsPipelines(m_vk_device, VK_NULL_HANDLE, 1, &graphics_pipeline_info,
+                                                       nullptr, &pipeline));
+    m_vk_graphics_pipelines.push_back(pipeline);
+    m_vk_graphics_pipeline_layouts.push_back(graphics_pipeline_info.layout);
+    return m_vk_graphics_pipelines.size() - 1;
+  }
+
+  void graphics::draw(const usize vertices, const usize program) {
+    const auto& dl = m_parent->vk_dl();
+    auto& command_buffer = m_vk_command_buffers[m_frame_index];
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdSetViewport);
+    auto viewport = VkViewport{ };
+    viewport.x = m_vk_render_area.offset.x;
+    viewport.y = m_vk_render_area.offset.y;
+    viewport.width = m_vk_render_area.extent.width;
+    viewport.height = m_vk_render_area.extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdSetScissor);
+    vkCmdSetScissor(command_buffer, 0, 1, &m_vk_render_area);
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdBindPipeline);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_vk_graphics_pipelines[program]);
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdDraw);
+    vkCmdDraw(command_buffer, vertices, 1, 0, 0);
   }
 
 }

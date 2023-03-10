@@ -9,8 +9,12 @@
 
 #include <cstring>
 #include <cstdlib>
+#include <climits>
 
 #include <unordered_set>
+
+#include <unistd.h>
+#include <libgen.h>
 
 #include "oberon/debug.hpp"
 
@@ -324,6 +328,13 @@ namespace oberon::linux {
     vkDestroyInstance(m_vk_instance, nullptr);
     xkb_context_unref(m_xkb_context);
     XCloseDisplay(m_x_display);
+  }
+
+  std::filesystem::path system::executable_path() const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    auto buffer = std::array<char, PATH_MAX>{ };
+    OBERON_CHECK(readlink("/proc/self/exe", buffer.data(), buffer.size()) >= 0);
+    return dirname(buffer.data());
   }
 
   std::string system::instance_name() const {

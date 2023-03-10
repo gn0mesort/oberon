@@ -20,6 +20,9 @@ project(
 )
 
 cxx = meson.get_compiler('cpp')
+# glslangValidator doesn't appear to support --option=value syntax.
+glsl = [ find_program('glslangValidator'), '--target-env', 'vulkan1.3', '--client', 'vulkan100', '--quiet', '-o',
+         '@OUTPUT@', '@INPUT@' ]
 
 vkfl_sub = subproject('vkfl', default_options: [ 'build_c=disabled', 'build_examples=disabled',
                                                  'build_tests=disabled'])
@@ -85,5 +88,8 @@ endforeach
 if host_machine.system() == 'linux'
   subdir('tools/linux')
 endif
+
+
+subdir('data/oberon/shaders')
 
 oberon = executable('oberon', oberon_srcs, include_directories: oberon_incs, dependencies: oberon_deps)

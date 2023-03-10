@@ -77,14 +77,8 @@ namespace oberon::linux {
     system& operator=(system& rhs) = delete;
     /// @endcond
 
-    /**
-     * @brief Attach the given window object to the system.
-     * @details Multiple calls to this method will override previous calls. There is only one window object attached
-     *          to the system at any time. A valid window object must be attached before drain_event_queue may be
-     *          called.
-     * @param window The window object to attach.
-     */
-    void attach_window(window& win);
+
+    std::filesystem::path executable_path() const override;
 
     /**
      * @brief Retrieve the instance name associated with the application.
