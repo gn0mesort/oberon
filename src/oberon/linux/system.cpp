@@ -13,6 +13,8 @@
 
 #include <unordered_set>
 
+#include <sys/types.h>
+#include <pwd.h>
 #include <unistd.h>
 #include <libgen.h>
 
@@ -330,11 +332,82 @@ namespace oberon::linux {
     XCloseDisplay(m_x_display);
   }
 
+
+  std::filesystem::path system::home_directory() const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    auto homedir = std::getenv("HOME");
+    if (homedir)
+    {
+      return std::filesystem::canonical(homedir);
+    }
+    auto buffer = std::vector<char>(sysconf(_SC_GETPW_R_SIZE_MAX));
+    auto pwbuffer = passwd{ };
+    auto result = ptr<passwd>{ };
+    auto err = getpwuid_r(geteuid(), &pwbuffer, buffer.data(), buffer.size(), &result);
+    OBERON_CHECK(!err && result);
+    return std::filesystem::canonical(pwbuffer.pw_dir);
+  }
+
   std::filesystem::path system::executable_path() const {
     OBERON_SYSTEM_PRECONDITIONS;
     auto buffer = std::array<char, PATH_MAX>{ };
     OBERON_CHECK(readlink("/proc/self/exe", buffer.data(), buffer.size()) >= 0);
-    return dirname(buffer.data());
+    return std::filesystem::canonical(std::filesystem::path{ buffer.data() });
+  }
+
+  std::filesystem::path system::executable_directory() const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    return executable_path().parent_path();
+  }
+
+  std::filesystem::path system::immutable_data_directory() const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    return std::filesystem::canonical(executable_directory().parent_path() / "share" / m_application_name);
+  }
+
+  std::filesystem::path system::mutable_data_directory() const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    auto file = std::filesystem::path{ };
+    auto datadir = std::getenv("XDG_DATA_HOME");
+    if (datadir)
+    {
+      file = datadir;
+    }
+    else
+    {
+      file = home_directory() / ".local/share";
+    }
+    return std::filesystem::canonical(file / m_application_name);
+  }
+
+  std::filesystem::path system::cache_directory() const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    auto file = std::filesystem::path{ };
+    auto cachedir = std::getenv("XDG_CACHE_HOME");
+    if (cachedir)
+    {
+      file = cachedir;
+    }
+    else
+    {
+      file = home_directory() / ".cache";
+    }
+    return std::filesystem::canonical(file / m_application_name);
+  }
+
+  std::filesystem::path system::config_directory() const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    auto file = std::filesystem::path{ };
+    auto confdir = std::getenv("XDG_CONFIG_HOME");
+    if (confdir)
+    {
+      file = confdir;
+    }
+    else
+    {
+      file = home_directory() / ".config";
+    }
+    return std::filesystem::canonical(file / m_application_name);
   }
 
   std::string system::instance_name() const {

@@ -78,7 +78,13 @@ namespace oberon::linux {
     /// @endcond
 
 
+    std::filesystem::path home_directory() const override;
     std::filesystem::path executable_path() const override;
+    std::filesystem::path executable_directory() const override;
+    std::filesystem::path immutable_data_directory() const override;
+    std::filesystem::path mutable_data_directory() const override;
+    std::filesystem::path cache_directory() const override;
+    std::filesystem::path config_directory() const override;
 
     /**
      * @brief Retrieve the instance name associated with the application.

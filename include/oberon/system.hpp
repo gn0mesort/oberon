@@ -59,7 +59,13 @@ namespace oberon {
      */
     system& operator=(system&& rhs) = default;
 
+    virtual std::filesystem::path home_directory() const = 0;
     virtual std::filesystem::path executable_path() const = 0;
+    virtual std::filesystem::path executable_directory() const = 0;
+    virtual std::filesystem::path immutable_data_directory() const = 0;
+    virtual std::filesystem::path mutable_data_directory() const = 0;
+    virtual std::filesystem::path cache_directory() const = 0;
+    virtual std::filesystem::path config_directory() const = 0;
   };
 
   system::~system() noexcept { }
