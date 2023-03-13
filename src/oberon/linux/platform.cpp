@@ -95,6 +95,12 @@ namespace oberon::linux {
     }
     if (is_resize)
     {
+      // Explicitly dirty the renderer when a move event if detected.
+      // The renderer can be dirtied in 3 places. First, at the beginning of any frame (i.e., during image
+      // acquisition). Second, at the end of any frame (i.e., during image presentation). Third, in between frames at
+      // any point. This nicely handles the third case by ensuring that the renderer is explicitly marked dirty
+      // without requiring the client to fiddle with it.
+      plt.m_graphics->dirty_renderer();
       plt.m_window_resize_event_cb(plt, { configure_notify->width, configure_notify->height });
     }
   }
