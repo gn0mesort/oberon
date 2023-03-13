@@ -31,23 +31,22 @@ oberon_deps = [
   dependency('vulkan'),
   vkfl_sub.get_variable('vkfl_cpp_dep')
 ]
-oberon_link_args = [
+oberon_args = [
   '-DMESON_PROJECT_VERSION="1.0.0"',
   '-DMESON_PROJECT_VERSION_MAJOR=1',
   '-DMESON_PROJECT_VERSION_MINOR=0',
-  '-DMESON_PROJECT_VERSION_PATCH=0'
+  '-DMESON_PROJECT_VERSION_PATCH=0',
+  # Useful for examples that want to locate shaders and other data files.
+  '-DMESON_BUILD_DIRECTORY="@0@"'.format(meson.current_build_dir())
 ]
-oberon_args = [ ]
+oberon_link_args = [ ]
 oberon_incs = [
   include_directories('include')
 ]
 oberon_srcs = [
-  files('src/main.cpp'),
   files('src/oberon/application.cpp', 'src/oberon/debug.cpp', 'src/oberon/errors.cpp', 'src/oberon/keys.cpp',
         'src/oberon/mouse.cpp', 'src/oberon/graphics.cpp')
 ]
-
-
 
 if cxx.get_id() == 'clang' or cxx.get_id() == 'clang-cl'
   oberon_args += [ '-DUSING_CLANG' ]
@@ -77,12 +76,13 @@ if host_machine.system() == 'linux'
   oberon_srcs += oberon_linux_srcs
 endif
 
-foreach link_arg : oberon_link_args
-  add_project_link_arguments(link_arg, language: [ 'cpp' ])
-endforeach
 
 foreach arg : oberon_args
   add_project_arguments(arg, language: [ 'cpp' ])
+endforeach
+
+foreach link_arg : oberon_link_args
+  add_project_link_arguments(link_arg, language: [ 'cpp' ])
 endforeach
 
 if host_machine.system() == 'linux'
@@ -92,4 +92,7 @@ endif
 
 subdir('shaders')
 
-oberon = executable('oberon', oberon_srcs, include_directories: oberon_incs, dependencies: oberon_deps)
+oberon_lib = library('oberon', oberon_srcs, include_directories: oberon_incs, dependencies: oberon_deps)
+oberon_dep = declare_dependency(link_with: oberon_lib, include_directories: oberon_incs)
+
+subdir('examples')
