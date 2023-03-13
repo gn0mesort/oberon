@@ -18,6 +18,10 @@
   OBERON_PIPELINE_STAGE(vertex, 0x1) \
   OBERON_PIPELINE_STAGE(fragment, 0x10)
 
+#define OBERON_BUFFER_MODES \
+  OBERON_BUFFER_MODE(double_buffer, 2) \
+  OBERON_BUFFER_MODE(triple_buffer, 3)
+
 namespace oberon {
 
 #define OBERON_GRAPHICS_DEVICE_TYPE(name, value) name = (value),
@@ -33,6 +37,13 @@ namespace oberon {
     OBERON_PIPELINE_STAGES
   };
 #undef OBERON_PIPELINE_STAGE
+
+#define OBERON_BUFFER_MODE(name, value) name = (value),
+  enum class buffer_mode {
+    automatic = 0,
+    OBERON_BUFFER_MODES
+  };
+#undef OBERON_BUFFER_MODE
 
   struct graphics_device final {
     graphics_device_type type{ };
@@ -56,6 +67,7 @@ namespace oberon {
 
     virtual const std::vector<graphics_device>& available_devices() const = 0;
     virtual const graphics_device& preferred_device() const = 0;
+    virtual void request_buffer_mode(const buffer_mode mode) = 0;
     virtual bool is_device_opened() const = 0;
     virtual void open_device(const graphics_device& device) = 0;
     virtual void close_device() = 0;

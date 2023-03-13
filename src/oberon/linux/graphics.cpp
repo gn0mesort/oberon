@@ -333,6 +333,13 @@ namespace oberon::linux {
     return result;
   }
 
+  void graphics::request_buffer_mode(const buffer_mode mode) {
+    OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
+    m_buffer_mode = mode;
+    // Inform the renderer that it should be reinitialized.
+    dirty_renderer();
+  }
+
   void graphics::initialize_device(const VkPhysicalDevice device) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
     auto device_info = VkDeviceCreateInfo{ };
@@ -500,10 +507,13 @@ namespace oberon::linux {
     auto swapchain_info = VkSwapchainCreateInfoKHR{ };
     swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     swapchain_info.surface = m_target->surface();
-    // TODO: allow users to select between double and triple buffering.
     // maxImageCount can be 0 to indicate no limits
     auto sz = capabilities.maxImageCount;
-    swapchain_info.minImageCount = std::clamp(OBERON_LINUX_VK_TRIPLE_BUFFER_IMAGE_COUNT, capabilities.minImageCount,
+    // If m_buffer_mode is not 0 then image_count = m_buffer_mode
+    // Else image_count = 3
+    auto image_count = static_cast<u32>(m_buffer_mode) +
+                       (static_cast<u32>(buffer_mode::triple_buffer) & -!static_cast<u32>(m_buffer_mode));
+    swapchain_info.minImageCount = std::clamp(image_count, capabilities.minImageCount,
                                               (std::numeric_limits<u32>::max() & -!sz) + sz);
     // Find image format
     swapchain_info.imageFormat = m_vk_surface_format.format;

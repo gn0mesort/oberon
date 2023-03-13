@@ -66,6 +66,7 @@ namespace oberon::linux {
     graphics_program m_vk_test_image_program{ };
     bool m_is_in_frame{ };
     bool m_is_renderer_dirty{ };
+    buffer_mode m_buffer_mode{ };
 
     // Requires device selection.
     VkSurfaceFormatKHR select_surface_format(const VkFormat preferred_format,
@@ -101,6 +102,7 @@ namespace oberon::linux {
 
     const std::vector<graphics_device>& available_devices() const override;
     const graphics_device& preferred_device() const override;
+    void request_buffer_mode(const buffer_mode mode) override;
     bool is_device_opened() const override;
     void open_device(const graphics_device& device) override;
     void close_device() override;
