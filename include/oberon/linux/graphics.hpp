@@ -102,6 +102,8 @@ namespace oberon::linux {
 
     const std::vector<graphics_device>& available_devices() const override;
     const graphics_device& preferred_device() const override;
+    buffer_mode last_requested_buffer_mode() const override;
+    u32 current_buffer_count() const override;
     void request_buffer_mode(const buffer_mode mode) override;
     bool is_device_opened() const override;
     void open_device(const graphics_device& device) override;

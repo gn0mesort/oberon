@@ -333,6 +333,16 @@ namespace oberon::linux {
     return result;
   }
 
+  buffer_mode graphics::last_requested_buffer_mode() const {
+    OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
+    return m_buffer_mode;
+  }
+
+  u32 graphics::current_buffer_count() const {
+    OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
+    return m_vk_swapchain_images.size();
+  }
+
   void graphics::request_buffer_mode(const buffer_mode mode) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
     m_buffer_mode = mode;

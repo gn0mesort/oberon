@@ -67,6 +67,8 @@ namespace oberon {
 
     virtual const std::vector<graphics_device>& available_devices() const = 0;
     virtual const graphics_device& preferred_device() const = 0;
+    virtual buffer_mode last_requested_buffer_mode() const = 0;
+    virtual u32 current_buffer_count() const = 0;
     virtual void request_buffer_mode(const buffer_mode mode) = 0;
     virtual bool is_device_opened() const = 0;
     virtual void open_device(const graphics_device& device) = 0;
