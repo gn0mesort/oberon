@@ -36,6 +36,18 @@
 
 namespace oberon {
 
+  void application::add_search_path(const std::filesystem::path& p) {
+  // This is appropriate on Linux and probably other POSIX systems.
+  // On Windows the ":" should probably be ";" and search implementations in system should probably match.
+#ifdef MESON_SYSTEM_LINUX
+    if (!m_additional_search_paths.str().empty())
+    {
+      m_additional_search_paths << ":";
+    }
+    m_additional_search_paths << std::filesystem::weakly_canonical(p).c_str();
+#endif
+  }
+
   int application::run(const std::function<entry_point>& fn, const int argc, const ptr<csequence> argv) {
     OBERON_CHECK(argv[argc] == nullptr);
     // The result *as-if* returned from a standard main procedure.
@@ -104,7 +116,7 @@ namespace oberon {
           std::free(vk_layer_list);
         }
       }
-      auto platform_system = new linux::system{ name, "oberon", desired_vk_layers };
+      auto platform_system = new linux::system{ name, "oberon", m_additional_search_paths.str(), desired_vk_layers };
       auto platform_input = new linux::input{ *platform_system };
       auto platform_window = new linux::window{ *platform_system };
       auto platform_graphics = new linux::graphics{ *platform_system, *platform_window };

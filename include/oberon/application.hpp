@@ -2,6 +2,8 @@
 #define OBERON_APPLICATION_HPP
 
 #include <functional>
+#include <filesystem>
+#include <sstream>
 
 #include "memory.hpp"
 
@@ -10,6 +12,8 @@ namespace oberon {
   class platform;
 
   class application final {
+  private:
+    std::ostringstream m_additional_search_paths{ };
   public:
     /**
      * @brief Platform generic entry point procedure.
@@ -25,7 +29,7 @@ namespace oberon {
      * @brief Copy an application.
      * @param other The application to copy.
      */
-    application(const application& other) = default;
+    application(const application& other) = delete;
 
     /**
      * @brief Move an application.
@@ -43,7 +47,7 @@ namespace oberon {
      * @param rhs The application to copy.
      * @return A reference to the assigned application.
      */
-    application& operator=(const application& rhs) = default;
+    application& operator=(const application& rhs) = delete;
 
     /**
      * @brief Move an application.
@@ -51,6 +55,8 @@ namespace oberon {
      * @return A reference to the assigned application.
      */
     application& operator=(application&& rhs) = default;
+
+    void add_search_path(const std::filesystem::path& search);
 
     /**
      * @brief Execute the given entry point.
