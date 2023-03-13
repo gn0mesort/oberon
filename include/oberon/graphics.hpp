@@ -86,6 +86,7 @@ namespace oberon {
 
   std::string to_string(const graphics_device_type type);
   std::string to_string(const pipeline_stage stage);
+  std::string to_string(const buffer_mode mode);
 
 }
 

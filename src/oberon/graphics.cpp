@@ -24,4 +24,15 @@ namespace oberon {
 #undef OBERON_PIPELINE_STAGE
   }
 
+  std::string to_string(const buffer_mode mode) {
+#define OBERON_BUFFER_MODE(name, value) case oberon::buffer_mode::name: return (#name);
+    switch (mode)
+    {
+    OBERON_BUFFER_MODES
+    default:
+      return "automatic";
+    }
+#undef OBERON_BUFFER_MODE
+  }
+
 }
