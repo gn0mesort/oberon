@@ -257,7 +257,6 @@ namespace oberon::linux {
 
   window& window::hide() {
     OBERON_WINDOW_PRECONDITIONS;
-
     xcb_unmap_window(m_parent->connection(), m_window_id);
     xcb_flush(m_parent->connection());
     return *this;
