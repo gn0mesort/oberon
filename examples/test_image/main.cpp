@@ -18,9 +18,21 @@ void toggle_fullscreen(oberon::window& win) {
   }
 }
 
+void toggle_immediate_present(oberon::graphics& gfx) {
+  if (gfx.current_presentation_mode() == oberon::presentation_mode::fifo)
+  {
+    gfx.request_presentation_mode(oberon::presentation_mode::immediate);
+  }
+  else
+  {
+    gfx.request_presentation_mode(oberon::presentation_mode::fifo);
+  }
+}
+
 void on_key_press(oberon::platform& plt, const oberon::u32, const oberon::key, const bool) {
   auto& inpt = plt.input();
   auto& win = plt.window();
+  auto& gfx = plt.graphics();
   if (inpt.key_is_pressed(oberon::key::escape))
   {
     win.request_quit();
@@ -28,6 +40,10 @@ void on_key_press(oberon::platform& plt, const oberon::u32, const oberon::key, c
   if (inpt.key_is_just_pressed(oberon::key::enter) && inpt.modifier_key_is_active(oberon::modifier_key::alt))
   {
     toggle_fullscreen(win);
+  }
+  if (inpt.key_is_just_pressed(oberon::key::insert))
+  {
+    toggle_immediate_present(gfx);
   }
 }
 
@@ -38,6 +54,7 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::platform& p
   win.resize({ 1280, 720 });
   win.show();
   gfx.open_device(gfx.preferred_device());
+  gfx.request_presentation_mode(oberon::presentation_mode::fifo);
   while (!win.quit_requested())
   {
     plt.drain_event_queue();
