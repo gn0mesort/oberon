@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <climits>
 
+#include <sstream>
 #include <unordered_set>
 
 #include <sys/types.h>
@@ -245,10 +246,6 @@ namespace oberon::linux {
   while (0)
           OBERON_LINUX_VK_REQUIRE_EXTENSION(VK_KHR_SURFACE_EXTENSION_NAME);
           OBERON_LINUX_VK_REQUIRE_EXTENSION(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
-#ifndef NDEBUG
-          OBERON_LINUX_VK_REQUIRE_EXTENSION(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-          OBERON_LINUX_VK_REQUIRE_EXTENSION(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
-#endif
 #undef OBERON_LINUX_VK_REQUIRE_EXTENSION
           for (const auto& extension : available_extensions)
           {
@@ -256,6 +253,8 @@ namespace oberon::linux {
           }
         }
 #ifndef NDEBUG
+        auto has_validation_features = available_extensions.contains(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
+        auto has_debug_utils = available_extensions.contains(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         auto enabled_validation_features = std::array<VkValidationFeatureEnableEXT, 4> {
           VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
           VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
@@ -276,8 +275,15 @@ namespace oberon::linux {
                                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         debug_utils_info.pfnUserCallback = vk_debug_log;
-        validation_features.pNext = &debug_utils_info;
-        instance_info.pNext = &validation_features;
+        if (has_validation_features && has_debug_utils)
+        {
+          validation_features.pNext = &debug_utils_info;
+          instance_info.pNext = &validation_features;
+        }
+        else if (!has_validation_features && has_debug_utils)
+        {
+          instance_info.pNext = &debug_utils_info;
+        }
 #endif
         instance_info.ppEnabledLayerNames = selected_layers.data();
         instance_info.enabledLayerCount = selected_layers.size();
@@ -288,10 +294,13 @@ namespace oberon::linux {
         OBERON_ASSERT(m_vk_instance != VK_NULL_HANDLE);
         m_vkdl.load(m_vk_instance);
 #ifndef NDEBUG
-        OBERON_LINUX_VK_DECLARE_PFN(m_vkdl, vkCreateDebugUtilsMessengerEXT);
-        OBERON_LINUX_VK_SUCCEEDS(vkCreateDebugUtilsMessengerEXT(m_vk_instance, &debug_utils_info, nullptr,
-                                                                &m_vk_debug_messenger));
-        OBERON_ASSERT(m_vk_debug_messenger != VK_NULL_HANDLE);
+        if (has_debug_utils)
+        {
+          OBERON_LINUX_VK_DECLARE_PFN(m_vkdl, vkCreateDebugUtilsMessengerEXT);
+          OBERON_LINUX_VK_SUCCEEDS(vkCreateDebugUtilsMessengerEXT(m_vk_instance, &debug_utils_info, nullptr,
+                                                                  &m_vk_debug_messenger));
+          OBERON_ASSERT(m_vk_debug_messenger != VK_NULL_HANDLE);
+        }
 #endif
       }
       {
@@ -338,21 +347,21 @@ namespace oberon::linux {
     auto homedir = std::getenv("HOME");
     if (homedir)
     {
-      return std::filesystem::canonical(homedir);
+      return std::filesystem::weakly_canonical(homedir);
     }
     auto buffer = std::vector<char>(sysconf(_SC_GETPW_R_SIZE_MAX));
     auto pwbuffer = passwd{ };
     auto result = ptr<passwd>{ };
     auto err = getpwuid_r(geteuid(), &pwbuffer, buffer.data(), buffer.size(), &result);
     OBERON_CHECK(!err && result);
-    return std::filesystem::canonical(pwbuffer.pw_dir);
+    return std::filesystem::weakly_canonical(pwbuffer.pw_dir);
   }
 
   std::filesystem::path system::executable_path() const {
     OBERON_SYSTEM_PRECONDITIONS;
     auto buffer = std::array<char, PATH_MAX>{ };
     OBERON_CHECK(readlink("/proc/self/exe", buffer.data(), buffer.size()) >= 0);
-    return std::filesystem::canonical(std::filesystem::path{ buffer.data() });
+    return std::filesystem::weakly_canonical(std::filesystem::path{ buffer.data() });
   }
 
   std::filesystem::path system::executable_directory() const {
@@ -362,7 +371,7 @@ namespace oberon::linux {
 
   std::filesystem::path system::immutable_data_directory() const {
     OBERON_SYSTEM_PRECONDITIONS;
-    return std::filesystem::canonical(executable_directory().parent_path() / "share" / m_application_name);
+    return std::filesystem::weakly_canonical(executable_directory().parent_path() / "share" / m_application_name);
   }
 
   std::filesystem::path system::mutable_data_directory() const {
@@ -377,7 +386,7 @@ namespace oberon::linux {
     {
       file = home_directory() / ".local/share";
     }
-    return std::filesystem::canonical(file / m_application_name);
+    return std::filesystem::weakly_canonical(file / m_application_name);
   }
 
   std::filesystem::path system::cache_directory() const {
@@ -392,10 +401,10 @@ namespace oberon::linux {
     {
       file = home_directory() / ".cache";
     }
-    return std::filesystem::canonical(file / m_application_name);
+    return std::filesystem::weakly_canonical(file / m_application_name);
   }
 
-  std::filesystem::path system::config_directory() const {
+  std::filesystem::path system::configuration_directory() const {
     OBERON_SYSTEM_PRECONDITIONS;
     auto file = std::filesystem::path{ };
     auto confdir = std::getenv("XDG_CONFIG_HOME");
@@ -407,7 +416,72 @@ namespace oberon::linux {
     {
       file = home_directory() / ".config";
     }
-    return std::filesystem::canonical(file / m_application_name);
+    return std::filesystem::weakly_canonical(file / m_application_name);
+  }
+
+  std::filesystem::path system::find_file(const std::string& search, const std::string& name) const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    auto search_path_buffer = strdup(search.c_str());
+    auto remaining_paths = search_path_buffer;
+    auto path = cstring{ };
+    auto found = false;
+    auto result = std::filesystem::path{ };
+    for (path = strsep(&remaining_paths, ":"); path && !found; path = strsep(&remaining_paths, ":"))
+    {
+      result = std::filesystem::path{ path } / std::filesystem::path{ name };
+      found = std::filesystem::exists(result);
+    }
+    std::free(search_path_buffer);
+    return std::filesystem::canonical(result);
+  }
+
+  std::filesystem::path system::find_file(const default_file_location location, const std::string& name) const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    auto search = std::ostringstream{ };
+    switch (location)
+    {
+    case default_file_location::home:
+      search << home_directory().c_str() << ":";
+      break;
+    case default_file_location::immutable_data:
+      search << immutable_data_directory().c_str() << ":";
+      {
+        auto datadirs = std::getenv("XDG_DATA_DIRS");
+        if (datadirs)
+        {
+          search << datadirs << ":";
+        }
+        else
+        {
+          search << "/usr/local/share:/usr/share:";
+        }
+      }
+      break;
+    case default_file_location::mutable_data:
+      search << mutable_data_directory().c_str() << ":";
+      break;
+    case default_file_location::cache:
+      search << cache_directory().c_str() << ":";
+      break;
+    case default_file_location::configuration:
+      search << configuration_directory().c_str() << ":";
+      {
+        auto confdirs = std::getenv("XDG_CONFIG_DIRS");
+        if (confdirs)
+        {
+          search << confdirs << ":";
+        }
+        else
+        {
+          search << "/etc/xdg:";
+        }
+      }
+      break;
+    default:
+      break;
+    }
+    search << executable_directory().c_str();
+    return find_file(search.str(), name);
   }
 
   std::string system::instance_name() const {

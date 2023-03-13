@@ -9,7 +9,6 @@
 #define OBERON_LINUX_SYSTEM_HPP
 
 #include <array>
-#include <string>
 #include <vector>
 
 #include "../system.hpp"
@@ -84,7 +83,9 @@ namespace oberon::linux {
     std::filesystem::path immutable_data_directory() const override;
     std::filesystem::path mutable_data_directory() const override;
     std::filesystem::path cache_directory() const override;
-    std::filesystem::path config_directory() const override;
+    std::filesystem::path configuration_directory() const override;
+    std::filesystem::path find_file(const std::string& search, const std::string& name) const override;
+    std::filesystem::path find_file(const default_file_location location, const std::string& name) const override;
 
     /**
      * @brief Retrieve the instance name associated with the application.

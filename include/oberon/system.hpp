@@ -12,10 +12,19 @@
 #include "keys.hpp"
 
 #include <filesystem>
+#include <string>
 
 namespace oberon {
 
-  struct environment;
+  enum class default_file_location {
+    none,
+    home,
+    immutable_data,
+    mutable_data,
+    cache,
+    configuration
+  };
+
 
   /**
    * @brief A class representing basic system functionality.
@@ -65,7 +74,9 @@ namespace oberon {
     virtual std::filesystem::path immutable_data_directory() const = 0;
     virtual std::filesystem::path mutable_data_directory() const = 0;
     virtual std::filesystem::path cache_directory() const = 0;
-    virtual std::filesystem::path config_directory() const = 0;
+    virtual std::filesystem::path configuration_directory() const = 0;
+    virtual std::filesystem::path find_file(const std::string& search, const std::string& name) const = 0;
+    virtual std::filesystem::path find_file(const default_file_location location, const std::string& name) const = 0;
   };
 
   system::~system() noexcept { }
