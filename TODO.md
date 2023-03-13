@@ -61,6 +61,8 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
     + *MUST* support US layout keyboard via events
     + *MUST* support mice via events
     - *SHOULD* support non-US keyboard layouts
+    - *MUST* support checking for the minimized state
+    - *MUST* support checking for the maximized state
 
 - *SHOULD* support Win32
 
@@ -72,8 +74,8 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
     + *MUST* support manual device selection
     - *SHOULD* support later Vulkan versions
     - *SHOULD* support earlier Vulkan versions
-    - *MUST* support single device rendering
-    - *MUST* support single VkQueue operation
+    + *MUST* support single device rendering
+    + *MUST* support single VkQueue operation
     - *SHOULD* support multi-VkQueue operation
     - *MUST* support rendering to window surface
         + *MUST* support rendering to XCB surfaces
