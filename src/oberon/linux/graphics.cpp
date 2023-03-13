@@ -346,8 +346,11 @@ namespace oberon::linux {
   void graphics::request_buffer_mode(const buffer_mode mode) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
     m_buffer_mode = mode;
-    // Inform the renderer that it should be reinitialized.
-    dirty_renderer();
+    if (is_device_opened())
+    {
+      // Inform the renderer that it should be reinitialized.
+      dirty_renderer();
+    }
   }
 
   void graphics::initialize_device(const VkPhysicalDevice device) {
