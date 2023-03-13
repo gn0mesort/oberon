@@ -35,4 +35,14 @@ namespace oberon {
 #undef OBERON_BUFFER_MODE
   }
 
+  std::string to_string(const presentation_mode mode) {
+#define OBERON_PRESENTATION_MODE(name, value) case oberon::presentation_mode::name: return (#name);
+    switch (mode)
+    {
+    OBERON_PRESENTATION_MODES
+    default:
+      return "automatic";
+    }
+  }
+
 }

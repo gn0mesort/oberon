@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include "types.hpp"
 #include "memory.hpp"
@@ -21,6 +22,12 @@
 #define OBERON_BUFFER_MODES \
   OBERON_BUFFER_MODE(double_buffer, 2) \
   OBERON_BUFFER_MODE(triple_buffer, 3)
+
+#define OBERON_PRESENTATION_MODES \
+  OBERON_PRESENTATION_MODE(immediate, 1) \
+  OBERON_PRESENTATION_MODE(mailbox, 2) \
+  OBERON_PRESENTATION_MODE(fifo, 3) \
+  OBERON_PRESENTATION_MODE(fifo_relaxed, 4)
 
 namespace oberon {
 
@@ -44,6 +51,13 @@ namespace oberon {
     OBERON_BUFFER_MODES
   };
 #undef OBERON_BUFFER_MODE
+
+#define OBERON_PRESENTATION_MODE(name, value) name = (value),
+  enum presentation_mode {
+    automatic = 0,
+    OBERON_PRESENTATION_MODES
+  };
+#undef OBERON_PRESENTATION_MODE
 
   struct graphics_device final {
     graphics_device_type type{ };
@@ -70,6 +84,9 @@ namespace oberon {
     virtual buffer_mode last_requested_buffer_mode() const = 0;
     virtual u32 current_buffer_count() const = 0;
     virtual void request_buffer_mode(const buffer_mode mode) = 0;
+    virtual std::unordered_set<presentation_mode> available_presentation_modes() const = 0;
+    virtual presentation_mode current_presentation_mode() const = 0;
+    virtual void request_presentation_mode(const presentation_mode mode) = 0;
     virtual bool is_device_opened() const = 0;
     virtual void open_device(const graphics_device& device) = 0;
     virtual void close_device() = 0;
@@ -87,6 +104,7 @@ namespace oberon {
   std::string to_string(const graphics_device_type type);
   std::string to_string(const pipeline_stage stage);
   std::string to_string(const buffer_mode mode);
+  std::string to_string(const presentation_mode mode);
 
 }
 

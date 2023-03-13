@@ -353,6 +353,51 @@ namespace oberon::linux {
     }
   }
 
+  std::unordered_set<presentation_mode> graphics::available_presentation_modes() const {
+    OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
+    if (!is_device_opened())
+    {
+      return { };
+    }
+    const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkGetPhysicalDeviceSurfacePresentModesKHR);
+    auto sz = u32{ };
+    OBERON_LINUX_VK_SUCCEEDS(vkGetPhysicalDeviceSurfacePresentModesKHR(m_vk_selected_physical_device,
+                                                                       m_target->surface(), &sz, nullptr));
+    auto present_modes = std::vector<VkPresentModeKHR>(sz);
+    OBERON_LINUX_VK_SUCCEEDS(vkGetPhysicalDeviceSurfacePresentModesKHR(m_vk_selected_physical_device,
+                                                                       m_target->surface(), &sz,
+                                                                       present_modes.data()));
+    auto result = std::unordered_set<presentation_mode>{ };
+    for (const auto mode : present_modes)
+    {
+      result.insert(static_cast<presentation_mode>(mode + 1));
+    }
+    return result;
+  }
+
+  presentation_mode graphics::current_presentation_mode() const {
+    OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
+    if (is_device_opened())
+    {
+      return static_cast<presentation_mode>(m_present_mode + 1);
+    }
+    return presentation_mode::automatic;
+  }
+
+  void graphics::request_presentation_mode(const presentation_mode mode) {
+    OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
+    if (available_presentation_modes().contains(mode))
+    {
+      m_present_mode = VK_PRESENT_MODE_FIFO_KHR;
+    }
+    m_present_mode = static_cast<VkPresentModeKHR>(static_cast<u32>(mode) - 1);
+    if (is_device_opened())
+    {
+      dirty_renderer();
+    }
+  }
+
   void graphics::initialize_device(const VkPhysicalDevice device) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
     auto device_info = VkDeviceCreateInfo{ };
@@ -573,8 +618,7 @@ namespace oberon::linux {
     swapchain_info.preTransform = capabilities.currentTransform;
     swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     // Only FIFO is guaranteed to be available.
-    // TODO: allow the present mode to be selected.
-    swapchain_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    swapchain_info.presentMode = m_present_mode;
     swapchain_info.clipped = true;
     swapchain_info.oldSwapchain = old;
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateSwapchainKHR);
