@@ -70,6 +70,8 @@ namespace oberon::linux {
 
   constexpr const usize OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT{ 2 };
 
+  // Infinite timeout for wait functions.
+  constexpr const auto OBERON_LINUX_VK_FOREVER = std::numeric_limits<u64>::max();
 }
 
 #endif

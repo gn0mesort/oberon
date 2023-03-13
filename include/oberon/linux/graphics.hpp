@@ -41,7 +41,6 @@ namespace oberon::linux {
     ptr<system> m_parent{ };
     ptr<window> m_target{ };
 
-    std::vector<VkPhysicalDevice> m_vk_physical_devices{ };
     std::vector<graphics_device> m_graphics_devices{ };
     VkPhysicalDevice m_vk_selected_physical_device{ };
     queue_selection m_vk_selected_queue_families{ };
@@ -83,6 +82,13 @@ namespace oberon::linux {
     void reinitialize_renderer();
     std::vector<char> read_shader_binary(const std::filesystem::path& file);
     graphics_program initialize_test_image_program();
+    u32 acquire_next_image(VkSemaphore& image_available);
+    void wait_for_in_flight_fences(ptr<VkFence> fences, const usize sz);
+    void begin_rendering(VkCommandBuffer& command_buffer, VkImage& image, VkImageView& image_view);
+    void end_rendering(VkCommandBuffer& command_buffer, VkImage& image);
+    void present_image(const usize frame_index, const usize image_index);
+    void present_image(VkCommandBuffer& command_buffer, VkSemaphore& image_available, VkSemaphore& render_finished,
+                       VkFence in_flight_fence, const u32 image_index);
   public:
     graphics(system& sys, window& win);
     graphics(const graphics& other) = delete;
