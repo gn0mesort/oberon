@@ -421,7 +421,6 @@ namespace oberon::linux {
   std::filesystem::path system::find_file(const std::string& search, const std::string& name) const {
     OBERON_SYSTEM_PRECONDITIONS;
     auto search_path_buffer = strdup(search.c_str());
-    std::printf("%s\n", search_path_buffer);
     auto remaining_paths = search_path_buffer;
     auto path = cstring{ };
     auto found = false;
