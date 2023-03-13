@@ -42,3 +42,6 @@ build/
 
 # Callgrind results
 callgrind.*
+
+# Output log files
+*.log
