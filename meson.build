@@ -90,6 +90,6 @@ if host_machine.system() == 'linux'
 endif
 
 
-subdir('data/oberon/shaders')
+subdir('shaders')
 
 oberon = executable('oberon', oberon_srcs, include_directories: oberon_incs, dependencies: oberon_deps)
