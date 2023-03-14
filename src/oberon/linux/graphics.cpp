@@ -741,7 +741,7 @@ namespace oberon::linux {
     {
       close_device();
     }
-    // Device handles are not so secretly VkPhysicalDevices
+    // Device handles are not so secretly VkPhysicalDevices.
     initialize_device(reinterpret_cast<VkPhysicalDevice>(device.handle));
     // This format (B8G8R8A8_SRGB) and color space (SRGB_NONLINEAR) are the most commonly supported pair.
     // About 60% of devices support them according to gpuinfo.org.
@@ -750,6 +750,9 @@ namespace oberon::linux {
     initialize_graphics_programs();
     {
       auto drawable_area = m_target->current_drawable_rect();
+      // The render area offset should probably always be (0, 0). The offset provided by window::current_drawable_rect
+      // is relative to the screen origin and not the window origin.
+      // Getting this wrong can cause Mesa RADV to crash :(
       m_vk_render_area = { { 0, 0 }, { drawable_area.extent.width, drawable_area.extent.height } };
     }
     initialize_renderer(VK_NULL_HANDLE);
@@ -874,7 +877,8 @@ namespace oberon::linux {
     color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    // Neutral gray
+    // This is a neutral gray color. It's important that the clear color is not black because many render errors will
+    // output black pixels.
     color_attachment_info.clearValue.color = { { 0.2f, 0.2f, 0.2f, 1.0f } };
     auto rendering_info = VkRenderingInfo{ };
     rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
