@@ -1,3 +1,10 @@
+/**
+ * @file test_image.vert
+ * @brief Test Image vertex shader.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #version 450 core
 
 const vec2 TRIANGLE[3] = vec2[](vec2(0.5, 0.5), vec2(0.0, -0.5), vec2(-0.5, 0.5));
