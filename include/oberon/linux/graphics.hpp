@@ -14,6 +14,9 @@ namespace oberon::linux {
   class system;
   class window;
 
+  /**
+   * @brief An object implementing oberon::graphics using Vulkan and X11.
+   */
   class graphics : public oberon::graphics {
   private:
     struct queue_selection final {
@@ -93,32 +96,151 @@ namespace oberon::linux {
     void present_image(VkCommandBuffer& command_buffer, VkSemaphore& image_available, VkSemaphore& render_finished,
                        VkFence in_flight_fence, const u32 image_index);
   public:
+    /**
+     * @brief Create a new graphics object.
+     * @param sys The parent system.
+     * @param win The window that will be rendered to.
+     */
     graphics(system& sys, window& win);
+
+    /// @cond
     graphics(const graphics& other) = delete;
     graphics(graphics&& other) = delete;
+    /// @endcond
 
+    /**
+     * @brief Destroy a graphics object.
+     */
     virtual ~graphics() noexcept;
 
+    /// @cond
     graphics& operator=(const graphics& rhs) = delete;
     graphics& operator=(graphics&& rhs) = delete;
+    /// @endcond
 
+    /**
+     * @brief Retrieve a list of currently available graphics devices.
+     * @return A list of 0 or more graphics_device structures.
+     */
     const std::vector<graphics_device>& available_devices() const override;
+
+    /**
+     * @brief Retrieve the implementation's preferred graphics device.
+     * @details The preferred device is selected by finding the first discrete graphics_device. If no discrete
+     *          graphics_devices are available then the first graphics_device is returned.
+     * @return The preferred device.
+     */
     const graphics_device& preferred_device() const override;
+
+    /**
+     * @brief Retrieve the last requested buffering mode.
+     * @details This is only the last mode requested. It is not necessarily representative of the number of buffers
+     *          actually in use (if any).
+     * @return The last buffering mode that the client application requested. If no mode has been requested then the
+     *         default is automatic.
+     */
     buffer_mode last_requested_buffer_mode() const override;
+
+    /**
+     * @brief Retrieve the number of image buffers currently in use by the implementation.
+     * @details This may not match the number of buffers that the requested mode would imply. For example, it is
+     *          entirely possible for an application to request double buffering and for this method to return 3.
+     * @return If a device is currently open this returns the number of buffers in use. Otherwise 0.
+     */
     u32 current_buffer_count() const override;
+
+    /**
+     * @brief Request a new buffering mode.
+     * @details This attempts to update the number of swapchain images in use to match the requested mode. Ultimately,
+     *          the number of images available will always be up to the driver. The renderer is dirtied if a device
+     *          is opened when this request is made.
+     * @param mode The new mode to request.
+     */
     void request_buffer_mode(const buffer_mode mode) override;
+
+    /**
+     * @brief Retreive a set of supported presentation modes.
+     * @details The set of available modes may change depending on which device (if any) is open.
+     * @return The set of presentation modes currently supported by the implementation.
+     */
     const std::unordered_set<presentation_mode>& available_presentation_modes() const override;
+
+    /**
+     * @brief Retrieve the current presentation mode.
+     * @details When no device is open this method's result may not be meaningful.
+     * @return The current presentation mode.
+     */
     presentation_mode current_presentation_mode() const override;
+    /**
+     * @brief Request a new presentation mode.
+     * @details This changes the Vulkan presentation mode so long as the input mode is a valid Vulkan presentation
+     *          mode and is available in the current configuration. If the mode is not available or is not valid the
+     *          mode will be changed to fifo instead. The fifo mode is the only mode guaranteed to be available. After
+     *          making this request the renderer is dirtied if a device is opened.
+     * @param mode The new mode to request.
+     */
     void request_presentation_mode(const presentation_mode mode) override;
+
+    /**
+     * @brief Check whether a device is currently opened.
+     * @return True if a device is opened and ready for use. False otherwise.
+     */
     bool is_device_opened() const override;
+
+    /**
+     * @brief Open a device for rendering.
+     * @details If a device is already opened it will be closed and the new device will then be opened.
+     * @param device The specific device to open. This must be one of the devices returned by available_devices().
+     */
     void open_device(const graphics_device& device) override;
+
+    /**
+     * @brief Close a device.
+     * @details If no device is opened this is a no-op.
+     */
     void close_device() override;
+
+    /**
+     * @brief Wait for the rendering device to become idle.
+     * @details If no device is opened this is a no-op.
+     */
     void wait_for_device_to_idle() override;
+
+    /**
+     * @brief Indicate that the renderer is dirty and potentially needs reinitialization.
+     * @details If no device is opened this is a no-op.
+     */
     void dirty_renderer() override;
+
+    /**
+     * @brief Check if the renderer is currently dirty.
+     * @return True if the renderer is dirty. False otherwise.
+     */
     bool is_renderer_dirty() const override;
+
+    /**
+     * @brief Check if the renderer is in the middle of a frame.
+     * @return True if the renderer is currently processing a frame. False otherwise.
+     */
     bool is_in_frame() const override;
+
+    /**
+     * @brief Begin processing a frame.
+     * @details If no device is opened or the renderer is already processing a frame this is a no-op.
+     */
     void begin_frame() override;
+
+    /**
+     * @brief End processing a frame.
+     * @details If no device is opened or the renderer is not processing a frame this is a no-op.
+     */
     void end_frame() override;
+
+    /**
+     * @brief Draw a test image.
+     * @details This draws a simple RGB triangle. If no device is opened or the renderer is not processing a frame
+     *          this is a no-op.
+     */
     void draw_test_image() override;
   };
 
