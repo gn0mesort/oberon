@@ -123,30 +123,6 @@ namespace oberon::linux {
     xkb_state_update_mask(m_state, base_mods, latched_mods, locked_mods, base_group, latched_group, locked_group);
   }
 
-  void input::update_keyboard(const ptr<xcb_generic_event_t> ev) {
-    OBERON_INPUT_PRECONDITIONS;
-    auto xkb_ev = reinterpret_cast<ptr<xcb_xkb_generic_event_t>>(ev);
-    switch (xkb_ev->xkb_code)
-    {
-    // The keyboard was attached/detached or the key map changed.
-    case XCB_XKB_NEW_KEYBOARD_NOTIFY:
-    case XCB_XKB_MAP_NOTIFY:
-      deinitialize();
-      initialize();
-      break;
-    // A modifier state has changed.
-    case XCB_XKB_STATE_NOTIFY:
-      {
-        // This updates the state of modifiers on the keyboard.
-        // Base modifiers are the set of "pressed" modifiers.
-        auto state_notify = reinterpret_cast<ptr<xcb_xkb_state_notify_event_t>>(xkb_ev);
-        xkb_state_update_mask(m_state, state_notify->baseMods, state_notify->latchedMods, state_notify->lockedMods,
-                              state_notify->baseGroup, state_notify->latchedGroup, state_notify->lockedGroup);
-      }
-      break;
-    }
-  }
-
   void input::update_key(const xcb_keycode_t key, const bool pressed, const bool echoing) {
     OBERON_INPUT_PRECONDITIONS;
     auto& state = m_key_states[key];

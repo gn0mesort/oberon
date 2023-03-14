@@ -132,14 +132,17 @@ namespace oberon::linux {
      */
     void reinitialize_keyboard();
 
+    /**
+     * @brief Update the keyboard modifier state.
+     * @param base_mods The set of depressed modifiers.
+     * @param latched_mods The set of latched modifiers.
+     * @param locked_mods The set of locked modifiers.
+     * @param base_group The group the depressed mods belong to.
+     * @param latched_group The group the latchedmodifiers belong to.
+     * @param locked_group The group the locked modifiers belong to.
+     */
     void update_keyboard_state(const u8 base_mods, const u8 latched_mods, const u8 locked_mods, const u16 base_group,
                                const u16 latched_group, const u16 locked_group);
-    /**
-     * @brief Process a keyboard change event.
-     * @param ev The generic XCB event that should be processed. This must be an XKB event with a type of
-     *           XCB_XKB_NEW_KEYBOARD_NOTIFY, XCB_XKB_MAP_NOTIFY, or XCB_XKB_STATE_NOTIFY
-     */
-    void update_keyboard(const ptr<xcb_generic_event_t> ev);
 
     /**
      * @brief Process a key press or key release event.
