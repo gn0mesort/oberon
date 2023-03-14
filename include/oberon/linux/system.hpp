@@ -78,17 +78,91 @@ namespace oberon::linux {
     /// @endcond
 
 
+    /**
+     * @brief Add a path to the set of additional search paths.
+     * @param path The path to add.
+     */
     void add_additional_search_path(const std::filesystem::path& path) override;
+
+    /**
+     * @brief Remove a path from the set of additional search paths.
+     * @param path The path to remove.
+     */
     void remove_additional_search_path(const std::filesystem::path& path) override;
+
+    /**
+     * @brief Retrieve the set of additional search paths.
+     * @return A set of additional search paths used by the system.
+     */
     const std::unordered_set<std::filesystem::path>& additional_search_paths() const override;
+
+    /**
+     * @brief Retrieve the system home directory.
+     * @return $HOME or the user's home directory from the passwd file if $HOME is undefined.
+     */
     std::filesystem::path home_directory() const override;
+
+    /**
+     * @brief Retrieve the path of the currently executing binary.
+     * @return A path to the currently executing binary.
+     */
     std::filesystem::path executable_path() const override;
+
+    /**
+     * @brief Retrieve the path to the directory in which the currently executing binary resides.
+     * @return A path to the directory in which the currently executing binary can be found.
+     */
     std::filesystem::path executable_directory() const override;
+
+    /**
+     * @brief Retrieve the system immutable data directory.
+     * @return The value of executable_directory().parent_path() / "share" / application_name(). This directory does
+     *         not require write access.
+     */
     std::filesystem::path immutable_data_directory() const override;
+
+    /**
+     * @brief Retrieve the system mutable data directory.
+     * @return The value of $XDG_DATA_HOME or "$HOME/.local/share" / application_name() if $XDG_DATA_HOME is
+     *         undefined.
+     */
     std::filesystem::path mutable_data_directory() const override;
+
+    /**
+     * @brief Retrieve the system cache directory.
+     * @return The value of $XDG_CACHE_HOME or "$HOME/.cache" / application_name() if $XDG_CACHE_HOME is undefined.
+     */
     std::filesystem::path cache_directory() const override;
+
+    /**
+     * @brief Retrieve the system configuration directory.
+     * @return The value of $XDG_CONFIG_HOME or "$HOME/.config" / application_name() if $XDG_CONFIG_HOME is undefined.
+     */
     std::filesystem::path configuration_directory() const override;
+
+    /**
+     * @brief Find a file by searching a set of paths.
+     * @details This searches for the file named by name in any of the paths found in search. Implementations must
+     *          make it clear what character will be used to separate strings in search. POSIX systems commonly use
+     *          ':' and Windows commonly uses ';'. In any case, once separated searching proceeds from the first path
+     *          until the file is found or the set of paths is exhausted.
+     * @param search A set of ':' separated search paths.
+     * @param name The name of the file to find. This can contain additional path elements.
+     */
     std::filesystem::path find_file(const std::string& search, const std::string& name) const override;
+
+    /**
+     * @brief Find a file by searching using a preset configuration.
+     * @details This behaves like find_file(const std::string&, const std::string&) const but instead of using an
+     *          arbitrary set of search paths it uses specific implementation defined paths. The search order is
+     *          always as follows:
+     *            1. All paths in additional_search_paths().
+     *            2. A set of implementation defined paths.
+     *            3. executable_directory().
+     *
+     * @param location The location to search or default_file_location::none to use only the additional paths.
+     * @param name The name of the file to find. This can contain additional path elements.
+     */
     std::filesystem::path find_file(const default_file_location location, const std::string& name) const override;
 
     /**
@@ -134,10 +208,15 @@ namespace oberon::linux {
     ptr<xkb_context> keyboard_context();
 
     /**
-     * @brief Retrieve the XKB keyboard ID.
-     * @return The core keyboard ID provided by the system.
+     * @brief Retrieve the master keyboard ID.
+     * @return The master keyboard ID provided by the system.
      */
     xcb_input_device_id_t keyboard();
+
+    /**
+     * @brief Retrieve the master pointer ID.
+     * @return The master pointer ID provided by the system.
+     */
     xcb_input_device_id_t pointer();
 
     /**
@@ -152,7 +231,16 @@ namespace oberon::linux {
      */
     u8 xi_major_opcode() const;
 
+    /**
+     * @brief Retrieve the system Vulkan instance.
+     * @return The system Vulkan instance handle.
+     */
     VkInstance instance();
+
+    /**
+     * @brief Retrieve the system Vulkan function table.
+     * @return a mutable reference to the Vulkan function table.
+     */
     vkfl::loader& vk_dl();
   };
 
