@@ -284,7 +284,13 @@ namespace size_hint_flag_bits {
     bool echo{ };
   };
 
+  /**
+   * @brief A structure representing the state of a mouse button.
+   */
   struct button_state final {
+    /**
+     * @brief Whether or not the button is pressed.
+     */
     bool pressed{ };
   };
 
