@@ -223,6 +223,8 @@ namespace oberon::linux {
   std::vector<char> graphics::read_shader_binary(const std::filesystem::path& file) {
     auto f_in = std::ifstream{ file, std::ios::binary | std::ios::ate };
     auto sz = f_in.tellg();
+    // SPIR-V shaders use 32-bit wide instructions?
+    // At the very least VkShaderModuleCreateInfo::pCode has 32-bit wide values.
     OBERON_CHECK(!(sz & 3));
     f_in.seekg(std::ios::beg);
     auto buffer = std::vector<char>(sz);
@@ -243,6 +245,7 @@ namespace oberon::linux {
       auto vertex_binary = read_shader_binary(m_parent->find_file(default_file_location::immutable_data,
                                                                   "shaders/test_image.vert.spv"));
       module_info.pCode = reinterpret_cast<readonly_ptr<u32>>(vertex_binary.data());
+      // Despite pCode using u32s codeSize is in bytes.
       module_info.codeSize = vertex_binary.size();
       pipeline_stage.stage = VK_SHADER_STAGE_VERTEX_BIT;
       OBERON_LINUX_VK_SUCCEEDS(vkCreateShaderModule(m_vk_device, &module_info, nullptr, &pipeline_stage.module));
@@ -353,7 +356,6 @@ namespace oberon::linux {
   void graphics::request_buffer_mode(const buffer_mode mode) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
     m_buffer_mode = mode;
-    // Inform the renderer that it should be reinitialized.
     dirty_renderer();
   }
 
@@ -374,6 +376,8 @@ namespace oberon::linux {
   void graphics::request_presentation_mode(const presentation_mode mode) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
     const auto& available = available_presentation_modes();
+    // If available does not contain mode then m_present_mode = VK_PRESENT_MODE_FIFO_KHR.
+    // Else m_present_mode = mode - 1.
     m_present_mode = static_cast<VkPresentModeKHR>((VK_PRESENT_MODE_FIFO_KHR & -!available.contains(mode)) +
                                                    (static_cast<VkPresentModeKHR>(static_cast<u32>(mode) - 1) &
                                                     -available.contains(mode)));
@@ -432,6 +436,7 @@ namespace oberon::linux {
     }
     device_info.pQueueCreateInfos = queue_infos.data();
     device_info.queueCreateInfoCount = queue_infos.size();
+    // Get available device extensions
     auto available_extensions = std::unordered_set<std::string>{ };
     {
       OBERON_LINUX_VK_DECLARE_PFN(dl, vkEnumerateDeviceExtensionProperties);
@@ -480,6 +485,7 @@ namespace oberon::linux {
     vkGetDeviceQueue(m_vk_device, m_vk_selected_queue_families.graphics_queue, 0, &m_vk_graphics_queue);
     vkGetDeviceQueue(m_vk_device, m_vk_selected_queue_families.presentation_queue, 0, &m_vk_present_queue);
     m_vk_selected_physical_device = device;
+    // Get available presentation modes
     {
       OBERON_LINUX_VK_DECLARE_PFN(dl, vkGetPhysicalDeviceSurfacePresentModesKHR);
       auto sz = u32{ };
@@ -494,6 +500,7 @@ namespace oberon::linux {
         m_available_present_modes.insert(static_cast<presentation_mode>(mode + 1));
       }
     }
+    // Create command pool and command buffers.
     {
       auto command_pool_info = VkCommandPoolCreateInfo{ };
       command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -510,6 +517,7 @@ namespace oberon::linux {
       OBERON_LINUX_VK_SUCCEEDS(vkAllocateCommandBuffers(m_vk_device, &command_buffer_info,
                                                         m_vk_command_buffers.data()));
     }
+    // Create synchronization objects.
     {
       auto semaphore_info = VkSemaphoreCreateInfo{ };
       semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -875,6 +883,7 @@ namespace oberon::linux {
     image_memory_barrier.subresourceRange.levelCount = std::numeric_limits<u32>::max();
     image_memory_barrier.subresourceRange.baseArrayLayer = 0;
     image_memory_barrier.subresourceRange.layerCount = std::numeric_limits<u32>::max();
+    // Transition image to VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1,
                          &image_memory_barrier);
@@ -896,6 +905,7 @@ namespace oberon::linux {
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdBeginRendering);
     vkCmdBeginRendering(command_buffer, &rendering_info);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdSetViewport);
+    // Set dynamic viewport and scissor.
     auto viewport = VkViewport{ };
     viewport.x = m_vk_render_area.offset.x;
     viewport.y = m_vk_render_area.offset.y;
@@ -944,6 +954,7 @@ namespace oberon::linux {
     image_memory_barrier.subresourceRange.levelCount = std::numeric_limits<u32>::max();
     image_memory_barrier.subresourceRange.baseArrayLayer = 0;
     image_memory_barrier.subresourceRange.layerCount = std::numeric_limits<u32>::max();
+    // Transition image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
     vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                          VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkEndCommandBuffer);
@@ -997,6 +1008,7 @@ namespace oberon::linux {
     present_image(m_vk_command_buffers[m_frame_index], m_vk_image_available_sems[m_frame_index],
                   m_vk_render_finished_sems[m_frame_index], m_vk_in_flight_frame_fences[m_frame_index],
                   m_image_index);
+    // Equivalent to m_frame_index = (m_frame_index + 1) % OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT.
     m_frame_index = (m_frame_index + 1) & (OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT - 1);
     m_is_in_frame = false;
   }
