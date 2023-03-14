@@ -346,11 +346,8 @@ namespace oberon::linux {
   void graphics::request_buffer_mode(const buffer_mode mode) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
     m_buffer_mode = mode;
-    if (is_device_opened())
-    {
-      // Inform the renderer that it should be reinitialized.
-      dirty_renderer();
-    }
+    // Inform the renderer that it should be reinitialized.
+    dirty_renderer();
   }
 
   const std::unordered_set<presentation_mode>& graphics::available_presentation_modes() const {
@@ -373,10 +370,7 @@ namespace oberon::linux {
     m_present_mode = static_cast<VkPresentModeKHR>((VK_PRESENT_MODE_FIFO_KHR & -!available.contains(mode)) +
                                                    (static_cast<VkPresentModeKHR>(static_cast<u32>(mode) - 1) &
                                                     -available.contains(mode)));
-    if (is_device_opened())
-    {
-      dirty_renderer();
-    }
+    dirty_renderer();
   }
 
   void graphics::initialize_device(const VkPhysicalDevice device) {

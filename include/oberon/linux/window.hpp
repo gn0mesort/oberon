@@ -61,14 +61,13 @@ namespace oberon::linux {
      * @brief Retrieve an integer ID uniquely identifying the window.
      * @return A non-zero ID representing the calling window.
      */
-    id unique_id() const override;
+    u64 unique_id() const override;
 
     /**
      * @brief Change the window display style.
      * @param style The new display style to switch to.
-     * @return A reference back to the calling window.
      */
-    window& change_display_style(const display_style style) override;
+    void change_display_style(const display_style style) override;
 
     /**
      * @brief Retrieve the current display style.
@@ -78,15 +77,13 @@ namespace oberon::linux {
 
     /**
      * @brief Show (i.e., display) the window.
-     * @return A reference back to the calling window.
      */
-    window& show() override;
+    void show() override;
 
     /**
      * @brief Hide (i.e., do not display) the window.
-     * @return A reference back to the calling window.
      */
-    window& hide() override;
+    void hide() override;
 
     /**
      * @brief Check whether or not the window is visible.
@@ -97,16 +94,14 @@ namespace oberon::linux {
     /**
      * @brief Resize the drawable area of the window.
      * @param size The new size of the drawable area.
-     * @return A reference back to the calling window.
      */
-    window& resize(const window_extent& size) override;
+    void resize(const window_extent& size) override;
 
     /**
      * @brief Move the window to a specific position.
      * @param position The new position for the window.
-     * @return A reference back to the calling window.
      */
-    window& move_to(const window_offset& position) override;
+    void move_to(const window_offset& position) override;
 
     /**
      * @brief Retrieve the rectangle representing the drawable area of the window.
@@ -123,9 +118,8 @@ namespace oberon::linux {
     /**
      * @brief Change the window title.
      * @param title The new window title.
-     * @return A reference back to the calling window.
      */
-    window& change_title(const std::string& title) override;
+    void change_title(const std::string& title) override;
 
     /**
      * @brief Retrieve the current window title.
@@ -141,15 +135,13 @@ namespace oberon::linux {
 
     /**
      * @brief Signal to the window that the application should quit.
-     * @return A reference back to the calling window.
      */
-    window& request_quit() override;
+    void request_quit() override;
 
     /**
      * @brief Clear a pending window quit signal.
-     * @return A reference back to the calling window.
      */
-    window& clear_quit_request() override;
+    void clear_quit_request() override;
 
     VkSurfaceKHR surface();
 

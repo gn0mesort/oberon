@@ -155,16 +155,16 @@ namespace oberon::linux {
                         32, 1, &mode);
   }
 
-  oberon::window::id window::unique_id() const {
+  u64 window::unique_id() const {
     OBERON_WINDOW_PRECONDITIONS;
     return m_window_id;
   }
 
-  window& window::change_display_style(const display_style style) {
+  void window::change_display_style(const display_style style) {
     OBERON_WINDOW_PRECONDITIONS;
     if (style == current_display_style())
     {
-      return *this;
+      return;
     }
     switch (style)
     {
@@ -196,7 +196,6 @@ namespace oberon::linux {
       break;
     }
     xcb_flush(m_parent->connection());
-    return *this;
   }
 
   oberon::window::display_style window::current_display_style() const {
@@ -248,18 +247,16 @@ namespace oberon::linux {
     return result;
   }
 
-  window& window::show() {
+  void window::show() {
     OBERON_WINDOW_PRECONDITIONS;
     xcb_map_window(m_parent->connection(), m_window_id);
     xcb_flush(m_parent->connection());
-    return *this;
   }
 
-  window& window::hide() {
+  void window::hide() {
     OBERON_WINDOW_PRECONDITIONS;
     xcb_unmap_window(m_parent->connection(), m_window_id);
     xcb_flush(m_parent->connection());
-    return *this;
   }
 
   bool window::is_visible() const {
@@ -305,7 +302,7 @@ namespace oberon::linux {
                         sizeof(size_hints) >> 2, &sz);
   }
 
-  window& window::resize(const window_extent& size) {
+  void window::resize(const window_extent& size) {
     OBERON_WINDOW_PRECONDITIONS;
     wm_unlock_resize();
     auto mask = XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT;
@@ -313,16 +310,14 @@ namespace oberon::linux {
     xcb_configure_window(m_parent->connection(), m_window_id, mask, values.data());
     wm_lock_resize(size);
     xcb_flush(m_parent->connection());
-    return *this;
   }
 
-  window& window::move_to(const window_offset& position) {
+  void window::move_to(const window_offset& position) {
     OBERON_WINDOW_PRECONDITIONS;
     auto mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
     auto values = std::array<i32, 2>{ position.x, position.y };
     xcb_configure_window(m_parent->connection(), m_window_id, mask, values.data());
     xcb_flush(m_parent->connection());
-    return *this;
   }
 
   window_rect window::current_drawable_rect() const {
@@ -379,11 +374,10 @@ namespace oberon::linux {
                         m_parent->atom_from_name(OBERON_LINUX_X_ATOM_UTF8_STRING), 8, title.size(), title.c_str());
   }
 
-  window& window::change_title(const std::string& title) {
+  void window::change_title(const std::string& title) {
     OBERON_WINDOW_PRECONDITIONS;
     wm_set_title(title);
     xcb_flush(m_parent->connection());
-    return *this;
   }
 
   std::string window::current_title() const {
@@ -408,17 +402,15 @@ namespace oberon::linux {
     return m_quit_requested;
   }
 
-  window& window::request_quit() {
+  void window::request_quit() {
     OBERON_WINDOW_PRECONDITIONS;
     hide();
     m_quit_requested = true;
-    return *this;
   }
 
-  window& window::clear_quit_request() {
+  void window::clear_quit_request() {
     OBERON_WINDOW_PRECONDITIONS;
     m_quit_requested = false;
-    return *this;
   }
 
   VkSurfaceKHR window::surface() {
