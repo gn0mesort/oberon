@@ -107,7 +107,7 @@ namespace oberon::linux {
     buffer_mode last_requested_buffer_mode() const override;
     u32 current_buffer_count() const override;
     void request_buffer_mode(const buffer_mode mode) override;
-    std::unordered_set<presentation_mode> available_presentation_modes() const override;
+    const std::unordered_set<presentation_mode>& available_presentation_modes() const override;
     presentation_mode current_presentation_mode() const override;
     void request_presentation_mode(const presentation_mode mode) override;
     bool is_device_opened() const override;

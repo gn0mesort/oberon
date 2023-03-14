@@ -353,7 +353,7 @@ namespace oberon::linux {
     }
   }
 
-  std::unordered_set<presentation_mode> graphics::available_presentation_modes() const {
+  const std::unordered_set<presentation_mode>& graphics::available_presentation_modes() const {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
     return m_available_present_modes;
   }
@@ -369,7 +369,7 @@ namespace oberon::linux {
 
   void graphics::request_presentation_mode(const presentation_mode mode) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
-    auto available = available_presentation_modes();
+    const auto& available = available_presentation_modes();
     m_present_mode = static_cast<VkPresentModeKHR>((VK_PRESENT_MODE_FIFO_KHR & -!available.contains(mode)) +
                                                    (static_cast<VkPresentModeKHR>(static_cast<u32>(mode) - 1) &
                                                     -available.contains(mode)));
