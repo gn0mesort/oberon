@@ -79,9 +79,25 @@ namespace oberon {
      * @brief A std::function wrapper for mouse button release events.
      */
     using mouse_button_release_event_fn = std::function<mouse_button_release_event_callback>;
+
+    /**
+     * @brief A function to be called when window move events occur.
+     */
     using window_move_event_callback = void(platform& plt, const window_offset& offset);
+
+    /**
+     * @brief A std::function wrapper for window move events.
+     */
     using window_move_event_fn = std::function<window_move_event_callback>;
+
+    /**
+     * @brief A function to be called when window resize events occur.
+     */
     using window_resize_event_callback = void(platform& plt, const window_extent& extent);
+
+    /**
+     * @brief A std::function wrapper for window resize events.
+     */
     using window_resize_event_fn = std::function<window_resize_event_callback>;
 
     /**
@@ -206,9 +222,30 @@ namespace oberon {
      */
     virtual void detach_mouse_button_release_event_callback() = 0;
 
+    /**
+     * @brief Attach a new window move event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
     virtual void attach_window_move_event_callback(const window_move_event_fn& fn) = 0;
+
+    /**
+     * @brief Detach the currently attached window move event callback.
+     */
     virtual void detach_window_move_event_callback() = 0;
+
+    /**
+     * @brief Attach a new window resize event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
     virtual void attach_window_resize_event_callback(const window_resize_event_fn& fn) = 0;
+
+    /**
+     * @brief Detach the currently attached window resize event callback.
+     */
     virtual void detach_window_resize_event_callback() = 0;
 
     /**
