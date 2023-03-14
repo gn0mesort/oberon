@@ -1,13 +1,27 @@
+/**
+ * @file vk.hpp
+ * @brief Vulkan support header.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #ifndef OBERON_LINUX_VK_HPP
 #define OBERON_LINUX_VK_HPP
 
 #include <X11/Xlib-xcb.h>
 
+/// @cond
 #define VK_NO_PROTOTYPES 1
+/// @endcond
+
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_xlib.h>
 #include <vulkan/vulkan_xcb.h>
+
+/// @cond
 #undef VK_NO_PROTOTYPES
+/// @endcond
+
 
 #include <vkfl.hpp>
 
@@ -56,21 +70,45 @@ extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInst
 
 namespace oberon::linux {
 
+  /**
+   * @brief An object representing Vulkan errors.
+   */
   OBERON_DYNAMIC_EXCEPTION_TYPE(vk_error);
 
+  /**
+   * @brief Vulkan debug logging function for VK_EXT_debug_utils.
+   * @param severity The severity of the message.
+   * @param messageTypes The types that the message belongs to.
+   * @param pCallbackData The message data.
+   * @param pUserData A user data item as provided to vkCreateDebugUtilsMessengerEXT.
+   */
   VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_log(VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
                                               const VkDebugUtilsMessengerCallbackDataEXT*, void*);
 
+  /**
+   * @brief AMD PCI vendor ID.
+   */
   constexpr const u32 OBERON_LINUX_VK_PCI_VENDOR_ID_AMD{ 0x1002 };
+
+  /**
+   * @brief Nvidia PCI vendor ID.
+   */
   constexpr const u32 OBERON_LINUX_VK_PCI_VENDOR_ID_NVIDIA{ 0x10de };
+
+  /**
+   * @brief Intel PCI vendor ID.
+   */
   constexpr const u32 OBERON_LINUX_VK_PCI_VENDOR_ID_INTEL{ 0x8086 };
 
-  constexpr const u32 OBERON_LINUX_VK_TRIPLE_BUFFER_IMAGE_COUNT{ 3 };
-  constexpr const u32 OBERON_LINUX_VK_DOUBLE_BUFFER_IMAGE_COUNT{ 2 };
-
+  /**
+   * @brief The maximum number of frames to render before waiting for a render step to complete.
+   * @details This should be a power of 2.
+   */
   constexpr const usize OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT{ 2 };
 
-  // Infinite timeout for wait functions.
+  /**
+   * @brief The value that Vulkan uses to represent an infinite wait timeout.
+   */
   constexpr const auto OBERON_LINUX_VK_FOREVER = std::numeric_limits<u64>::max();
 }
 
