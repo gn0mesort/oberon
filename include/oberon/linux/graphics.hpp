@@ -1,3 +1,10 @@
+/**
+ * @file graphics.hpp
+ * @brief Linux, X11, and Vulkan graphics class implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #ifndef OBERON_LINUX_GRAPHICS_HPP
 #define OBERON_LINUX_GRAPHICS_HPP
 
