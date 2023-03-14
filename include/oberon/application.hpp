@@ -10,7 +10,6 @@
 
 #include <functional>
 #include <filesystem>
-#include <sstream>
 
 #include "memory.hpp"
 
