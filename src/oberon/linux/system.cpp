@@ -39,8 +39,8 @@
 namespace oberon::linux {
 
   system::system(const std::string& instance_name, const std::string& application_name,
-                 const std::string& search_paths, const std::vector<std::string>& desired_layers) :
-  m_instance_name{ instance_name }, m_application_name{ application_name }, m_search_paths{ search_paths } {
+                 const std::vector<std::string>& desired_layers) :
+  m_instance_name{ instance_name }, m_application_name{ application_name } {
     // Initialize X11
     {
       XInitThreads();
@@ -341,6 +341,22 @@ namespace oberon::linux {
   }
 
 
+  void system::add_additional_search_path(const std::filesystem::path& path) {
+    OBERON_SYSTEM_PRECONDITIONS;
+    m_search_paths.insert(std::filesystem::weakly_canonical(path));
+  }
+
+  void system::remove_additional_search_path(const std::filesystem::path& path) {
+    OBERON_SYSTEM_PRECONDITIONS;
+    m_search_paths.erase(std::filesystem::weakly_canonical(path));
+  }
+
+  const std::unordered_set<std::filesystem::path>& system::additional_search_paths() const {
+    OBERON_SYSTEM_PRECONDITIONS;
+    return m_search_paths;
+  }
+
+
   std::filesystem::path system::home_directory() const {
     OBERON_SYSTEM_PRECONDITIONS;
     auto homedir = std::getenv("HOME");
@@ -437,10 +453,9 @@ namespace oberon::linux {
   std::filesystem::path system::find_file(const default_file_location location, const std::string& name) const {
     OBERON_SYSTEM_PRECONDITIONS;
     auto search = std::ostringstream{ };
-    search << m_search_paths;
-    if (!search.str().empty())
+    for (const auto& path : m_search_paths)
     {
-      search << ":";
+      search << path.c_str() << ":";
     }
     switch (location)
     {

@@ -8,11 +8,12 @@
 #ifndef OBERON_SYSTEM_HPP
 #define OBERON_SYSTEM_HPP
 
-#include "types.hpp"
-#include "keys.hpp"
-
 #include <filesystem>
 #include <string>
+#include <unordered_set>
+
+#include "types.hpp"
+#include "keys.hpp"
 
 namespace oberon {
 
@@ -24,7 +25,6 @@ namespace oberon {
     cache,
     configuration
   };
-
 
   /**
    * @brief A class representing basic system functionality.
@@ -68,6 +68,9 @@ namespace oberon {
      */
     system& operator=(system&& rhs) = default;
 
+    virtual void add_additional_search_path(const std::filesystem::path& path) = 0;
+    virtual void remove_additional_search_path(const std::filesystem::path& path) = 0;
+    virtual const std::unordered_set<std::filesystem::path>& additional_search_paths() const = 0;
     virtual std::filesystem::path home_directory() const = 0;
     virtual std::filesystem::path executable_path() const = 0;
     virtual std::filesystem::path executable_directory() const = 0;

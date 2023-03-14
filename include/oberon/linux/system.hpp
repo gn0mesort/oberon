@@ -31,7 +31,7 @@ namespace oberon::linux {
   private:
     std::string m_instance_name{ };
     std::string m_application_name{ };
-    std::string m_search_paths{ };
+    std::unordered_set<std::filesystem::path> m_search_paths{ };
 
     ptr<Display> m_x_display{ };
     ptr<xcb_connection_t> m_x_connection{ };
@@ -57,11 +57,9 @@ namespace oberon::linux {
      *                      precedence must be the value provided with "-name", the value of "RESOURCE_NAME",
      *                      and finally argv[0].
      * @param application_name The canonical name of the application.
-     * @param search_paths A ':' separated list of search paths to add in addition any base paths when searching
-     *                     for files.
      * @param desired_layers A list of 0 or more desired Vulkan instance layers.
      */
-    system(const std::string& instance_name, const std::string& application_name, const std::string& search_paths,
+    system(const std::string& instance_name, const std::string& application_name,
            const std::vector<std::string>& desired_layers);
 
     /// @cond
@@ -80,6 +78,9 @@ namespace oberon::linux {
     /// @endcond
 
 
+    void add_additional_search_path(const std::filesystem::path& path) override;
+    void remove_additional_search_path(const std::filesystem::path& path) override;
+    const std::unordered_set<std::filesystem::path>& additional_search_paths() const override;
     std::filesystem::path home_directory() const override;
     std::filesystem::path executable_path() const override;
     std::filesystem::path executable_directory() const override;

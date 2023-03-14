@@ -48,8 +48,10 @@ void on_key_press(oberon::platform& plt, const oberon::u32, const oberon::key, c
 }
 
 int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::platform& plt) {
+  auto& sys = plt.system();
   auto& win = plt.window();
   auto& gfx = plt.graphics();
+  sys.add_additional_search_path(MESON_BUILD_DIRECTORY);
   plt.attach_key_press_event_callback(on_key_press);
   win.resize({ 1280, 720 });
   win.show();
@@ -67,6 +69,5 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::platform& p
 
 int main(int argc, char** argv) {
   auto app = oberon::application{ };
-  app.add_search_path(MESON_BUILD_DIRECTORY);
   return app.run(app_run, argc, argv);
 }
