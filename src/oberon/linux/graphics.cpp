@@ -387,7 +387,7 @@ namespace oberon::linux {
 
   void graphics::request_presentation_mode(const presentation_mode mode) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
-    if (available_presentation_modes().contains(mode))
+    if (!available_presentation_modes().contains(mode))
     {
       m_present_mode = VK_PRESENT_MODE_FIFO_KHR;
     }
