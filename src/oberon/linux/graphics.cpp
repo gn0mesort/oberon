@@ -1,3 +1,10 @@
+/**
+ * @file graphics.cpp
+ * @brief Linux, Vulkan, X11 graphics implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/linux/graphics.hpp"
 
 #include <unordered_set>

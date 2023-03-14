@@ -1,3 +1,10 @@
+/**
+ * @file graphics.cpp
+ * @brief graphics.hpp generic utilities implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/graphics.hpp"
 
 namespace oberon {
