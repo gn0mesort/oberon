@@ -759,11 +759,12 @@ namespace oberon::linux {
   }
 
   void graphics::close_device() {
-    OBERON_LINUX_GRAPHICS_OPENED_DEVICE_PRECONDITIONS;
+    OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
     if (!is_device_opened())
     {
       return;
     }
+    OBERON_LINUX_GRAPHICS_OPENED_DEVICE_PRECONDITIONS;
     wait_for_device_to_idle();
     deinitialize_swapchain_image_views();
     deinitialize_renderer(m_vk_swapchain);
@@ -775,6 +776,10 @@ namespace oberon::linux {
   }
 
   void graphics::wait_for_device_to_idle() {
+    if (!is_device_opened())
+    {
+      return;
+    }
     OBERON_LINUX_GRAPHICS_OPENED_DEVICE_PRECONDITIONS;
     OBERON_LINUX_VK_DECLARE_PFN(m_parent->vk_dl(), vkDeviceWaitIdle);
     vkDeviceWaitIdle(m_vk_device);
@@ -797,6 +802,10 @@ namespace oberon::linux {
   }
 
   void graphics::dirty_renderer() {
+    if (!is_device_opened())
+    {
+      return;
+    }
     OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
     m_is_renderer_dirty = true;
   }
@@ -899,14 +908,14 @@ namespace oberon::linux {
   }
 
   void graphics::begin_frame() {
+    if (!is_device_opened() || m_is_in_frame)
+    {
+      return;
+    }
     OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
     if (m_is_renderer_dirty)
     {
       reinitialize_renderer();
-    }
-    if (m_is_in_frame)
-    {
-      return;
     }
     m_image_index = acquire_next_image(m_vk_image_available_sems[m_frame_index]);
     wait_for_in_flight_fences(&m_vk_in_flight_frame_fences[m_frame_index], 1);
@@ -978,11 +987,11 @@ namespace oberon::linux {
   }
 
   void graphics::end_frame() {
-    OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
-    if (!m_is_in_frame)
+    if (!is_device_opened() || !m_is_in_frame)
     {
       return;
     }
+    OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
     end_rendering(m_vk_command_buffers[m_frame_index], m_vk_swapchain_images[m_image_index]);
     present_image(m_vk_command_buffers[m_frame_index], m_vk_image_available_sems[m_frame_index],
                   m_vk_render_finished_sems[m_frame_index], m_vk_in_flight_frame_fences[m_frame_index],
@@ -993,11 +1002,11 @@ namespace oberon::linux {
 
 
   void graphics::draw_test_image() {
-    OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
-    if (!m_is_in_frame)
+    if (!is_device_opened() || !m_is_in_frame)
     {
       return;
     }
+    OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
     const auto& dl = m_parent->vk_dl();
     const auto& command_buffer = m_vk_command_buffers[m_frame_index];
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdBindPipeline);
