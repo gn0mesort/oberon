@@ -64,12 +64,6 @@ namespace oberon {
   class window {
   public:
     /**
-     * @brief an unsigned 64-bit identification number.
-     * @details Each window object must have a unique positive id value.
-     */
-    using id = u64;
-
-    /**
      * @brief An enumeration of possible window display styles.
      */
     enum class display_style {
@@ -134,14 +128,13 @@ namespace oberon {
      * @brief Retrieve an integer ID uniquely identifying the window.
      * @return A non-zero ID representing the calling window.
      */
-    virtual id unique_id() const = 0;
+    virtual u64 unique_id() const = 0;
 
     /**
      * @brief Change the window display style.
      * @param style The new display style to switch to.
-     * @return A reference back to the calling window.
      */
-    virtual window& change_display_style(const display_style style) = 0;
+    virtual void change_display_style(const display_style style) = 0;
 
     /**
      * @brief Retrieve the current display style.
@@ -151,15 +144,13 @@ namespace oberon {
 
     /**
      * @brief Show (i.e., display) the window.
-     * @return A reference back to the calling window.
      */
-    virtual window& show() = 0;
+    virtual void show() = 0;
 
     /**
      * @brief Hide (i.e., do not display) the window.
-     * @return A reference back to the calling window.
      */
-    virtual window& hide() = 0;
+    virtual void hide() = 0;
 
     /**
      * @brief Check whether or not the window is visible.
@@ -170,16 +161,14 @@ namespace oberon {
     /**
      * @brief Resize the drawable area of the window.
      * @param size The new size of the drawable area.
-     * @return A reference back to the calling window.
      */
-    virtual window& resize(const window_extent& size) = 0;
+    virtual void resize(const window_extent& size) = 0;
 
     /**
      * @brief Move the window to a specific position.
      * @param position The new position for the window.
-     * @return A reference back to the calling window.
      */
-    virtual window& move_to(const window_offset& position) = 0;
+    virtual void move_to(const window_offset& position) = 0;
 
     /**
      * @brief Retrieve the rectangle representing the drawable area of the window.
@@ -196,9 +185,8 @@ namespace oberon {
     /**
      * @brief Change the window title.
      * @param title The new window title.
-     * @return A reference back to the calling window.
      */
-    virtual window& change_title(const std::string& title) = 0;
+    virtual void change_title(const std::string& title) = 0;
 
     /**
      * @brief Retrieve the current window title.
@@ -214,18 +202,18 @@ namespace oberon {
 
     /**
      * @brief Signal to the window that the application should quit.
-     * @return A reference back to the calling window.
      */
-    virtual window& request_quit() = 0;
+    virtual void request_quit() = 0;
 
     /**
      * @brief Clear a pending window quit signal.
-     * @return A reference back to the calling window.
      */
-    virtual window& clear_quit_request() = 0;
+    virtual void clear_quit_request() = 0;
   };
 
+  /// @cond
   window::~window() noexcept { }
+  /// @endcond
 
 }
 
