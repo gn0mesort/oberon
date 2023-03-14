@@ -68,6 +68,7 @@ namespace oberon::linux {
     bool m_is_renderer_dirty{ };
     buffer_mode m_buffer_mode{ };
     VkPresentModeKHR m_present_mode{ VK_PRESENT_MODE_FIFO_KHR };
+    std::unordered_set<presentation_mode> m_available_present_modes{ };
 
     // Requires device selection.
     VkSurfaceFormatKHR select_surface_format(const VkFormat preferred_format,

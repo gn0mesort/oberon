@@ -355,25 +355,7 @@ namespace oberon::linux {
 
   std::unordered_set<presentation_mode> graphics::available_presentation_modes() const {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
-    if (!is_device_opened())
-    {
-      return { };
-    }
-    const auto& dl = m_parent->vk_dl();
-    OBERON_LINUX_VK_DECLARE_PFN(dl, vkGetPhysicalDeviceSurfacePresentModesKHR);
-    auto sz = u32{ };
-    OBERON_LINUX_VK_SUCCEEDS(vkGetPhysicalDeviceSurfacePresentModesKHR(m_vk_selected_physical_device,
-                                                                       m_target->surface(), &sz, nullptr));
-    auto present_modes = std::vector<VkPresentModeKHR>(sz);
-    OBERON_LINUX_VK_SUCCEEDS(vkGetPhysicalDeviceSurfacePresentModesKHR(m_vk_selected_physical_device,
-                                                                       m_target->surface(), &sz,
-                                                                       present_modes.data()));
-    auto result = std::unordered_set<presentation_mode>{ };
-    for (const auto mode : present_modes)
-    {
-      result.insert(static_cast<presentation_mode>(mode + 1));
-    }
-    return result;
+    return m_available_present_modes;
   }
 
   presentation_mode graphics::current_presentation_mode() const {
@@ -387,11 +369,10 @@ namespace oberon::linux {
 
   void graphics::request_presentation_mode(const presentation_mode mode) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
-    if (!available_presentation_modes().contains(mode))
-    {
-      m_present_mode = VK_PRESENT_MODE_FIFO_KHR;
-    }
-    m_present_mode = static_cast<VkPresentModeKHR>(static_cast<u32>(mode) - 1);
+    auto available = available_presentation_modes();
+    m_present_mode = static_cast<VkPresentModeKHR>((VK_PRESENT_MODE_FIFO_KHR & -!available.contains(mode)) +
+                                                   (static_cast<VkPresentModeKHR>(static_cast<u32>(mode) - 1) &
+                                                    -available.contains(mode)));
     if (is_device_opened())
     {
       dirty_renderer();
@@ -400,9 +381,9 @@ namespace oberon::linux {
 
   void graphics::initialize_device(const VkPhysicalDevice device) {
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS;
+    auto& dl = m_parent->vk_dl();
     auto device_info = VkDeviceCreateInfo{ };
     device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    auto& dl = m_parent->vk_dl();
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkGetPhysicalDeviceFeatures2);
     auto physical_device_features = VkPhysicalDeviceFeatures2{ };
     physical_device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -499,6 +480,20 @@ namespace oberon::linux {
     vkGetDeviceQueue(m_vk_device, m_vk_selected_queue_families.presentation_queue, 0, &m_vk_present_queue);
     m_vk_selected_physical_device = device;
     {
+      OBERON_LINUX_VK_DECLARE_PFN(dl, vkGetPhysicalDeviceSurfacePresentModesKHR);
+      auto sz = u32{ };
+      OBERON_LINUX_VK_SUCCEEDS(vkGetPhysicalDeviceSurfacePresentModesKHR(m_vk_selected_physical_device,
+                                                                         m_target->surface(), &sz, nullptr));
+      auto present_modes = std::vector<VkPresentModeKHR>(sz);
+      OBERON_LINUX_VK_SUCCEEDS(vkGetPhysicalDeviceSurfacePresentModesKHR(m_vk_selected_physical_device,
+                                                                         m_target->surface(), &sz,
+                                                                         present_modes.data()));
+      for (const auto mode : present_modes)
+      {
+        m_available_present_modes.insert(static_cast<presentation_mode>(mode + 1));
+      }
+    }
+    {
       auto command_pool_info = VkCommandPoolCreateInfo{ };
       command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
       command_pool_info.queueFamilyIndex = m_vk_selected_queue_families.graphics_queue;
@@ -552,6 +547,7 @@ namespace oberon::linux {
     vkDestroyCommandPool(m_vk_device, m_vk_command_pool, nullptr);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyDevice);
     vkDestroyDevice(m_vk_device, nullptr);
+    m_available_present_modes.clear();
     dl.unload_device();
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_POSTCONDITIONS;
   }
