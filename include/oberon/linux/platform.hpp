@@ -164,9 +164,31 @@ namespace oberon::linux {
      * @brief Detach the currently attached mouse button release event callback.
      */
     void detach_mouse_button_release_event_callback() override;
-    virtual void attach_window_move_event_callback(const window_move_event_fn& fn) override;
-    virtual void detach_window_move_event_callback() override;
+
+    /**
+     * @brief Attach a new window move event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
+    void attach_window_move_event_callback(const window_move_event_fn& fn) override;
+
+    /**
+     * @brief Detach the currently attached window move event callback.
+     */
+    void detach_window_move_event_callback() override;
+
+    /**
+     * @brief Attach a new window resize event callback.
+     * @details This will override the currently attached callback (if any callback is attached). Callbacks are not
+     *          handled as a list. There can only be one callback.
+     * @param fn The callback to attach.
+     */
     void attach_window_resize_event_callback(const window_resize_event_fn& fn) override;
+
+    /**
+     * @brief Detach the currently attached window resize event callback.
+     */
     void detach_window_resize_event_callback() override;
 
     /**
