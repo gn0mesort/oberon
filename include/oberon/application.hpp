@@ -9,7 +9,6 @@
 #define OBERON_APPLICATION_HPP
 
 #include <functional>
-#include <filesystem>
 
 #include "memory.hpp"
 
