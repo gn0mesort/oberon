@@ -1,5 +1,8 @@
 # Oberon
 
+Oberon is my exploratory 3D graphics library. Ideally, someday this will be a more or less fully featured library.
+Currently, it exists primarily as a demonstration.
+
 ## Building
 
 ### Linux
