@@ -57,9 +57,12 @@ namespace oberon::linux {
     VkDevice m_vk_device{ };
     VkQueue m_vk_graphics_queue{ };
     VkQueue m_vk_present_queue{ };
-    VkCommandPool m_vk_command_pool{ };
-    std::array<VkCommandBuffer, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_command_buffers{ };
+
+    std::array<VkCommandPool, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_command_pools{ };
+    std::array<VkCommandBuffer, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_render_buffers{ };
+    std::array<VkCommandBuffer, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_transfer_buffers{ };
     std::array<VkSemaphore, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_image_available_sems{ };
+    std::array<VkSemaphore, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_transfer_complete_sems{ };
     std::array<VkSemaphore, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_render_finished_sems{ };
     std::array<VkFence, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT> m_vk_in_flight_frame_fences{ };
     u32 m_frame_index{ 0 };
@@ -79,6 +82,7 @@ namespace oberon::linux {
     buffer_mode m_buffer_mode{ };
     VkPresentModeKHR m_present_mode{ VK_PRESENT_MODE_FIFO_KHR };
     std::unordered_set<presentation_mode> m_available_present_modes{ };
+    VmaAllocator m_vma_allocator{ };
 
     // Requires device selection.
     VkSurfaceFormatKHR select_surface_format(const VkFormat preferred_format,
@@ -95,13 +99,15 @@ namespace oberon::linux {
     void reinitialize_renderer();
     std::vector<char> read_shader_binary(const std::filesystem::path& file);
     graphics_program initialize_test_image_program();
+    void begin_transfer_operations(VkCommandBuffer transfer_buffer);
+    void end_transfer_operations(VkCommandBuffer transfer_buffer);
     u32 acquire_next_image(VkSemaphore& image_available);
-    void wait_for_in_flight_fences(ptr<VkFence> fences, const usize sz);
-    void begin_rendering(VkCommandBuffer& command_buffer, VkImage& image, VkImageView& image_view);
-    void end_rendering(VkCommandBuffer& command_buffer, VkImage& image);
-    void present_image(const usize frame_index, const usize image_index);
-    void present_image(VkCommandBuffer& command_buffer, VkSemaphore& image_available, VkSemaphore& render_finished,
-                       VkFence in_flight_fence, const u32 image_index);
+    void wait_for_fences(ptr<VkFence> fences, const usize sz);
+    void reset_command_pool(VkCommandPool command_pool);
+    void begin_rendering(VkCommandBuffer& render_buffer, VkImage& image, VkImageView& image_view);
+    void end_rendering(VkCommandBuffer& render_buffer, VkImage& image);
+    void submit_commands(const ptr<VkSubmitInfo> submissions, const usize sz, VkFence signal_fence);
+    void present_image(VkSemaphore render_finished, const u32 image_index);
   public:
     /**
      * @brief Create a new graphics object.
@@ -249,6 +255,8 @@ namespace oberon::linux {
      *          this is a no-op.
      */
     void draw_test_image() override;
+
+    mesh& allocate_mesh() override;
   };
 
 }

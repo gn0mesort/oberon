@@ -156,6 +156,9 @@ namespace oberon {
     std::string driver_info{ };
   };
 
+  class mesh;
+  class texture;
+
   /**
    * @brief An object representing the underlying system's graphics capabilities.
    */
@@ -325,6 +328,8 @@ namespace oberon {
      *          this is a no-op.
      */
     virtual void draw_test_image() = 0;
+
+    virtual mesh& allocate_mesh() = 0;
   };
 
   /// @cond

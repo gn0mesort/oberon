@@ -5,7 +5,9 @@
  * @date 2023
  * @copyright AGPL-3.0+
  */
+#define VMA_IMPLEMENTATION
 #include "oberon/linux/vk.hpp"
+#undef VMA_IMPLEMENTATION
 
 #include <iostream>
 

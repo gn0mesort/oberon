@@ -28,8 +28,6 @@ vkfl_sub = subproject('vkfl', default_options: [ 'build_c=disabled', 'build_exam
                                                  'build_tests=disabled'])
 
 oberon_deps = [
-  dependency('vulkan'),
-  vkfl_sub.get_variable('vkfl_cpp_dep')
 ]
 oberon_args = [
   '-DMESON_PROJECT_VERSION="1.0.0"',
@@ -65,6 +63,9 @@ if host_machine.system() == 'linux'
     dependency('xkbcommon'),
     dependency('xkbcommon-x11'),
     dependency('x11-xcb'),
+    dependency('vulkan'),
+    vkfl_sub.get_variable('vkfl_cpp_dep'),
+    dependency('glm')
   ]
   oberon_linux_srcs = [
     files('src/oberon/linux/system.cpp', 'src/oberon/linux/input.cpp', 'src/oberon/linux/window.cpp',

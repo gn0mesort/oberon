@@ -7,6 +7,8 @@
  */
 #include "oberon/linux/graphics.hpp"
 
+#include <cstring>
+
 #include <unordered_set>
 #include <limits>
 #include <algorithm>
@@ -30,10 +32,12 @@
   OBERON_PRECONDITION(m_vk_device); \
   OBERON_PRECONDITION(m_vk_graphics_queue); \
   OBERON_PRECONDITION(m_vk_present_queue); \
-  OBERON_PRECONDITION(m_vk_command_pool)
+  OBERON_PRECONDITION(m_vk_command_pools[0]); \
+  OBERON_PRECONDITION(m_vk_command_pools[1])
 
 #define OBERON_LINUX_GRAPHICS_OPENED_DEVICE_POSTCONDITIONS \
-  OBERON_POSTCONDITION(m_vk_command_pool); \
+  OBERON_POSTCONDITION(m_vk_command_pools[1]); \
+  OBERON_POSTCONDITION(m_vk_command_pools[0]); \
   OBERON_POSTCONDITION(m_vk_present_queue); \
   OBERON_POSTCONDITION(m_vk_graphics_queue); \
   OBERON_POSTCONDITION(m_vk_device); \
@@ -505,17 +509,27 @@ namespace oberon::linux {
       auto command_pool_info = VkCommandPoolCreateInfo{ };
       command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
       command_pool_info.queueFamilyIndex = m_vk_selected_queue_families.graphics_queue;
-      command_pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+      command_pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
       OBERON_LINUX_VK_DECLARE_PFN(dl, vkCreateCommandPool);
-      OBERON_LINUX_VK_SUCCEEDS(vkCreateCommandPool(m_vk_device, &command_pool_info, nullptr, &m_vk_command_pool));
+      // 1 pool per frame in flight
+      OBERON_LINUX_VK_SUCCEEDS(vkCreateCommandPool(m_vk_device, &command_pool_info, nullptr, &m_vk_command_pools[0]));
+      OBERON_LINUX_VK_SUCCEEDS(vkCreateCommandPool(m_vk_device, &command_pool_info, nullptr, &m_vk_command_pools[1]));
       auto command_buffer_info = VkCommandBufferAllocateInfo{ };
       command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
       command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-      command_buffer_info.commandPool = m_vk_command_pool;
-      command_buffer_info.commandBufferCount = m_vk_command_buffers.size();
+      // 1 transfer and 1 render buffer.
+      command_buffer_info.commandBufferCount = 2;
       OBERON_LINUX_VK_DECLARE_PFN(dl, vkAllocateCommandBuffers);
-      OBERON_LINUX_VK_SUCCEEDS(vkAllocateCommandBuffers(m_vk_device, &command_buffer_info,
-                                                        m_vk_command_buffers.data()));
+      {
+        auto buffers = std::array<VkCommandBuffer, 2>{ };
+        for (auto i = usize{ 0 }; i < OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+          command_buffer_info.commandPool = m_vk_command_pools[i];
+          OBERON_LINUX_VK_SUCCEEDS(vkAllocateCommandBuffers(m_vk_device, &command_buffer_info, buffers.data()));
+          m_vk_render_buffers[i] = buffers[0];
+          m_vk_transfer_buffers[i] = buffers[1];
+        }
+      }
     }
     // Create synchronization objects.
     {
@@ -531,10 +545,27 @@ namespace oberon::linux {
         OBERON_LINUX_VK_SUCCEEDS(vkCreateSemaphore(m_vk_device, &semaphore_info, nullptr,
                                                    &m_vk_image_available_sems[i]));
         OBERON_LINUX_VK_SUCCEEDS(vkCreateSemaphore(m_vk_device, &semaphore_info, nullptr,
+                                                   &m_vk_transfer_complete_sems[i]));
+        OBERON_LINUX_VK_SUCCEEDS(vkCreateSemaphore(m_vk_device, &semaphore_info, nullptr,
                                                    &m_vk_render_finished_sems[i]));
         OBERON_LINUX_VK_SUCCEEDS(vkCreateFence(m_vk_device, &fence_info, nullptr,
                                               &m_vk_in_flight_frame_fences[i]));
       }
+    }
+    // Create allocator.
+    {
+      auto allocator_info = VmaAllocatorCreateInfo{ };
+      allocator_info.physicalDevice = m_vk_selected_physical_device;
+      allocator_info.device = m_vk_device;
+      auto vk_functions = VmaVulkanFunctions{ };
+#define VKFL_GET(fn) (reinterpret_cast<PFN_##fn>(dl.get(vkfl::command::fn)))
+      vk_functions.vkGetInstanceProcAddr = VKFL_GET(vkGetInstanceProcAddr);
+      vk_functions.vkGetDeviceProcAddr = VKFL_GET(vkGetDeviceProcAddr);
+#undef VKFL_GET
+      allocator_info.pVulkanFunctions = &vk_functions;
+      allocator_info.instance = m_parent->instance();
+      allocator_info.vulkanApiVersion = VK_API_VERSION_1_3;
+      vmaCreateAllocator(&allocator_info, &m_vma_allocator);
     }
     OBERON_LINUX_GRAPHICS_OPENED_DEVICE_POSTCONDITIONS;
   }
@@ -542,18 +573,24 @@ namespace oberon::linux {
   void graphics::deinitialize_device() {
     OBERON_LINUX_GRAPHICS_OPENED_DEVICE_PRECONDITIONS;
     auto& dl = m_parent->vk_dl();
+    vmaDestroyAllocator(m_vma_allocator);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroySemaphore);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyFence);
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkFreeCommandBuffers);
     for (auto i = usize{ 0 }; i < OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT; ++i)
     {
       vkDestroySemaphore(m_vk_device, m_vk_image_available_sems[i], nullptr);
+      vkDestroySemaphore(m_vk_device, m_vk_transfer_complete_sems[i], nullptr);
       vkDestroySemaphore(m_vk_device, m_vk_render_finished_sems[i], nullptr);
       vkDestroyFence(m_vk_device, m_vk_in_flight_frame_fences[i], nullptr);
+      vkFreeCommandBuffers(m_vk_device, m_vk_command_pools[i], 1, &m_vk_transfer_buffers[i]);
+      vkFreeCommandBuffers(m_vk_device, m_vk_command_pools[i], 1, &m_vk_render_buffers[i]);
     }
-    OBERON_LINUX_VK_DECLARE_PFN(dl, vkFreeCommandBuffers);
-    vkFreeCommandBuffers(m_vk_device, m_vk_command_pool, m_vk_command_buffers.size(), m_vk_command_buffers.data());
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyCommandPool);
-    vkDestroyCommandPool(m_vk_device, m_vk_command_pool, nullptr);
+    for (auto& command_pool : m_vk_command_pools)
+    {
+      vkDestroyCommandPool(m_vk_device, command_pool, nullptr);
+    }
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkDestroyDevice);
     vkDestroyDevice(m_vk_device, nullptr);
     m_available_present_modes.clear();
@@ -829,13 +866,20 @@ namespace oberon::linux {
     return m_is_in_frame;
   }
 
-  void graphics::wait_for_in_flight_fences(const ptr<VkFence> fences, const usize sz) {
+  void graphics::wait_for_fences(const ptr<VkFence> fences, const usize sz) {
     OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
     const auto& dl = m_parent->vk_dl();
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkWaitForFences);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkResetFences);
     OBERON_LINUX_VK_SUCCEEDS(vkWaitForFences(m_vk_device, sz, fences, true, OBERON_LINUX_VK_FOREVER));
     OBERON_LINUX_VK_SUCCEEDS(vkResetFences(m_vk_device, sz, fences));
+  }
+
+  void graphics::reset_command_pool(VkCommandPool command_pool) {
+    OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
+    const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkResetCommandPool);
+    OBERON_LINUX_VK_SUCCEEDS(vkResetCommandPool(m_vk_device, command_pool, 0));
   }
 
   u32 graphics::acquire_next_image(VkSemaphore& image_available) {
@@ -862,13 +906,28 @@ namespace oberon::linux {
     return result;
   }
 
-  void graphics::begin_rendering(VkCommandBuffer& command_buffer, VkImage& image, VkImageView& image_view) {
+  void graphics::begin_transfer_operations(VkCommandBuffer transfer_buffer) {
+    const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkBeginCommandBuffer);
+    auto begin_info = VkCommandBufferBeginInfo{ };
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    OBERON_LINUX_VK_SUCCEEDS(vkBeginCommandBuffer(transfer_buffer, &begin_info));
+  }
+
+  void graphics::end_transfer_operations(VkCommandBuffer transfer_buffer) {
+    const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkEndCommandBuffer);
+    OBERON_LINUX_VK_SUCCEEDS(vkEndCommandBuffer(transfer_buffer));
+  }
+
+  void graphics::begin_rendering(VkCommandBuffer& render_buffer, VkImage& image, VkImageView& image_view) {
     OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
     const auto& dl = m_parent->vk_dl();
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkBeginCommandBuffer);
     auto begin_info = VkCommandBufferBeginInfo{ };
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    OBERON_LINUX_VK_SUCCEEDS(vkBeginCommandBuffer(command_buffer, &begin_info));
+    OBERON_LINUX_VK_SUCCEEDS(vkBeginCommandBuffer(render_buffer, &begin_info));
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdPipelineBarrier);
     auto image_memory_barrier = VkImageMemoryBarrier{ };
     image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -884,7 +943,7 @@ namespace oberon::linux {
     image_memory_barrier.subresourceRange.baseArrayLayer = 0;
     image_memory_barrier.subresourceRange.layerCount = std::numeric_limits<u32>::max();
     // Transition image to VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    vkCmdPipelineBarrier(render_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1,
                          &image_memory_barrier);
     auto color_attachment_info = VkRenderingAttachmentInfo{ };
@@ -903,7 +962,7 @@ namespace oberon::linux {
     rendering_info.pColorAttachments = &color_attachment_info;
     color_attachment_info.imageView = image_view;
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdBeginRendering);
-    vkCmdBeginRendering(command_buffer, &rendering_info);
+    vkCmdBeginRendering(render_buffer, &rendering_info);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdSetViewport);
     // Set dynamic viewport and scissor.
     auto viewport = VkViewport{ };
@@ -913,9 +972,9 @@ namespace oberon::linux {
     viewport.height = m_vk_render_area.extent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+    vkCmdSetViewport(render_buffer, 0, 1, &viewport);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdSetScissor);
-    vkCmdSetScissor(command_buffer, 0, 1, &m_vk_render_area);
+    vkCmdSetScissor(render_buffer, 0, 1, &m_vk_render_area);
   }
 
   void graphics::begin_frame() {
@@ -929,8 +988,10 @@ namespace oberon::linux {
       reinitialize_renderer();
     }
     m_image_index = acquire_next_image(m_vk_image_available_sems[m_frame_index]);
-    wait_for_in_flight_fences(&m_vk_in_flight_frame_fences[m_frame_index], 1);
-    begin_rendering(m_vk_command_buffers[m_frame_index], m_vk_swapchain_images[m_image_index],
+    wait_for_fences(&m_vk_in_flight_frame_fences[m_frame_index], 1);
+    reset_command_pool(m_vk_command_pools[m_frame_index]);
+    begin_transfer_operations(m_vk_transfer_buffers[m_frame_index]);
+    begin_rendering(m_vk_render_buffers[m_frame_index], m_vk_swapchain_images[m_image_index],
                     m_vk_swapchain_image_views[m_image_index]);
     m_is_in_frame = true;
   }
@@ -961,22 +1022,15 @@ namespace oberon::linux {
     OBERON_LINUX_VK_SUCCEEDS(vkEndCommandBuffer(command_buffer));
   }
 
-  void graphics::present_image(VkCommandBuffer& command_buffer, VkSemaphore& image_available,
-                               VkSemaphore& render_finished, VkFence in_flight_fence, const u32 image_index) {
+  void graphics::submit_commands(const ptr<VkSubmitInfo> submissions, const usize sz, VkFence signal_fence) {
+    const auto& dl = m_parent->vk_dl();
+    OBERON_LINUX_VK_DECLARE_PFN(dl, vkQueueSubmit);
+    OBERON_LINUX_VK_SUCCEEDS(vkQueueSubmit(m_vk_graphics_queue, sz, submissions, signal_fence));
+  }
+
+  void graphics::present_image(VkSemaphore render_finished, const u32 image_index) {
     OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
     const auto& dl = m_parent->vk_dl();
-    auto submit_info = VkSubmitInfo{ };
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
-    submit_info.pWaitSemaphores = &image_available;
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &render_finished;
-    submit_info.signalSemaphoreCount = 1;
-    auto wait_dst_stage = VkPipelineStageFlags{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submit_info.pWaitDstStageMask = &wait_dst_stage;
-    OBERON_LINUX_VK_DECLARE_PFN(dl, vkQueueSubmit);
-    OBERON_LINUX_VK_SUCCEEDS(vkQueueSubmit(m_vk_graphics_queue, 1, &submit_info, in_flight_fence));
     auto present_info = VkPresentInfoKHR{ };
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     present_info.pSwapchains = &m_vk_swapchain;
@@ -1004,10 +1058,30 @@ namespace oberon::linux {
       return;
     }
     OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
-    end_rendering(m_vk_command_buffers[m_frame_index], m_vk_swapchain_images[m_image_index]);
-    present_image(m_vk_command_buffers[m_frame_index], m_vk_image_available_sems[m_frame_index],
-                  m_vk_render_finished_sems[m_frame_index], m_vk_in_flight_frame_fences[m_frame_index],
-                  m_image_index);
+    end_transfer_operations(m_vk_transfer_buffers[m_frame_index]);
+    end_rendering(m_vk_render_buffers[m_frame_index], m_vk_swapchain_images[m_image_index]);
+    // 1 transfer buffer + 1 render buffer = 2 buffers total needing submission
+    auto submit_infos = std::array<VkSubmitInfo, 2>{ };
+    auto& [ transfer_submit_info, render_submit_info ] = submit_infos;
+    transfer_submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    transfer_submit_info.pSignalSemaphores = &m_vk_transfer_complete_sems[m_frame_index];
+    transfer_submit_info.signalSemaphoreCount = 1;
+    transfer_submit_info.pCommandBuffers = &m_vk_transfer_buffers[m_frame_index];
+    transfer_submit_info.commandBufferCount = 1;
+    render_submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    auto render_wait_sems = std::array<VkSemaphore, 2>{ m_vk_transfer_complete_sems[m_frame_index],
+                                                        m_vk_image_available_sems[m_frame_index] };
+    render_submit_info.pWaitSemaphores = render_wait_sems.data();
+    render_submit_info.waitSemaphoreCount = render_wait_sems.size();
+    auto render_wait_stages = std::array<VkPipelineStageFlags, 2>{ VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                                                   VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    render_submit_info.pWaitDstStageMask = render_wait_stages.data();
+    render_submit_info.pSignalSemaphores = &m_vk_render_finished_sems[m_frame_index];
+    render_submit_info.signalSemaphoreCount = 1;
+    render_submit_info.pCommandBuffers = &m_vk_render_buffers[m_frame_index];
+    render_submit_info.commandBufferCount = 1;
+    submit_commands(submit_infos.data(), submit_infos.size(), m_vk_in_flight_frame_fences[m_frame_index]);
+    present_image(m_vk_render_finished_sems[m_frame_index], m_image_index);
     // Equivalent to m_frame_index = (m_frame_index + 1) % OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT.
     m_frame_index = (m_frame_index + 1) & (OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT - 1);
     m_is_in_frame = false;
@@ -1021,12 +1095,16 @@ namespace oberon::linux {
     }
     OBERON_LINUX_GRAPHICS_READY_TO_RENDER_PRECONDITIONS;
     const auto& dl = m_parent->vk_dl();
-    const auto& command_buffer = m_vk_command_buffers[m_frame_index];
+    const auto& command_buffer = m_vk_render_buffers[m_frame_index];
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdBindPipeline);
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                       m_vk_graphics_pipelines[m_vk_test_image_program.program_index - 1]);
     OBERON_LINUX_VK_DECLARE_PFN(dl, vkCmdDraw);
     vkCmdDraw(command_buffer, 3, 1, 0, 0);
+  }
+
+  mesh& graphics::allocate_mesh() {
+    throw not_implemented_error{ };
   }
 
 }

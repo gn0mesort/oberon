@@ -22,8 +22,26 @@
 #undef VK_NO_PROTOTYPES
 /// @endcond
 
-
 #include <vkfl.hpp>
+
+/// @cond
+// VulkanMemoryAllocator is usually included with the Vulkan SDK.
+#define VMA_STATIC_VULKAN_FUNCTIONS 0
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
+#if __has_include(<vk_mem_alloc.h>)
+  #define VK_MEM_ALLOC_HEADER <vk_mem_alloc.h>
+#elif __has_include("vk_mem_alloc.h")
+  #define VK_MEM_ALLOC_HEADER "vk_mem_alloc.h"
+#else
+  #error VulkanMemoryAllocator is a required dependency.
+#endif
+/// @endcond
+
+#include VK_MEM_ALLOC_HEADER
+
+/// @cond
+#undef VK_MEM_ALLOC_HEADER
+/// @endcond
 
 #include "../types.hpp"
 #include "../errors.hpp"
