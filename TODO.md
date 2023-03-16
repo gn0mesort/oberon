@@ -72,6 +72,7 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
     + *MUST* support debug output
     + *MUST* support validation features and layers
     + *MUST* support manual device selection
+        - *SHOULD* treat rendering devices as separate objects.
     - *SHOULD* support later Vulkan versions
     - *SHOULD* support earlier Vulkan versions
     + *MUST* support single device rendering
@@ -86,4 +87,4 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
     + *MUST* support rendering to color attachments
     - *MUST* support rendering to depth attachments
     - *MUST* support device memory allocation
-    - *SHOULD* provide a custom device memory allocator
+        - *SHOULD* provide a custom device memory allocator
