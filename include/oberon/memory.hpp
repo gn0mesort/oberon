@@ -86,6 +86,33 @@ namespace oberon::inline pointer_types {
   using utf32_sequence = basic_sequence<utf32>;
 
   /**
+   * @brief Templated alias for a read-only C-style pointer to an array of `Type` values.
+   * @details The same rules, regarding terminators, apply to basic_read_only_sequence as basic_sequence.
+   */
+  template <typename Type>
+  using basic_readonly_sequence = readonly_ptr<Type>;
+
+  /**
+   * @brief A read-only sequence of `char`s.
+   */
+  using readonly_csequence = basic_readonly_sequence<char>;
+
+  /**
+   * @brief A read-only sequence of `utf8`s.
+   */
+  using readonly_utf8_sequence = basic_readonly_sequence<utf8>;
+
+  /**
+   * @brief A read-only sequence of `utf16`s.
+   */
+  using readonly_utf16_sequence = basic_readonly_sequence<utf16>;
+
+  /**
+   * @brief A read-only sequence of `utf32`s.
+   */
+  using readonly_utf32_sequence = basic_readonly_sequence<utf32>;
+
+  /**
    * @brief Templated alias for a C-style string of `CharType` values.
    * @details C-style strings should always contain a terminating '\0' character.
    * @tparam CharType The character type for the aliased C-style string type.
