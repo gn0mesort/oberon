@@ -44,7 +44,7 @@
    * @param x A condition to check.
    */
   #define OBERON_ASSERT(x) \
-    (oberon::assert(std::source_location::current(), (x), (#x)))
+    (oberon::debug_assert(std::source_location::current(), (x), (#x)))
 
   /**
    * @def OBERON_ASSERT_MSG(x, msg, ...)
@@ -54,7 +54,7 @@
    * @param ... 0 or more format arguments corresponding to the format specifiers in `msg`.
    */
   #define OBERON_ASSERT_MSG(x, msg, ...) \
-    (oberon::assert(std::source_location::current(), (x), (msg) __VA_OPT__(,) __VA_ARGS__))
+    (oberon::debug_assert(std::source_location::current(), (x), (msg) __VA_OPT__(,) __VA_ARGS__))
 #else
   #define OBERON_ASSERT(x) ((void) (x))
 
@@ -101,13 +101,13 @@ namespace oberon {
 
   /**
    * @brief Debug assertion implementation.
-   * @param location A `std::source_location` object holding the location that `oberon::assert` was called from.
+   * @param location A `std::source_location` object holding the location that `oberon::debug_assert` was called from.
    * @param condition The condition to assert must be true.
    * @param message_format A custom message to print if the assertion fails. This is a `std::printf`-style format
    *        string.
    * @param ... 0 or more format arguments corresponding to the format specifiers in `message_format`.
    */
-  void assert(const std::source_location& location, const bool condition, const cstring message_format, ...);
+  void debug_assert(const std::source_location& location, const bool condition, const cstring message_format, ...);
 
 }
 

@@ -15,7 +15,7 @@
 #include <string>
 
 namespace oberon {
-  void assert(const std::source_location& location, const bool condition, const cstring message_format, ...) {
+  void debug_assert(const std::source_location& location, const bool condition, const cstring message_format, ...) {
     if (!condition)
     {
       // va_lists require this declaration style specifically
