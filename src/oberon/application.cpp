@@ -86,7 +86,7 @@ namespace oberon {
         }
       }
       // Get desired Vulkan layer list, if any, and split it.
-      auto desired_vk_layers = std::vector<std::string>{ };
+      auto desired_vk_layers = std::unordered_set<std::string>{ };
       {
         auto env_vk_layers = std::getenv("OBERON_VK_LAYERS");
         if (env_vk_layers)
@@ -98,13 +98,13 @@ namespace oberon {
           {
             if (std::strcmp(res, ""))
             {
-              desired_vk_layers.emplace_back(res);
+              desired_vk_layers.insert(res);
             }
           }
           std::free(vk_layer_list);
         }
       }
-      auto platform_system = new linux::system{ name, "oberon", desired_vk_layers };
+      auto platform_system = new linux::system{ name, "oberon", m_search_paths, desired_vk_layers };
       auto platform_input = new linux::input{ *platform_system };
       auto platform_window = new linux::window{ *platform_system };
       auto platform_graphics = new linux::graphics{ *platform_system, *platform_window };
@@ -134,6 +134,14 @@ namespace oberon {
       result = 1;
     }
     return result;
+  }
+
+  void application::add_initial_search_path(const std::filesystem::path& path) {
+    m_search_paths.insert(path);
+  }
+
+  void application::remove_initial_search_path(const std::filesystem::path& path) {
+    m_search_paths.erase(path);
   }
 
 }

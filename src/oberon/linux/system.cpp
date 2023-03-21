@@ -39,8 +39,10 @@
 namespace oberon::linux {
 
   system::system(const std::string& instance_name, const std::string& application_name,
-                 const std::vector<std::string>& desired_layers) :
-  m_instance_name{ instance_name }, m_application_name{ application_name } {
+                 const std::unordered_set<std::filesystem::path>& additional_search_paths,
+                 const std::unordered_set<std::string>& desired_layers) :
+  m_instance_name{ instance_name }, m_application_name{ application_name },
+  m_search_paths{ additional_search_paths.begin(), additional_search_paths.end() } {
     // Initialize X11
     {
       XInitThreads();

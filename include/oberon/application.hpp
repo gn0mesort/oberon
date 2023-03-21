@@ -9,6 +9,8 @@
 #define OBERON_APPLICATION_HPP
 
 #include <functional>
+#include <unordered_set>
+#include <filesystem>
 
 #include "memory.hpp"
 
@@ -17,6 +19,8 @@ namespace oberon {
   class platform;
 
   class application final {
+  private:
+    std::unordered_set<std::filesystem::path> m_search_paths{ };
   public:
     /**
      * @brief Platform generic entry point procedure.
@@ -53,6 +57,9 @@ namespace oberon {
      * @return A reference to the assigned application.
      */
     application& operator=(application&& rhs) = default;
+
+    void add_initial_search_path(const std::filesystem::path& path);
+    void remove_initial_search_path(const std::filesystem::path& path);
 
     /**
      * @brief Execute the given entry point.

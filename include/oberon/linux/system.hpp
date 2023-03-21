@@ -57,10 +57,12 @@ namespace oberon::linux {
      *                      precedence must be the value provided with "-name", the value of "RESOURCE_NAME",
      *                      and finally argv[0].
      * @param application_name The canonical name of the application.
+     * @param additional_search_paths A set of 0 or more additional search paths to use with find_file.
      * @param desired_layers A list of 0 or more desired Vulkan instance layers.
      */
     system(const std::string& instance_name, const std::string& application_name,
-           const std::vector<std::string>& desired_layers);
+           const std::unordered_set<std::filesystem::path>& additional_search_paths,
+           const std::unordered_set<std::string>& desired_layers);
 
     /// @cond
     system(const system& other) = delete;
