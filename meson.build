@@ -70,7 +70,8 @@ if host_machine.system() == 'linux'
   oberon_linux_srcs = [
     files('src/oberon/linux/system.cpp', 'src/oberon/linux/input.cpp', 'src/oberon/linux/window.cpp',
           'src/oberon/linux/platform.cpp', 'src/oberon/linux/x11-errors.cpp', 'src/oberon/linux/vk.cpp',
-          'src/oberon/linux/graphics.cpp')
+          'src/oberon/linux/graphics.cpp', 'src/oberon/linux/vk_device.cpp', 'src/oberon/linux/nvidia_vk_device.cpp',
+          'src/oberon/linux/amd_vk_device.cpp', 'src/oberon/linux/intel_vk_device.cpp')
   ]
   oberon_args += oberon_linux_args
   oberon_deps += oberon_linux_deps
