@@ -6,3 +6,4 @@
 # @copyright AGPL-3.0+
 #
 test_image = executable('test_image', files('test_image/main.cpp'), dependencies: oberon_dep)
+# cube = executable('cube', files('cube/main.cpp'), dependencies: oberon_dep)
