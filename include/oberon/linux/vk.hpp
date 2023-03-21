@@ -127,7 +127,10 @@ namespace oberon::linux {
   /**
    * @brief The value that Vulkan uses to represent an infinite wait timeout.
    */
-  constexpr const auto OBERON_LINUX_VK_FOREVER = std::numeric_limits<u64>::max();
+  constexpr const usize OBERON_LINUX_VK_FOREVER{ std::numeric_limits<u64>::max() };
+
+  // 640KiB
+  constexpr const usize OBERON_LINUX_VK_GLOBAL_STAGING_SIZE{ 655360 };
 }
 
 #endif
