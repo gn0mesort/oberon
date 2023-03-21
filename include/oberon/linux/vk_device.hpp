@@ -69,6 +69,7 @@ namespace vk_device_status {
     void destroy_swapchain(const VkSwapchainKHR swapchain) noexcept;
     void create_swapchain_image_views();
     void destroy_swapchain_image_views() noexcept;
+    void recreate_swapchain( );
   public:
     static std::unordered_set<std::string> query_available_extensions(const vkfl::loader& dl,
                                                                       const VkPhysicalDevice physical_device);
@@ -84,9 +85,14 @@ namespace vk_device_status {
     vk_device& operator=(vk_device&& rhs) = delete;
 
     const std::unordered_set<VkPresentModeKHR>& available_present_modes() const;
-    void recreate_swapchain(const u32 buffers, const VkPresentModeKHR present_mode);
+    void dirty();
+    void request_present_mode(const VkPresentModeKHR mode);
+    void request_swapchain_images(const u32 images);
     VkShaderModule create_shader_module(const VkShaderModuleCreateInfo& info);
     void destroy_shader_module(const VkShaderModule shader_module) noexcept;
+    VkFormat current_swapchain_format() const;
+    VkPresentModeKHR current_present_mode() const;
+    u32 current_swapchain_size() const;
     VkPipelineLayout intern_pipeline_layout(const VkPipelineLayoutCreateInfo& info);
     VkPipeline intern_graphics_pipeline(const VkGraphicsPipelineCreateInfo& info);
     void begin_frame();
