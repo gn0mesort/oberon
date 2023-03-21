@@ -150,6 +150,9 @@ namespace oberon::linux {
     device_info.pQueueCreateInfos = queue_infos.data();
     device_info.queueCreateInfoCount = queue_infos.size();
     // Select device extensions
+    auto available_extensions = query_available_extensions(m_dl, m_parent_physical_device);
+    auto required_extensions = query_required_extensions();
+    auto requested_extensions = query_requested_extensions();
     auto selected_extensions = std::vector<cstring>{ };
     {
 #define REQUIRE_VK_EXTENSION_STR(ext) \
@@ -173,7 +176,6 @@ namespace oberon::linux {
     } \
   } \
   while (0)
-      auto available_extensions = query_available_extensions(m_dl, m_parent_physical_device);
       // This has to be true according to the specification
       // see https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkDeviceCreateInfo.html
       available_extensions.erase(VK_AMD_NEGATIVE_VIEWPORT_HEIGHT_EXTENSION_NAME);
@@ -181,11 +183,11 @@ namespace oberon::linux {
       {
         available_extensions.erase(VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
       }
-      for (const auto& required_extension : query_required_extensions())
+      for (const auto& required_extension : required_extensions)
       {
         REQUIRE_VK_EXTENSION_STR(required_extension);
       }
-      for (const auto& requested_extension : query_requested_extensions())
+      for (const auto& requested_extension : requested_extensions)
       {
         REQUEST_VK_EXTENSION_STR(requested_extension);
       }
@@ -194,6 +196,19 @@ namespace oberon::linux {
     }
     device_info.ppEnabledExtensionNames = selected_extensions.data();
     device_info.enabledExtensionCount = selected_extensions.size();
+    DECLARE_VK_PFN(m_dl, vkGetPhysicalDeviceFeatures2);
+    auto features = VkPhysicalDeviceFeatures2{ };
+    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    auto features_1_1 = VkPhysicalDeviceVulkan11Features{ };
+    features_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+    auto features_1_2 = VkPhysicalDeviceVulkan12Features{ };
+    features_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    auto features_1_3 = VkPhysicalDeviceVulkan13Features{ };
+    features_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    features.pNext = &features_1_1;
+    features_1_1.pNext = &features_1_2;
+    features_1_2.pNext = &features_1_3;
+    vkGetPhysicalDeviceFeatures2(m_parent_physical_device, &features);
     DECLARE_VK_PFN(m_dl, vkCreateDevice);
     DECLARE_VK_PFN(m_dl, vkGetDeviceQueue);
     VK_SUCCEEDS(vkCreateDevice(m_parent_physical_device, &device_info, nullptr, &m_device));
@@ -282,8 +297,6 @@ namespace oberon::linux {
     vkDeviceWaitIdle(m_device);
     destroy_swapchain_image_views();
     destroy_swapchain(m_swapchain);
-    DECLARE_VK_PFN(m_dl, vkDestroySwapchainKHR);
-    vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
     DECLARE_VK_PFN(m_dl, vkDestroyFence);
     for (const auto& fence : m_fences)
     {
@@ -356,11 +369,14 @@ namespace oberon::linux {
     // A different mode can be requested by rebuilding the swapchain later.
     swapchain_info.presentMode = m_present_mode;
     swapchain_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    // The maximum image count can be 0 which indicates no maximum. In such a case clamp will fail so we swap out
+    // the max with std::numeric_limits<u32>::max() in this case.
+    const auto max_image_count = capabilities.maxImageCount +
+                                 (-(capabilities.maxImageCount == 0) & std::numeric_limits<u32>::max());
     // This defaults to 3.
     // Triple buffering is usually a safe default.
     // A different buffer count can be requested by rebuilding the swapchain later.
-    swapchain_info.minImageCount = std::clamp(m_buffer_count, capabilities.minImageCount,
-                                              capabilities.maxImageCount);
+    swapchain_info.minImageCount = std::clamp(m_buffer_count, capabilities.minImageCount, max_image_count);
     swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     // Image array layers are for stereoscopic output.
     // Like a head mounted display.
@@ -396,6 +412,7 @@ namespace oberon::linux {
     image_view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
     image_view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
     image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     image_view_info.subresourceRange.layerCount = 1;
     image_view_info.subresourceRange.baseArrayLayer = 0;
     image_view_info.subresourceRange.levelCount = 1;
@@ -420,12 +437,11 @@ namespace oberon::linux {
     m_swapchain_image_views.clear();
   }
 
-  void vk_device::recreate_swapchain(const u32 buffers, const VkPresentModeKHR present_mode) {
-    m_buffer_count = buffers;
-    if (m_available_present_modes.contains(present_mode))
-    {
-      m_present_mode = present_mode;
-    }
+  void vk_device::dirty() {
+    m_status |= vk_device_status::dirty_bit;
+  }
+
+  void vk_device::recreate_swapchain() {
     DECLARE_VK_PFN(m_dl, vkDeviceWaitIdle);
     VK_SUCCEEDS(vkDeviceWaitIdle(m_device));
     auto old = m_swapchain;
@@ -436,10 +452,31 @@ namespace oberon::linux {
     m_status &= ~vk_device_status::dirty_bit;
   }
 
+  void vk_device::request_present_mode(const VkPresentModeKHR mode) {
+    if (m_available_present_modes.contains(mode))
+    {
+      m_present_mode = mode;
+    }
+    dirty();
+  }
+
+  VkPresentModeKHR vk_device::current_present_mode() const {
+    return m_present_mode;
+  }
+
+  void vk_device::request_swapchain_images(const u32 images) {
+    m_buffer_count = images;
+    dirty();
+  }
+
+  u32 vk_device::current_swapchain_size() const {
+    return m_buffer_count;
+  }
+
   void vk_device::begin_frame() {
     if (m_status & vk_device_status::dirty_bit)
     {
-      recreate_swapchain(m_buffer_count, m_present_mode);
+      recreate_swapchain();
     }
     DECLARE_VK_PFN(m_dl, vkAcquireNextImageKHR);
     {
@@ -528,7 +565,7 @@ namespace oberon::linux {
       DECLARE_VK_PFN(m_dl, vkCmdPipelineBarrier);
       auto image_memory_barrier = VkImageMemoryBarrier{ };
       image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      image_memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
       image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
       image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
       image_memory_barrier.srcQueueFamilyIndex = -1;
@@ -597,6 +634,10 @@ namespace oberon::linux {
     vkDestroyShaderModule(m_device, shader_module, nullptr);
   }
 
+  VkFormat vk_device::current_swapchain_format() const {
+    return m_surface_format.format;
+  }
+
   VkPipelineLayout vk_device::intern_pipeline_layout(const VkPipelineLayoutCreateInfo& info) {
     DECLARE_VK_PFN(m_dl, vkCreatePipelineLayout);
     auto layout = VkPipelineLayout{ };
@@ -611,6 +652,14 @@ namespace oberon::linux {
     VK_SUCCEEDS(vkCreateGraphicsPipelines(m_device, m_pipeline_cache, 1, &info, nullptr, &pipeline));
     m_interned_graphics_pipelines.emplace_back(pipeline);
     return pipeline;
+  }
+
+  void vk_device::draw(const VkPipeline pipeline, const u32 vertices) {
+    const auto& command_buffer = m_command_buffers[m_current_frame];
+    DECLARE_VK_PFN(m_dl, vkCmdBindPipeline);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    DECLARE_VK_PFN(m_dl, vkCmdDraw);
+    vkCmdDraw(command_buffer, vertices, 1, 0, 0);
   }
 
 }
