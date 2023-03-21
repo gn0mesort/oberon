@@ -38,15 +38,6 @@
   OBERON_PIPELINE_STAGE(fragment, 0x10)
 
 /**
- * @def OBERON_BUFFER_MODES
- * @brief A list of supported buffering modes and enumerator values for them.
- * @details Unless there's a good reason to do otherwise the enumerator values should match the mode names.
- */
-#define OBERON_BUFFER_MODES \
-  OBERON_BUFFER_MODE(double_buffer, 2) \
-  OBERON_BUFFER_MODE(triple_buffer, 3)
-
-/**
  * @def OBERON_PRESENTATION_MODES
  * @brief A list of supported presentation modes and enumerator values for them.
  * @details These are designed to match the values of VkPresentModeKHR in the Vulkan specification. For names that
@@ -61,6 +52,9 @@
   OBERON_PRESENTATION_MODE(fifo_relaxed, 4)
 
 namespace oberon {
+
+  constexpr const u32 OBERON_DOUBLE_BUFFER{ 2 };
+  constexpr const u32 OBERON_TRIPLE_BUFFER{ 3 };
 
 /// @cond
 #define OBERON_GRAPHICS_DEVICE_TYPE(name, value) name = (value),
@@ -95,22 +89,6 @@ namespace oberon {
 /// @endcond
 
 /// @cond
-#define OBERON_BUFFER_MODE(name, value) name = (value),
-/// @endcond
-
-  /**
-   * @brief An enumeration of possible buffering modes.
-   */
-  enum class buffer_mode {
-    automatic = 0,
-    OBERON_BUFFER_MODES
-  };
-
-/// @cond
-#undef OBERON_BUFFER_MODE
-/// @endcond
-
-/// @cond
 #define OBERON_PRESENTATION_MODE(name, value) name = (value),
 /// @endcond
 
@@ -136,6 +114,16 @@ namespace oberon {
     graphics_device_type type{ };
 
     /**
+     * @brief A 32-bit PCI vendor ID representing the device's vendor.
+     */
+    u32 vendor_id{ };
+
+    /**
+     * @brief A 32-bit PCI device ID representing the specific device.
+     */
+    u32 device_id{ };
+
+    /**
      * @brief An implementation specific handle identifying the device.
      */
     uptr handle{ };
@@ -155,9 +143,6 @@ namespace oberon {
      */
     std::string driver_info{ };
   };
-
-  class mesh;
-  class texture;
 
   /**
    * @brief An object representing the underlying system's graphics capabilities.
@@ -217,15 +202,6 @@ namespace oberon {
     virtual const graphics_device& preferred_device() const = 0;
 
     /**
-     * @brief Retrieve the last requested buffering mode.
-     * @details This is only the last mode requested. It is not necessarily representative of the number of buffers
-     *          actually in use (if any).
-     * @return The last buffering mode that the client application requested. If no mode has been requested then the
-     *         default is automatic.
-     */
-    virtual buffer_mode last_requested_buffer_mode() const = 0;
-
-    /**
      * @brief Retrieve the number of image buffers currently in use by the implementation.
      * @details This may not match the number of buffers that the requested mode would imply. For example, it is
      *          entirely possible for an application to request double buffering and for this method to return 3.
@@ -233,14 +209,7 @@ namespace oberon {
      */
     virtual u32 current_buffer_count() const = 0;
 
-    /**
-     * @brief Request a new buffering mode.
-     * @details Implementations may handle these requests in a variety of ways. There is no requirement that a
-     *          requested buffering mode must be honored. If a request to change the buffering mode is honored and
-     *          the result would degrade renderer performance then the renderer must be dirtied.
-     * @param mode The new mode to request.
-     */
-    virtual void request_buffer_mode(const buffer_mode mode) = 0;
+    virtual void request_buffer_count(const u32 count) = 0;
 
     /**
      * @brief Retreive a set of supported presentation modes.
@@ -268,59 +237,11 @@ namespace oberon {
     virtual void request_presentation_mode(const presentation_mode mode) = 0;
 
     /**
-     * @brief Check whether a device is currently opened.
-     * @return True if a device is opened and ready for use. False otherwise.
+     * @brief Change the current render device.
+     * @param device The specific device to use for rendering. This must be one of the devices returned by
+     *               available_devices().
      */
-    virtual bool is_device_opened() const = 0;
-
-    /**
-     * @brief Open a device for rendering.
-     * @details If a device is already opened it will be closed and the new device will then be opened.
-     * @param device The specific device to open. This must be one of the devices returned by available_devices().
-     */
-    virtual void open_device(const graphics_device& device) = 0;
-
-    /**
-     * @brief Close a device.
-     * @details If no device is opened this is a no-op.
-     */
-    virtual void close_device() = 0;
-
-    /**
-     * @brief Wait for the rendering device to become idle.
-     * @details If no device is opened this is a no-op.
-     */
-    virtual void wait_for_device_to_idle() = 0;
-
-    /**
-     * @brief Indicate that the renderer is dirty and potentially needs reinitialization.
-     * @details If no device is opened this is a no-op.
-     */
-    virtual void dirty_renderer() = 0;
-
-    /**
-     * @brief Check if the renderer is currently dirty.
-     * @return True if the renderer is dirty. False otherwise.
-     */
-    virtual bool is_renderer_dirty() const = 0;
-
-    /**
-     * @brief Check if the renderer is in the middle of a frame.
-     * @return True if the renderer is currently processing a frame. False otherwise.
-     */
-    virtual bool is_in_frame() const = 0;
-
-    /**
-     * @brief Begin processing a frame.
-     * @details If no device is opened or the renderer is already processing a frame this is a no-op.
-     */
-    virtual void begin_frame() = 0;
-
-    /**
-     * @brief End processing a frame.
-     * @details If no device is opened or the renderer is not processing a frame this is a no-op.
-     */
-    virtual void end_frame() = 0;
+    virtual void change_device(const graphics_device& device) = 0;
 
     /**
      * @brief Draw a test image.
@@ -329,7 +250,7 @@ namespace oberon {
      */
     virtual void draw_test_image() = 0;
 
-    virtual mesh& allocate_mesh() = 0;
+    virtual void submit_and_present_frame() = 0;
   };
 
   /// @cond
@@ -349,13 +270,6 @@ namespace oberon {
    * @return The name of the input stage or "none" if the stage is not recognized.
    */
   std::string to_string(const pipeline_stage stage);
-
-  /**
-   * @brief Convert a buffer_mode to a string.
-   * @param mode The mode to convert to a string.
-   * @return The name of the input mode or "automatic" if the mode is unrecognized.
-   */
-  std::string to_string(const buffer_mode mode);
 
   /**
    * @brief Convert a presentation_mode to a string.
