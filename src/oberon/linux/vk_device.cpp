@@ -223,6 +223,22 @@ namespace oberon::linux {
       cache_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
       VK_SUCCEEDS(vkCreatePipelineCache(m_device, &cache_info, nullptr, &m_pipeline_cache));
     }
+    // Create VMA Allocator.
+    {
+      auto allocator_info = VmaAllocatorCreateInfo{ };
+      allocator_info.physicalDevice = m_parent_physical_device;
+      allocator_info.device = m_device;
+      auto vk_functions = VmaVulkanFunctions{ };
+#define VKFL_GET(cmd) (reinterpret_cast<PFN_##cmd>(m_dl.get(vkfl::command::cmd)))
+      vk_functions.vkGetInstanceProcAddr = VKFL_GET(vkGetInstanceProcAddr);
+      vk_functions.vkGetDeviceProcAddr = VKFL_GET(vkGetDeviceProcAddr);
+#undef VKFL_GET
+      allocator_info.pVulkanFunctions = &vk_functions;
+      // Probably not the best idea to do this!
+      allocator_info.instance = m_dl.loaded_instance();
+      allocator_info.vulkanApiVersion = VK_API_VERSION_1_3;
+      VK_SUCCEEDS(vmaCreateAllocator(&allocator_info, &m_allocator));
+    }
     // Query presentation modes.
     {
       DECLARE_VK_PFN(m_dl, vkGetPhysicalDeviceSurfacePresentModesKHR);
@@ -254,13 +270,13 @@ namespace oberon::linux {
       auto command_buffer_info = VkCommandBufferAllocateInfo{ };
       command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
       command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-      command_buffer_info.commandBufferCount = 1;
       auto cur = m_command_pools.begin();
       DECLARE_VK_PFN(m_dl, vkAllocateCommandBuffers);
-      for (auto& command_buffer : m_command_buffers)
+      for (auto& command_buffers : m_command_buffers)
       {
         command_buffer_info.commandPool = *(cur++);
-        VK_SUCCEEDS(vkAllocateCommandBuffers(m_device, &command_buffer_info, &command_buffer));
+        command_buffer_info.commandBufferCount = command_buffers.size();
+        VK_SUCCEEDS(vkAllocateCommandBuffers(m_device, &command_buffer_info, command_buffers.data()));
       }
     }
     // Create semaphores.
@@ -289,13 +305,14 @@ namespace oberon::linux {
     }
     // Create swapchain.
     create_swapchain(desired_image_extent, VK_NULL_HANDLE);
+    create_depth_stencil_images();
     create_swapchain_image_views();
   }
 
   vk_device::~vk_device() noexcept {
-    DECLARE_VK_PFN(m_dl, vkDeviceWaitIdle);
-    vkDeviceWaitIdle(m_device);
+    wait_device_idle();
     destroy_swapchain_image_views();
+    destroy_depth_stencil_images();
     destroy_swapchain(m_swapchain);
     DECLARE_VK_PFN(m_dl, vkDestroyFence);
     for (const auto& fence : m_fences)
@@ -313,9 +330,9 @@ namespace oberon::linux {
     DECLARE_VK_PFN(m_dl, vkFreeCommandBuffers);
     {
       auto cur = m_command_pools.cbegin();
-      for (const auto& command_buffer : m_command_buffers)
+      for (const auto& command_buffers : m_command_buffers)
       {
-        vkFreeCommandBuffers(m_device, *(cur++), 1, &command_buffer);
+        vkFreeCommandBuffers(m_device, *(cur++), command_buffers.size(), command_buffers.data());
       }
     }
     DECLARE_VK_PFN(m_dl, vkDestroyCommandPool);
@@ -334,6 +351,11 @@ namespace oberon::linux {
       vkDestroyPipelineLayout(m_device, layout, nullptr);
     }
     DECLARE_VK_PFN(m_dl, vkDestroyPipelineCache);
+    for (const auto& bufalloc : m_buffers)
+    {
+      vmaDestroyBuffer(m_allocator, bufalloc.buffer, bufalloc.allocation);
+    }
+    vmaDestroyAllocator(m_allocator);
     vkDestroyPipelineCache(m_device, m_pipeline_cache, nullptr);
     DECLARE_VK_PFN(m_dl, vkDestroyDevice);
     vkDestroyDevice(m_device, nullptr);
@@ -392,7 +414,10 @@ namespace oberon::linux {
     auto sz = u32{ 0 };
     VK_SUCCEEDS(vkGetSwapchainImagesKHR(m_device, m_swapchain, &sz, nullptr));
     m_swapchain_images.resize(sz);
+    m_depth_stencil_images.resize(sz);
+    m_depth_stencil_allocations.resize(sz);
     m_swapchain_image_views.resize(sz);
+    m_depth_image_views.resize(sz);
     m_buffer_count = sz;
     VK_SUCCEEDS(vkGetSwapchainImagesKHR(m_device, m_swapchain, &sz, m_swapchain_images.data()));
   }
@@ -400,7 +425,40 @@ namespace oberon::linux {
   void vk_device::destroy_swapchain(const VkSwapchainKHR swapchain) noexcept {
     DECLARE_VK_PFN(m_dl, vkDestroySwapchainKHR);
     vkDestroySwapchainKHR(m_device, swapchain, nullptr);
-    m_swapchain_images.clear();
+  }
+
+  void vk_device::create_depth_stencil_images() {
+    auto image_info = VkImageCreateInfo{ };
+    image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    image_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    image_info.extent.width = m_render_area.extent.width;
+    image_info.extent.height = m_render_area.extent.height;
+    image_info.extent.depth = 1;
+    image_info.format = m_depth_stencil_format;
+    image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    image_info.imageType = VK_IMAGE_TYPE_2D;
+    image_info.mipLevels = 1;
+    image_info.arrayLayers = 1;
+    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    auto allocation_info = VmaAllocationCreateInfo{ };
+    allocation_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    allocation_info.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    auto cur = m_depth_stencil_allocations.begin();
+    for (auto& depth_stencil : m_depth_stencil_images)
+    {
+      auto& alloc = *(cur++);
+      VK_SUCCEEDS(vmaCreateImage(m_allocator, &image_info, &allocation_info, &depth_stencil, &alloc, nullptr));
+    }
+  }
+
+  void vk_device::destroy_depth_stencil_images() noexcept {
+    auto cur = m_depth_stencil_allocations.begin();
+    for (const auto& image : m_depth_stencil_images)
+    {
+      vmaDestroyImage(m_allocator, image, *(cur++));
+    }
   }
 
   void vk_device::create_swapchain_image_views() {
@@ -417,10 +475,20 @@ namespace oberon::linux {
     image_view_info.subresourceRange.baseArrayLayer = 0;
     image_view_info.subresourceRange.levelCount = 1;
     image_view_info.subresourceRange.baseMipLevel = 0;
+    DECLARE_VK_PFN(m_dl, vkCreateImageView);
     {
       auto cur = m_swapchain_images.cbegin();
-      DECLARE_VK_PFN(m_dl, vkCreateImageView);
       for (auto& image_view : m_swapchain_image_views)
+      {
+        image_view_info.image = *(cur++);
+        VK_SUCCEEDS(vkCreateImageView(m_device, &image_view_info, nullptr, &image_view));
+      }
+    }
+    image_view_info.format = m_depth_stencil_format;
+    image_view_info.subresourceRange.aspectMask = m_depth_stencil_aspects;
+    {
+      auto cur = m_depth_stencil_images.cbegin();
+      for (auto& image_view : m_depth_image_views)
       {
         image_view_info.image = *(cur++);
         VK_SUCCEEDS(vkCreateImageView(m_device, &image_view_info, nullptr, &image_view));
@@ -430,6 +498,11 @@ namespace oberon::linux {
 
   void vk_device::destroy_swapchain_image_views() noexcept {
     DECLARE_VK_PFN(m_dl, vkDestroyImageView);
+    for (const auto& image_view : m_depth_image_views)
+    {
+      vkDestroyImageView(m_device, image_view, nullptr);
+    }
+    m_depth_image_views.clear();
     for (const auto& image_view : m_swapchain_image_views)
     {
       vkDestroyImageView(m_device, image_view, nullptr);
@@ -442,11 +515,12 @@ namespace oberon::linux {
   }
 
   void vk_device::recreate_swapchain() {
-    DECLARE_VK_PFN(m_dl, vkDeviceWaitIdle);
-    VK_SUCCEEDS(vkDeviceWaitIdle(m_device));
+    wait_device_idle();
     auto old = m_swapchain;
     destroy_swapchain_image_views();
+    destroy_depth_stencil_images();
     create_swapchain(m_render_area.extent, old);
+    create_depth_stencil_images();
     create_swapchain_image_views();
     destroy_swapchain(old);
     m_status &= ~vk_device_status::dirty_bit;
@@ -504,27 +578,45 @@ namespace oberon::linux {
     auto begin_info = VkCommandBufferBeginInfo{ };
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    VK_SUCCEEDS(vkBeginCommandBuffer(m_command_buffers[m_current_frame], &begin_info));
+    VK_SUCCEEDS(vkBeginCommandBuffer(m_command_buffers[m_current_frame][COMMAND_BUFFER_TRANSFER], &begin_info));
+    VK_SUCCEEDS(vkBeginCommandBuffer(m_command_buffers[m_current_frame][COMMAND_BUFFER_RENDER], &begin_info));
+    DECLARE_VK_PFN(m_dl, vkCmdPipelineBarrier);
+    auto image_memory_barriers = std::array<VkImageMemoryBarrier, 2>{ };
     {
-      DECLARE_VK_PFN(m_dl, vkCmdPipelineBarrier);
-      auto image_memory_barrier = VkImageMemoryBarrier{ };
-      image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      image_memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-      image_memory_barrier.srcQueueFamilyIndex = -1;
-      image_memory_barrier.dstQueueFamilyIndex = -1;
-      image_memory_barrier.image = m_swapchain_images[m_current_image];
-      image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      image_memory_barrier.subresourceRange.baseMipLevel = 0;
-      image_memory_barrier.subresourceRange.levelCount = std::numeric_limits<u32>::max();
-      image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-      image_memory_barrier.subresourceRange.layerCount = std::numeric_limits<u32>::max();
-      // Transition image to VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-      vkCmdPipelineBarrier(m_command_buffers[m_current_frame], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1,
-                           &image_memory_barrier);
+      auto& color_barrier = image_memory_barriers[0];
+      color_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      color_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      color_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      color_barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      color_barrier.srcQueueFamilyIndex = -1;
+      color_barrier.dstQueueFamilyIndex = -1;
+      color_barrier.image = m_swapchain_images[m_current_image];
+      color_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      color_barrier.subresourceRange.baseMipLevel = 0;
+      color_barrier.subresourceRange.levelCount = std::numeric_limits<u32>::max();
+      color_barrier.subresourceRange.baseArrayLayer = 0;
+      color_barrier.subresourceRange.layerCount = std::numeric_limits<u32>::max();
     }
+    {
+      auto& depth_barrier = image_memory_barriers[1];
+      depth_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      depth_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+      depth_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      depth_barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+      depth_barrier.srcQueueFamilyIndex = -1;
+      depth_barrier.dstQueueFamilyIndex = -1;
+      depth_barrier.image = m_depth_stencil_images[m_current_image];
+      depth_barrier.subresourceRange.aspectMask = m_depth_stencil_aspects;
+      depth_barrier.subresourceRange.baseMipLevel = 0;
+      depth_barrier.subresourceRange.levelCount = std::numeric_limits<u32>::max();
+      depth_barrier.subresourceRange.baseArrayLayer = 0;
+      depth_barrier.subresourceRange.layerCount = std::numeric_limits<u32>::max();
+    }
+    // Transition image to VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    vkCmdPipelineBarrier(m_command_buffers[m_current_frame][COMMAND_BUFFER_RENDER],
+                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                         0, 0, nullptr, 0, nullptr, image_memory_barriers.size(), image_memory_barriers.data());
     auto color_attachment_info = VkRenderingAttachmentInfo{ };
     color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -534,15 +626,23 @@ namespace oberon::linux {
     // output black pixels.
     // This color is interpretted as being in linear colorspace and not sRGB.
     color_attachment_info.clearValue.color = { { 0.03f, 0.03f, 0.03f, 1.0f } };
+    color_attachment_info.imageView = m_swapchain_image_views[m_current_image];
+    auto depth_stencil_attachment_info = VkRenderingAttachmentInfo{ };
+    depth_stencil_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    depth_stencil_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depth_stencil_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth_stencil_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depth_stencil_attachment_info.clearValue.depthStencil.depth = 1.0f;
+    depth_stencil_attachment_info.imageView = m_depth_image_views[m_current_frame];
     auto rendering_info = VkRenderingInfo{ };
     rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     rendering_info.renderArea = m_render_area;
     rendering_info.layerCount = 1;
     rendering_info.colorAttachmentCount = 1;
     rendering_info.pColorAttachments = &color_attachment_info;
-    color_attachment_info.imageView = m_swapchain_image_views[m_current_image];
+    rendering_info.pDepthAttachment = &depth_stencil_attachment_info;
     DECLARE_VK_PFN(m_dl, vkCmdBeginRendering);
-    vkCmdBeginRendering(m_command_buffers[m_current_frame], &rendering_info);
+    vkCmdBeginRendering(m_command_buffers[m_current_frame][COMMAND_BUFFER_RENDER], &rendering_info);
     DECLARE_VK_PFN(m_dl, vkCmdSetViewport);
     // Set dynamic viewport and scissor.
     auto viewport = VkViewport{ };
@@ -552,42 +652,45 @@ namespace oberon::linux {
     viewport.height = m_render_area.extent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(m_command_buffers[m_current_frame], 0, 1, &viewport);
+    vkCmdSetViewport(m_command_buffers[m_current_frame][COMMAND_BUFFER_RENDER], 0, 1, &viewport);
     DECLARE_VK_PFN(m_dl, vkCmdSetScissor);
-    vkCmdSetScissor(m_command_buffers[m_current_frame], 0, 1, &m_render_area);
+    vkCmdSetScissor(m_command_buffers[m_current_frame][COMMAND_BUFFER_RENDER], 0, 1, &m_render_area);
     m_status |= vk_device_status::rendering_bit;
   }
 
   void vk_device::end_frame() {
     DECLARE_VK_PFN(m_dl, vkCmdEndRendering);
-    vkCmdEndRendering(m_command_buffers[m_current_frame]);
+    vkCmdEndRendering(m_command_buffers[m_current_frame][COMMAND_BUFFER_RENDER]);
+    auto image_memory_barriers = std::array<VkImageMemoryBarrier, 1>{ };
     {
-      DECLARE_VK_PFN(m_dl, vkCmdPipelineBarrier);
-      auto image_memory_barrier = VkImageMemoryBarrier{ };
-      image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-      image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-      image_memory_barrier.srcQueueFamilyIndex = -1;
-      image_memory_barrier.dstQueueFamilyIndex = -1;
-      image_memory_barrier.image = m_swapchain_images[m_current_image];
-      image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      image_memory_barrier.subresourceRange.baseMipLevel = 0;
-      image_memory_barrier.subresourceRange.levelCount = std::numeric_limits<u32>::max();
-      image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-      image_memory_barrier.subresourceRange.layerCount = std::numeric_limits<u32>::max();
-      // Transition image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-      vkCmdPipelineBarrier(m_command_buffers[m_current_frame], VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                           VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1,
-                           &image_memory_barrier);
+      auto& color_barrier = image_memory_barriers[0];
+      color_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      color_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      color_barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      color_barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+      color_barrier.srcQueueFamilyIndex = -1;
+      color_barrier.dstQueueFamilyIndex = -1;
+      color_barrier.image = m_swapchain_images[m_current_image];
+      color_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      color_barrier.subresourceRange.baseMipLevel = 0;
+      color_barrier.subresourceRange.levelCount = std::numeric_limits<u32>::max();
+      color_barrier.subresourceRange.baseArrayLayer = 0;
+      color_barrier.subresourceRange.layerCount = std::numeric_limits<u32>::max();
     }
+    DECLARE_VK_PFN(m_dl, vkCmdPipelineBarrier);
+    // Transition image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    vkCmdPipelineBarrier(m_command_buffers[m_current_frame][COMMAND_BUFFER_RENDER],
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0,
+                         nullptr, 0, nullptr, image_memory_barriers.size(), image_memory_barriers.data());
+
     DECLARE_VK_PFN(m_dl, vkEndCommandBuffer);
-    VK_SUCCEEDS(vkEndCommandBuffer(m_command_buffers[m_current_frame]));
+    VK_SUCCEEDS(vkEndCommandBuffer(m_command_buffers[m_current_frame][COMMAND_BUFFER_RENDER]));
+    VK_SUCCEEDS(vkEndCommandBuffer(m_command_buffers[m_current_frame][COMMAND_BUFFER_TRANSFER]));
     DECLARE_VK_PFN(m_dl, vkQueueSubmit);
     auto submit_info = VkSubmitInfo{ };
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &m_command_buffers[m_current_frame];
+    submit_info.commandBufferCount = m_command_buffers[m_current_frame].size();
+    submit_info.pCommandBuffers = m_command_buffers[m_current_frame].data();
     submit_info.pWaitSemaphores = &m_semaphores[m_current_frame][SEMAPHORE_IMAGE_ACQUIRED];
     submit_info.waitSemaphoreCount = 1;
     auto wait_stage = VkPipelineStageFlags{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
@@ -638,6 +741,10 @@ namespace oberon::linux {
     return m_surface_format.format;
   }
 
+  VkFormat vk_device::current_depth_stencil_format() const {
+    return m_depth_stencil_format;
+  }
+
   VkPipelineLayout vk_device::intern_pipeline_layout(const VkPipelineLayoutCreateInfo& info) {
     DECLARE_VK_PFN(m_dl, vkCreatePipelineLayout);
     auto layout = VkPipelineLayout{ };
@@ -655,11 +762,79 @@ namespace oberon::linux {
   }
 
   void vk_device::draw(const VkPipeline pipeline, const u32 vertices) {
-    const auto& command_buffer = m_command_buffers[m_current_frame];
+    const auto& command_buffer = m_command_buffers[m_current_frame][COMMAND_BUFFER_RENDER];
     DECLARE_VK_PFN(m_dl, vkCmdBindPipeline);
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
     DECLARE_VK_PFN(m_dl, vkCmdDraw);
     vkCmdDraw(command_buffer, vertices, 1, 0, 0);
   }
 
+  void vk_device::draw_buffer(const VkPipeline pipeline, const VkBuffer buffer, const u32 vertices) {
+    const auto& command_buffer = m_command_buffers[m_current_frame][COMMAND_BUFFER_RENDER];
+    DECLARE_VK_PFN(m_dl, vkCmdBindPipeline);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    DECLARE_VK_PFN(m_dl, vkCmdBindVertexBuffers);
+    auto offset = VkDeviceSize{ 0 };
+    vkCmdBindVertexBuffers(command_buffer, 0, 1, &buffer, &offset);
+    DECLARE_VK_PFN(m_dl, vkCmdDraw);
+    vkCmdDraw(command_buffer, vertices, 1, 0, 0);
+  }
+
+  vk_device::buffer_iterator vk_device::allocate_buffer(const VkBufferCreateInfo& buffer_info,
+                                                        const VmaAllocationCreateInfo& allocation_info) {
+    auto data = buffer_allocation{ };
+    VK_SUCCEEDS(vmaCreateBuffer(m_allocator, &buffer_info, &allocation_info, &data.buffer, &data.allocation, nullptr));
+    m_buffers.emplace_front(data);
+    return m_buffers.begin();
+  }
+
+  void vk_device::free_buffer(const buffer_iterator itr) {
+    vmaDestroyBuffer(m_allocator, itr->buffer, itr->allocation);
+    m_buffers.erase(itr);
+  }
+
+  csequence vk_device::writable_ptr(const buffer_iterator itr) {
+    auto allocation_info = VmaAllocationInfo{ };
+    vmaGetAllocationInfo(m_allocator, itr->allocation, &allocation_info);
+    if (!allocation_info.pMappedData)
+    {
+      throw vk_error{ "The indicated buffer is not writable.", 1 };
+    }
+    return reinterpret_cast<csequence>(allocation_info.pMappedData);
+  }
+
+  void vk_device::flush_buffer(const buffer_iterator itr) {
+    VK_SUCCEEDS(vmaFlushAllocation(m_allocator, itr->allocation, 0, VK_WHOLE_SIZE));
+  }
+
+  void vk_device::copy_buffer(const VkBuffer dst, const VkBuffer src, const VkDeviceSize sz) {
+    DECLARE_VK_PFN(m_dl, vkCmdCopyBuffer);
+    auto copy_op = VkBufferCopy{ };
+    copy_op.dstOffset = 0;
+    copy_op.srcOffset = 0;
+    copy_op.size = sz;
+    vkCmdCopyBuffer(m_command_buffers[m_current_frame][COMMAND_BUFFER_TRANSFER], src, dst, 1, &copy_op);
+  }
+
+  void vk_device::insert_buffer_memory_barrier(const VkBufferUsageFlags usage) {
+    DECLARE_VK_PFN(m_dl, vkCmdPipelineBarrier);
+    auto memory_barrier = VkMemoryBarrier{ };
+    memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    if (usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
+    {
+      memory_barrier.dstAccessMask |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+    }
+    if (usage & VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
+    {
+      memory_barrier.dstAccessMask |= VK_ACCESS_INDEX_READ_BIT;
+    }
+    vkCmdPipelineBarrier(m_command_buffers[m_current_frame][COMMAND_BUFFER_TRANSFER], VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 1, &memory_barrier, 0, nullptr, 0, nullptr);
+  }
+
+  void vk_device::wait_device_idle() const noexcept {
+    DECLARE_VK_PFN(m_dl, vkDeviceWaitIdle);
+    vkDeviceWaitIdle(m_device);
+  }
 }

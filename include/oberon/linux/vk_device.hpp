@@ -5,6 +5,7 @@
 #include <vector>
 #include <unordered_set>
 #include <string>
+#include <list>
 
 #include "vk.hpp"
 
@@ -18,6 +19,13 @@ namespace vk_device_status {
 
   class vk_device {
   private:
+    struct buffer_allocation final {
+      VkBuffer buffer{ };
+      VmaAllocation allocation{ };
+    };
+  public:
+    using buffer_iterator = typename std::list<buffer_allocation>::const_iterator;
+  private:
     template <typename Type>
     using per_frame_array = std::array<Type, OBERON_LINUX_VK_MAX_FRAMES_IN_FLIGHT>;
 
@@ -25,6 +33,12 @@ namespace vk_device_status {
       SEMAPHORE_IMAGE_ACQUIRED = 0,
       SEMAPHORE_RENDER_FINISHED = 1,
       SEMAPHORE_MAX
+    };
+
+    enum {
+      COMMAND_BUFFER_TRANSFER = 0,
+      COMMAND_BUFFER_RENDER = 1,
+      COMMAND_BUFFER_MAX
     };
 
     VkSurfaceKHR m_parent_surface{ };
@@ -38,23 +52,29 @@ namespace vk_device_status {
     VkQueue m_transfer_queue{ };
     VkQueue m_present_queue{ };
     VkPipelineCache m_pipeline_cache{ };
+    VmaAllocator m_allocator{ };
     per_frame_array<VkCommandPool> m_command_pools{ };
-    per_frame_array<VkCommandBuffer> m_command_buffers{ };
+    per_frame_array<std::array<VkCommandBuffer, COMMAND_BUFFER_MAX>> m_command_buffers{ };
     per_frame_array<std::array<VkSemaphore, SEMAPHORE_MAX>> m_semaphores{ };
     per_frame_array<VkFence> m_fences{ };
     VkSurfaceFormatKHR m_surface_format{ };
+    VkFormat m_depth_stencil_format{ VK_FORMAT_D16_UNORM };
+    VkImageAspectFlags m_depth_stencil_aspects{ VK_IMAGE_ASPECT_DEPTH_BIT };
     VkRect2D m_render_area{ };
     VkPresentModeKHR m_present_mode{ VK_PRESENT_MODE_FIFO_KHR };
     u32 m_buffer_count{ 3 };
     VkSwapchainKHR m_swapchain{ };
     std::vector<VkImage> m_swapchain_images{ };
+    std::vector<VkImage> m_depth_stencil_images{ };
     std::vector<VkImageView> m_swapchain_image_views{ };
+    std::vector<VkImageView> m_depth_image_views{ };
+    std::vector<VmaAllocation> m_depth_stencil_allocations{ };
     bitmask m_status{ vk_device_status::none_bit };
     u32 m_current_image{ };
     u32 m_current_frame{ };
     std::vector<VkPipelineLayout> m_interned_layouts{ };
     std::vector<VkPipeline> m_interned_graphics_pipelines{ };
-
+    std::list<buffer_allocation> m_buffers{ };
     std::unordered_set<std::string> m_enabled_extensions{ };
     std::unordered_set<VkPresentModeKHR> m_available_present_modes{ };
 
@@ -67,9 +87,11 @@ namespace vk_device_status {
                                        const VkSurfaceKHR surface, VkSurfaceFormatKHR& surface_format);
     void create_swapchain(const VkExtent2D& desired_image_extent, const VkSwapchainKHR old);
     void destroy_swapchain(const VkSwapchainKHR swapchain) noexcept;
+    void create_depth_stencil_images();
+    void destroy_depth_stencil_images() noexcept;
     void create_swapchain_image_views();
     void destroy_swapchain_image_views() noexcept;
-    void recreate_swapchain( );
+    void recreate_swapchain();
   public:
     static std::unordered_set<std::string> query_available_extensions(const vkfl::loader& dl,
                                                                       const VkPhysicalDevice physical_device);
@@ -91,6 +113,7 @@ namespace vk_device_status {
     VkShaderModule create_shader_module(const VkShaderModuleCreateInfo& info);
     void destroy_shader_module(const VkShaderModule shader_module) noexcept;
     VkFormat current_swapchain_format() const;
+    VkFormat current_depth_stencil_format() const;
     VkPresentModeKHR current_present_mode() const;
     u32 current_swapchain_size() const;
     VkPipelineLayout intern_pipeline_layout(const VkPipelineLayoutCreateInfo& info);
@@ -98,6 +121,14 @@ namespace vk_device_status {
     void begin_frame();
     void end_frame();
     void draw(const VkPipeline pipeline, const u32 vertices);
+    void draw_buffer(const VkPipeline pipeline, const VkBuffer buffer, const u32 vertices);
+    buffer_iterator allocate_buffer(const VkBufferCreateInfo& buffer_info, const VmaAllocationCreateInfo& allocation_info);
+    void free_buffer(const buffer_iterator itr);
+    csequence writable_ptr(const buffer_iterator itr);
+    void flush_buffer(const buffer_iterator itr);
+    void copy_buffer(const VkBuffer dst, const VkBuffer src, const VkDeviceSize sz);
+    void insert_buffer_memory_barrier(const VkBufferUsageFlags usage);
+    void wait_device_idle() const noexcept;
   };
 
   class amd_vk_device final : public vk_device {
