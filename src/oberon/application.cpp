@@ -123,6 +123,7 @@ namespace oberon {
     {
       std::cerr << err.type() << " (" << err.location().file_name() << ":" << err.location().line() << ":"
                 << err.location().column() << "): " << err.message() << std::endl;
+      std::cerr << "Status: " << err.result() << std::endl;
       result = err.result();
     }
     // Standard exceptions carry less information than equivalent oberon types.
@@ -131,6 +132,7 @@ namespace oberon {
     catch (const std::exception& err)
     {
       std::cerr << "std::exception (unknown): " << err.what() << std::endl;
+      std::cerr << "Status: 1" << std::endl;
       result = 1;
     }
     return result;
