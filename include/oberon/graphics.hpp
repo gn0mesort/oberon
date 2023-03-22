@@ -14,6 +14,7 @@
 
 #include "types.hpp"
 #include "memory.hpp"
+#include "buffer.hpp"
 
 /**
  * @def OBERON_GRAPHICS_DEVICE_TYPES
@@ -250,7 +251,12 @@ namespace oberon {
      */
     virtual void draw_test_image() = 0;
 
+    virtual void draw_buffer_unlit_pc(buffer& buf) = 0;
+    virtual buffer& allocate_buffer(const buffer_type type, const usize sz) = 0;
+    virtual void free_buffer(buffer& buf) = 0;
+
     virtual void submit_and_present_frame() = 0;
+    virtual void flush_device_queues() const = 0;
   };
 
   /// @cond

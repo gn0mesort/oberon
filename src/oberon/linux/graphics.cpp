@@ -15,11 +15,13 @@
 #include <fstream>
 
 #include "oberon/debug.hpp"
+#include "oberon/vertices.hpp"
 
 #include "oberon/linux/system.hpp"
 #include "oberon/linux/window.hpp"
 #include "oberon/linux/vk.hpp"
 #include "oberon/linux/vk_device.hpp"
+#include "oberon/linux/buffer.hpp"
 
 #define OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_PRECONDITIONS
 /*  OBERON_PRECONDITION(m_graphics_devices.size())
@@ -154,7 +156,7 @@ namespace oberon::linux {
     // Create vk_device.
     {
       m_vk_device = create_device(preferred_device());
-      initialize_test_image_pipeline();
+      initialize_graphics_pipelines();
       m_vk_device->begin_frame();
     }
     OBERON_LINUX_GRAPHICS_CLOSED_DEVICE_POSTCONDITIONS;
@@ -194,7 +196,19 @@ namespace oberon::linux {
     return buffer;
   }
 
- void graphics::initialize_test_image_pipeline() {
+ void graphics::initialize_graphics_pipelines() {
+  auto rendering_info = VkPipelineRenderingCreateInfo{ };
+  rendering_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+  rendering_info.colorAttachmentCount = 1;
+  auto color_format = m_vk_device->current_swapchain_format();
+  auto depth_format = m_vk_device->current_depth_stencil_format();
+  rendering_info.pColorAttachmentFormats = &color_format;
+  rendering_info.depthAttachmentFormat = depth_format;
+  initialize_test_image_pipeline(rendering_info);
+  initialize_unlit_pc_pipeline(rendering_info);
+ }
+
+ void graphics::initialize_test_image_pipeline(const VkPipelineRenderingCreateInfo& rendering_info) {
     auto module_info = VkShaderModuleCreateInfo{ };
     module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     auto pipeline_stage = VkPipelineShaderStageCreateInfo{ };
@@ -223,12 +237,7 @@ namespace oberon::linux {
     {
       auto graphics_pipeline_info = VkGraphicsPipelineCreateInfo{ };
       graphics_pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-      auto pipeline_rendering_info = VkPipelineRenderingCreateInfo{ };
-      pipeline_rendering_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-      pipeline_rendering_info.colorAttachmentCount = 1;
-      auto format = m_vk_device->current_swapchain_format();
-      pipeline_rendering_info.pColorAttachmentFormats = &format;
-      graphics_pipeline_info.pNext = &pipeline_rendering_info;
+      graphics_pipeline_info.pNext = &rendering_info;
       graphics_pipeline_info.stageCount = pipeline_stages.size();
       graphics_pipeline_info.pStages = pipeline_stages.data();
       auto vertex_input = VkPipelineVertexInputStateCreateInfo{ };
@@ -258,7 +267,12 @@ namespace oberon::linux {
       multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
       multisample.minSampleShading = 1.0f;
       graphics_pipeline_info.pMultisampleState = &multisample;
-      // TODO: depth_stencil
+      auto depth_stencil = VkPipelineDepthStencilStateCreateInfo{ };
+      depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+      depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+      depth_stencil.depthTestEnable = true;
+      depth_stencil.depthWriteEnable = true;
+      graphics_pipeline_info.pDepthStencilState = &depth_stencil;
       auto color_blend = VkPipelineColorBlendStateCreateInfo{ };
       color_blend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
       color_blend.attachmentCount = 1;
@@ -286,6 +300,123 @@ namespace oberon::linux {
       m_test_image_pipeline_layout = m_vk_device->intern_pipeline_layout(layout_info);
       graphics_pipeline_info.layout = m_test_image_pipeline_layout;
       m_test_image_pipeline = m_vk_device->intern_graphics_pipeline(graphics_pipeline_info);
+      m_vk_device->destroy_shader_module(pipeline_stages[0].module);
+      m_vk_device->destroy_shader_module(pipeline_stages[1].module);
+    }
+  }
+ void graphics::initialize_unlit_pc_pipeline(const VkPipelineRenderingCreateInfo& rendering_info) {
+    auto module_info = VkShaderModuleCreateInfo{ };
+    module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    auto pipeline_stage = VkPipelineShaderStageCreateInfo{ };
+    pipeline_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipeline_stage.pName = "main";
+    auto pipeline_stages = std::array<VkPipelineShaderStageCreateInfo, 2>{ };
+    {
+      auto vertex_binary = read_shader_binary(m_parent->find_file(default_file_location::immutable_data,
+                                                                  "shaders/unlit_pc.vert.spv"));
+      module_info.pCode = reinterpret_cast<readonly_ptr<u32>>(vertex_binary.data());
+      // Despite pCode using u32s codeSize is in bytes.
+      module_info.codeSize = vertex_binary.size();
+      pipeline_stage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+      pipeline_stage.module = m_vk_device->create_shader_module(module_info);
+      pipeline_stages[0] = pipeline_stage;
+    }
+    auto fragment_binary = read_shader_binary(m_parent->find_file(default_file_location::immutable_data,
+                                                                  "shaders/unlit_pc.frag.spv"));
+    {
+      module_info.pCode = reinterpret_cast<readonly_ptr<u32>>(fragment_binary.data());
+      module_info.codeSize = fragment_binary.size();
+      pipeline_stage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+      pipeline_stage.module = m_vk_device->create_shader_module(module_info);
+      pipeline_stages[1] = pipeline_stage;
+    }
+    {
+      auto graphics_pipeline_info = VkGraphicsPipelineCreateInfo{ };
+      graphics_pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+      graphics_pipeline_info.pNext = &rendering_info;
+      graphics_pipeline_info.stageCount = pipeline_stages.size();
+      graphics_pipeline_info.pStages = pipeline_stages.data();
+      auto vertex_input = VkPipelineVertexInputStateCreateInfo{ };
+      vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+      auto binding_desc = VkVertexInputBindingDescription{ };
+      binding_desc.binding = 0;
+      binding_desc.stride = sizeof(vertex_pc);
+      binding_desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+      auto vertex_attrs = std::array<VkVertexInputAttributeDescription, 2>{ };
+      {
+        auto& position_attr = vertex_attrs[0];
+        position_attr.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        position_attr.offset = offsetof(vertex_pc, position);
+        position_attr.binding = 0;
+        position_attr.location = 0;
+      }
+      {
+        auto& color_attr = vertex_attrs[1];
+        color_attr.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        color_attr.offset = offsetof(vertex_pc, color);
+        color_attr.binding = 0;
+        color_attr.location = 1;
+      }
+      vertex_input.pVertexBindingDescriptions = &binding_desc;
+      vertex_input.vertexBindingDescriptionCount = 1;
+      vertex_input.pVertexAttributeDescriptions = vertex_attrs.data();
+      vertex_input.vertexAttributeDescriptionCount = vertex_attrs.size();
+      graphics_pipeline_info.pVertexInputState = &vertex_input;
+      auto input_assembly = VkPipelineInputAssemblyStateCreateInfo{ };
+      input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+      input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+      input_assembly.primitiveRestartEnable = false;
+      graphics_pipeline_info.pInputAssemblyState = &input_assembly;
+      auto viewport = VkPipelineViewportStateCreateInfo{ };
+      viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+      viewport.viewportCount = 1;
+      viewport.scissorCount = 1;
+      graphics_pipeline_info.pViewportState = &viewport;
+      auto rasterization = VkPipelineRasterizationStateCreateInfo{ };
+      rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+      rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+      rasterization.lineWidth = 1.0f;
+      rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
+      rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+      graphics_pipeline_info.pRasterizationState = &rasterization;
+      auto multisample = VkPipelineMultisampleStateCreateInfo{ };
+      multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+      multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+      multisample.minSampleShading = 1.0f;
+      graphics_pipeline_info.pMultisampleState = &multisample;
+      auto depth_stencil = VkPipelineDepthStencilStateCreateInfo{ };
+      depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+      depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+      depth_stencil.depthTestEnable = true;
+      depth_stencil.depthWriteEnable = true;
+      graphics_pipeline_info.pDepthStencilState = &depth_stencil;
+      auto color_blend = VkPipelineColorBlendStateCreateInfo{ };
+      color_blend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+      color_blend.attachmentCount = 1;
+      auto color_blend_attachment = VkPipelineColorBlendAttachmentState{ };
+      color_blend_attachment.blendEnable = true;
+      color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+      color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+      color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+      color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+      color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+      color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+      color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                              VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+      color_blend.pAttachments = &color_blend_attachment;
+      graphics_pipeline_info.pColorBlendState = &color_blend;
+      auto dynamic_state = VkPipelineDynamicStateCreateInfo{ };
+      dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+      auto dynamic_states = std::array<VkDynamicState, 2>{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+      dynamic_state.dynamicStateCount = dynamic_states.size();
+      dynamic_state.pDynamicStates = dynamic_states.data();
+      graphics_pipeline_info.pDynamicState = &dynamic_state;
+      // TODO: obviously some uniforms would be useful.
+      auto layout_info = VkPipelineLayoutCreateInfo{ };
+      layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+      m_unlit_pc_pipeline_layout = m_vk_device->intern_pipeline_layout(layout_info);
+      graphics_pipeline_info.layout = m_test_image_pipeline_layout;
+      m_unlit_pc_pipeline = m_vk_device->intern_graphics_pipeline(graphics_pipeline_info);
       m_vk_device->destroy_shader_module(pipeline_stages[0].module);
       m_vk_device->destroy_shader_module(pipeline_stages[1].module);
     }
@@ -341,7 +472,7 @@ namespace oberon::linux {
   void graphics::change_device(const graphics_device& device) {
     delete m_vk_device;
     m_vk_device = create_device(device);
-    initialize_test_image_pipeline();
+    initialize_graphics_pipelines();
   }
 
   void graphics::draw_test_image() {
@@ -355,6 +486,23 @@ namespace oberon::linux {
 
   vk_device& graphics::device() {
     return *m_vk_device;
+  }
+
+  void graphics::draw_buffer_unlit_pc(oberon::buffer& buf) {
+    auto& linbuf = static_cast<buffer&>(buf);
+    m_vk_device->draw_buffer(m_unlit_pc_pipeline, linbuf.resident(), linbuf.size() / sizeof(vertex_pc));
+  }
+
+  oberon::buffer& graphics::allocate_buffer(const buffer_type type, const usize sz) {
+    return *(new buffer{ type, *m_vk_device, sz });
+  }
+
+  void graphics::free_buffer(oberon::buffer& buf) {
+    delete &buf;
+  }
+
+  void graphics::flush_device_queues() const {
+    m_vk_device->wait_device_idle();
   }
 
 }

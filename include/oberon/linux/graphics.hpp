@@ -29,6 +29,8 @@ namespace oberon::linux {
   private:
     VkPipelineLayout m_test_image_pipeline_layout{ };
     VkPipeline m_test_image_pipeline{ };
+    VkPipelineLayout m_unlit_pc_pipeline_layout{ };
+    VkPipeline m_unlit_pc_pipeline{ };
 
     ptr<system> m_parent{ };
     ptr<window> m_target{ };
@@ -37,7 +39,9 @@ namespace oberon::linux {
 
     ptr<vk_device> create_device(const graphics_device& physical_device);
     std::vector<char> read_shader_binary(const std::filesystem::path& file);
-    void initialize_test_image_pipeline();
+    void initialize_graphics_pipelines();
+    void initialize_test_image_pipeline(const VkPipelineRenderingCreateInfo& rendering_info);
+    void initialize_unlit_pc_pipeline(const VkPipelineRenderingCreateInfo& rendering_info);
   public:
     /**
      * @brief Create a new graphics object.
@@ -117,12 +121,16 @@ namespace oberon::linux {
      *               available_devices().
      */
     void change_device(const graphics_device& device) override;
+    void flush_device_queues() const override;
 
     /**
      * @brief Draw a test image.
      * @details This draws a simple RGB triangle.
      */
     void draw_test_image() override;
+    void draw_buffer_unlit_pc(oberon::buffer& buf) override;
+    oberon::buffer& allocate_buffer(const buffer_type type, const usize sz) override;
+    void free_buffer(oberon::buffer& buf) override;
 
     void submit_and_present_frame() override;
 
