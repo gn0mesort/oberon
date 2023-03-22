@@ -19,6 +19,8 @@
 #include "application.hpp"
 #include "keys.hpp"
 #include "mouse.hpp"
+#include "vertices.hpp"
+#include "buffer.hpp"
 #include "system.hpp"
 #include "input.hpp"
 #include "window.hpp"
