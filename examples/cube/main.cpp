@@ -5,6 +5,8 @@
  * @date 2023
  * @copyright AGPL-3.0+
  */
+#include <chrono>
+
 #include "oberon/oberon.hpp"
 
 void toggle_fullscreen(oberon::window& win) {
@@ -53,34 +55,73 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::platform& p
   plt.attach_key_press_event_callback(on_key_press);
   win.resize({ 1280, 720 });
   win.show();
-  auto vertices = std::array<oberon::vertex_pc, 6>{
-    oberon::vertex_pc{ { -0.5f, 0.5f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-    oberon::vertex_pc{ { 0.5f, 0.5f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-    oberon::vertex_pc{ { 0.5f, -0.5f, 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } },
+  auto vertices = std::array<float, 288>{
+     0.5, -0.5, -0.5, 1.0,  1.0, 0.0, 0.0, 1.0,
+     0.5,  0.5, -0.5, 1.0,  1.0, 0.0, 0.0, 1.0,
+    -0.5,  0.5, -0.5, 1.0,  1.0, 0.0, 0.0, 1.0,
+    -0.5,  0.5, -0.5, 1.0,  1.0, 0.0, 0.0, 1.0,
+    -0.5, -0.5, -0.5, 1.0,  1.0, 0.0, 0.0, 1.0,
+     0.5, -0.5, -0.5, 1.0,  1.0, 0.0, 0.0, 1.0,
 
-    oberon::vertex_pc{ { 0.5f, -0.5f, 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } },
-    oberon::vertex_pc{ { -0.5f, -0.5f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f, 1.0f } },
-    oberon::vertex_pc{ { -0.5f, 0.5f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } }
+    -0.5,  0.5,  0.5, 1.0,  0.0, 1.0, 0.0, 1.0,
+     0.5,  0.5,  0.5, 1.0,  0.0, 1.0, 0.0, 1.0,
+     0.5, -0.5,  0.5, 1.0,  0.0, 1.0, 0.0, 1.0,
+     0.5, -0.5,  0.5, 1.0,  0.0, 1.0, 0.0, 1.0,
+    -0.5, -0.5,  0.5, 1.0,  0.0, 1.0, 0.0, 1.0,
+    -0.5,  0.5,  0.5, 1.0,  0.0, 1.0, 0.0, 1.0,
+
+    -0.5, -0.5,  0.5, 1.0,  0.0, 0.0, 1.0, 1.0,
+    -0.5, -0.5, -0.5, 1.0,  0.0, 0.0, 1.0, 1.0,
+    -0.5,  0.5, -0.5, 1.0,  0.0, 0.0, 1.0, 1.0,
+    -0.5,  0.5, -0.5, 1.0,  0.0, 0.0, 1.0, 1.0,
+    -0.5,  0.5,  0.5, 1.0,  0.0, 0.0, 1.0, 1.0,
+    -0.5, -0.5,  0.5, 1.0,  0.0, 0.0, 1.0, 1.0,
+
+     0.5,  0.5, -0.5, 1.0,  1.0, 0.0, 1.0, 1.0,
+     0.5, -0.5, -0.5, 1.0,  1.0, 0.0, 1.0, 1.0,
+     0.5, -0.5,  0.5, 1.0,  1.0, 0.0, 1.0, 1.0,
+     0.5, -0.5,  0.5, 1.0,  1.0, 0.0, 1.0, 1.0,
+     0.5,  0.5,  0.5, 1.0,  1.0, 0.0, 1.0, 1.0,
+     0.5,  0.5, -0.5, 1.0,  1.0, 0.0, 1.0, 1.0,
+
+    -0.5,  0.5, -0.5, 1.0,  1.0, 1.0, 0.0, 1.0,
+     0.5,  0.5, -0.5, 1.0,  1.0, 1.0, 0.0, 1.0,
+     0.5,  0.5,  0.5, 1.0,  1.0, 1.0, 0.0, 1.0,
+     0.5,  0.5,  0.5, 1.0,  1.0, 1.0, 0.0, 1.0,
+    -0.5,  0.5,  0.5, 1.0,  1.0, 1.0, 0.0, 1.0,
+    -0.5,  0.5, -0.5, 1.0,  1.0, 1.0, 0.0, 1.0,
+
+     0.5, -0.5,  0.5, 1.0,  0.0, 1.0, 1.0, 1.0,
+     0.5, -0.5, -0.5, 1.0,  0.0, 1.0, 1.0, 1.0,
+    -0.5, -0.5, -0.5, 1.0,  0.0, 1.0, 1.0, 1.0,
+    -0.5, -0.5, -0.5, 1.0,  0.0, 1.0, 1.0, 1.0,
+    -0.5, -0.5,  0.5, 1.0,  0.0, 1.0, 1.0, 1.0,
+     0.5, -0.5,  0.5, 1.0,  0.0, 1.0, 1.0, 1.0
   };
-  auto& buf = gfx.allocate_buffer(oberon::buffer_type::vertex, vertices.size() * sizeof(oberon::vertex_pc));
-  auto vertices2 = std::array<oberon::vertex_pc, 3>{
-    oberon::vertex_pc{ { -1.0f, 0.5f, 0.5f, 1.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-    oberon::vertex_pc{ { -0.5, 0.5f, 0.5f, 1.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-    oberon::vertex_pc{ { -0.5, 0.0f, 0.5f, 1.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } }
-  };
-  auto& buf2 = gfx.allocate_buffer(oberon::buffer_type::vertex, vertices2.size() * sizeof(oberon::vertex_pc));
-  buf2.write(vertices2);
+  auto& buf = gfx.allocate_buffer(oberon::buffer_type::vertex, vertices.size() * sizeof(float));
+  auto ub = oberon::uniform_buffer{ };
+  ub.model = oberon::identity<oberon::mat4>();
+  ub.model = oberon::translate(ub.model, { 0, 0, 0 });
+  ub.view = oberon::lookAt(oberon::vec3{ 0.0f, 0.0f, 5.0f }, oberon::vec3{ 0.0f, 0.0f, 0.0f }, oberon::vec3{ 0.0f, 1.0f, 0.0f });
+  ub.projection = oberon::perspective(106.0f, 16.0f / 9.0f, 0.1f, 100.0f);
   buf.write(vertices);
+  auto start = decltype(std::chrono::steady_clock::now()){ };
+  auto end = decltype(std::chrono::steady_clock::now()){ };
+  auto dt = std::chrono::duration<float>{ };
   while (!win.quit_requested())
   {
+    start = std::chrono::steady_clock::now();
     plt.drain_event_queue();
+    ub.model = oberon::rotate(ub.model, oberon::radians(30.0f) * dt.count(), { 0.0f, 1.0f, 0.0f });
+    ub.model = oberon::rotate(ub.model, oberon::radians(30.0f) * dt.count(), { 1.0f, 0.0f, 0.0f });
+    gfx.write_uniform_buffer(ub);
     gfx.draw_buffer_unlit_pc(buf);
-    gfx.draw_buffer_unlit_pc(buf2);
     gfx.submit_and_present_frame();
+    end = std::chrono::steady_clock::now();
+    dt = end - start;
   }
   gfx.flush_device_queues();
   gfx.free_buffer(buf);
-  gfx.free_buffer(buf2);
   return 0;
 }
 
