@@ -7,7 +7,10 @@
 #include <string>
 #include <list>
 
+#include "../uniform_buffers.hpp"
+
 #include "vk.hpp"
+
 
 namespace oberon::linux {
 
@@ -77,6 +80,12 @@ namespace vk_device_status {
     std::list<buffer_allocation> m_buffers{ };
     std::unordered_set<std::string> m_enabled_extensions{ };
     std::unordered_set<VkPresentModeKHR> m_available_present_modes{ };
+    VkDescriptorSetLayout m_uniform_descriptor_layout{ };
+    VkDescriptorPool m_descriptor_pool{ };
+    per_frame_array<VkDescriptorSet> m_descriptor_sets{ };
+    per_frame_array<buffer_iterator> m_uniform_staging{ };
+    per_frame_array<buffer_iterator> m_uniform_resident{ };
+
 
     virtual void select_device_queues(const vkfl::loader& dl, const VkSurfaceKHR surface,
                                       const VkPhysicalDevice physical_device, i64& graphics_queue_families,
@@ -116,13 +125,17 @@ namespace vk_device_status {
     VkFormat current_depth_stencil_format() const;
     VkPresentModeKHR current_present_mode() const;
     u32 current_swapchain_size() const;
+    VkDescriptorSetLayout uniform_descriptor_layout();
     VkPipelineLayout intern_pipeline_layout(const VkPipelineLayoutCreateInfo& info);
     VkPipeline intern_graphics_pipeline(const VkGraphicsPipelineCreateInfo& info);
     void begin_frame();
     void end_frame();
     void draw(const VkPipeline pipeline, const u32 vertices);
-    void draw_buffer(const VkPipeline pipeline, const VkBuffer buffer, const u32 vertices);
-    buffer_iterator allocate_buffer(const VkBufferCreateInfo& buffer_info, const VmaAllocationCreateInfo& allocation_info);
+    void draw_buffer(const VkPipeline pipeline, const VkPipelineLayout layout, const VkBuffer buffer,
+                     const u32 vertices);
+    buffer_iterator allocate_buffer(const VkBufferCreateInfo& buffer_info,
+                                    const VmaAllocationCreateInfo& allocation_info);
+    void write_uniform_buffer(const uniform_buffer& ub);
     void free_buffer(const buffer_iterator itr);
     csequence writable_ptr(const buffer_iterator itr);
     void flush_buffer(const buffer_iterator itr);
