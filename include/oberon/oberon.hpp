@@ -20,6 +20,7 @@
 #include "keys.hpp"
 #include "mouse.hpp"
 #include "vertices.hpp"
+#include "uniform_buffers.hpp"
 #include "buffer.hpp"
 #include "system.hpp"
 #include "input.hpp"
