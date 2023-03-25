@@ -204,11 +204,13 @@ namespace oberon::linux {
   auto depth_format = m_vk_device->current_depth_stencil_format();
   rendering_info.pColorAttachmentFormats = &color_format;
   rendering_info.depthAttachmentFormat = depth_format;
-  initialize_test_image_pipeline(rendering_info);
-  initialize_unlit_pc_pipeline(rendering_info);
+  auto uniform_descriptor_layout = m_vk_device->uniform_descriptor_layout();
+  initialize_test_image_pipeline(rendering_info, uniform_descriptor_layout);
+  initialize_unlit_pc_pipeline(rendering_info, uniform_descriptor_layout);
  }
 
- void graphics::initialize_test_image_pipeline(const VkPipelineRenderingCreateInfo& rendering_info) {
+ void graphics::initialize_test_image_pipeline(const VkPipelineRenderingCreateInfo& rendering_info,
+                                               const VkDescriptorSetLayout) {
     auto module_info = VkShaderModuleCreateInfo{ };
     module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     auto pipeline_stage = VkPipelineShaderStageCreateInfo{ };
@@ -294,7 +296,6 @@ namespace oberon::linux {
       dynamic_state.dynamicStateCount = dynamic_states.size();
       dynamic_state.pDynamicStates = dynamic_states.data();
       graphics_pipeline_info.pDynamicState = &dynamic_state;
-      // TODO: obviously some uniforms would be useful.
       auto layout_info = VkPipelineLayoutCreateInfo{ };
       layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
       m_test_image_pipeline_layout = m_vk_device->intern_pipeline_layout(layout_info);
@@ -304,7 +305,8 @@ namespace oberon::linux {
       m_vk_device->destroy_shader_module(pipeline_stages[1].module);
     }
   }
- void graphics::initialize_unlit_pc_pipeline(const VkPipelineRenderingCreateInfo& rendering_info) {
+ void graphics::initialize_unlit_pc_pipeline(const VkPipelineRenderingCreateInfo& rendering_info,
+                                             const VkDescriptorSetLayout uniform_descriptor_layout) {
     auto module_info = VkShaderModuleCreateInfo{ };
     module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     auto pipeline_stage = VkPipelineShaderStageCreateInfo{ };
@@ -414,8 +416,10 @@ namespace oberon::linux {
       // TODO: obviously some uniforms would be useful.
       auto layout_info = VkPipelineLayoutCreateInfo{ };
       layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+      layout_info.pSetLayouts = &uniform_descriptor_layout;
+      layout_info.setLayoutCount = 1;
       m_unlit_pc_pipeline_layout = m_vk_device->intern_pipeline_layout(layout_info);
-      graphics_pipeline_info.layout = m_test_image_pipeline_layout;
+      graphics_pipeline_info.layout = m_unlit_pc_pipeline_layout;
       m_unlit_pc_pipeline = m_vk_device->intern_graphics_pipeline(graphics_pipeline_info);
       m_vk_device->destroy_shader_module(pipeline_stages[0].module);
       m_vk_device->destroy_shader_module(pipeline_stages[1].module);
@@ -488,9 +492,14 @@ namespace oberon::linux {
     return *m_vk_device;
   }
 
+  void graphics::write_uniform_buffer(const uniform_buffer& ub) {
+    m_vk_device->write_uniform_buffer(ub);
+  }
+
   void graphics::draw_buffer_unlit_pc(oberon::buffer& buf) {
     auto& linbuf = static_cast<buffer&>(buf);
-    m_vk_device->draw_buffer(m_unlit_pc_pipeline, linbuf.resident(), linbuf.size() / sizeof(vertex_pc));
+    m_vk_device->draw_buffer(m_unlit_pc_pipeline, m_unlit_pc_pipeline_layout, linbuf.resident(),
+                             linbuf.size() / sizeof(vertex_pc));
   }
 
   oberon::buffer& graphics::allocate_buffer(const buffer_type type, const usize sz) {

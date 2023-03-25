@@ -40,8 +40,10 @@ namespace oberon::linux {
     ptr<vk_device> create_device(const graphics_device& physical_device);
     std::vector<char> read_shader_binary(const std::filesystem::path& file);
     void initialize_graphics_pipelines();
-    void initialize_test_image_pipeline(const VkPipelineRenderingCreateInfo& rendering_info);
-    void initialize_unlit_pc_pipeline(const VkPipelineRenderingCreateInfo& rendering_info);
+    void initialize_test_image_pipeline(const VkPipelineRenderingCreateInfo& rendering_info,
+                                        const VkDescriptorSetLayout uniform_descriptor_layout);
+    void initialize_unlit_pc_pipeline(const VkPipelineRenderingCreateInfo& rendering_info,
+                                      const VkDescriptorSetLayout uniform_descriptor_layout);
   public:
     /**
      * @brief Create a new graphics object.
@@ -128,6 +130,7 @@ namespace oberon::linux {
      * @details This draws a simple RGB triangle.
      */
     void draw_test_image() override;
+    void write_uniform_buffer(const uniform_buffer& ub) override;
     void draw_buffer_unlit_pc(oberon::buffer& buf) override;
     oberon::buffer& allocate_buffer(const buffer_type type, const usize sz) override;
     void free_buffer(oberon::buffer& buf) override;
