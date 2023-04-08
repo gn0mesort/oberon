@@ -17,6 +17,8 @@
 #include <concepts>
 #include <utility>
 
+#define OBERON_ENFORCE_CONCEPT(concept, type) static_assert(requires { requires concept<type>; })
+
 /**
  * @def OBERON_DEFINE_ZERO_BIT(name)
  * @brief Defines a new constant representing the value 0.

@@ -28,12 +28,18 @@ vkfl_sub = subproject('vkfl', default_options: [ 'build_c=disabled', 'build_exam
                                                  'build_tests=disabled'])
 
 oberon_deps = [
+  dependency('vulkan'),
+  vkfl_sub.get_variable('vkfl_cpp_dep')
 ]
+
+version = meson.project_version().split('.')
+
 oberon_args = [
-  '-DMESON_PROJECT_VERSION="1.0.0"',
-  '-DMESON_PROJECT_VERSION_MAJOR=1',
-  '-DMESON_PROJECT_VERSION_MINOR=0',
-  '-DMESON_PROJECT_VERSION_PATCH=0',
+  '-DMESON_PROJECT_NAME="@0@"'.format(meson.project_name()),
+  '-DMESON_PROJECT_VERSION="@0@"'.format(meson.project_version()),
+  '-DMESON_PROJECT_VERSION_MAJOR=@0@'.format(version[0]),
+  '-DMESON_PROJECT_VERSION_MINOR=@0@'.format(version[1]),
+  '-DMESON_PROJECT_VERSION_PATCH=@0@'.format(version[2]),
   # Useful for examples that want to locate shaders and other data files.
   '-DMESON_BUILD_DIRECTORY="@0@"'.format(meson.current_build_dir())
 ]
@@ -42,8 +48,8 @@ oberon_incs = [
   include_directories('include')
 ]
 oberon_srcs = [
-  files('src/oberon/application.cpp', 'src/oberon/debug.cpp', 'src/oberon/errors.cpp', 'src/oberon/keys.cpp',
-        'src/oberon/mouse.cpp', 'src/oberon/graphics.cpp')
+  files('src/oberon/debug.cpp', 'src/oberon/errors.cpp'),
+  files('src/oberon/internal/vulkan.cpp', 'src/oberon/internal/vulkan_graphics_context.cpp')
 ]
 
 if cxx.get_id() == 'clang' or cxx.get_id() == 'clang-cl'
@@ -63,15 +69,9 @@ if host_machine.system() == 'linux'
     dependency('xkbcommon'),
     dependency('xkbcommon-x11'),
     dependency('x11-xcb'),
-    dependency('vulkan'),
-    vkfl_sub.get_variable('vkfl_cpp_dep'),
     dependency('glm')
   ]
   oberon_linux_srcs = [
-    files('src/oberon/linux/system.cpp', 'src/oberon/linux/input.cpp', 'src/oberon/linux/window.cpp',
-          'src/oberon/linux/platform.cpp', 'src/oberon/linux/x11-errors.cpp', 'src/oberon/linux/vk.cpp',
-          'src/oberon/linux/graphics.cpp', 'src/oberon/linux/vk_device.cpp', 'src/oberon/linux/nvidia_vk_device.cpp',
-          'src/oberon/linux/amd_vk_device.cpp', 'src/oberon/linux/intel_vk_device.cpp', 'src/oberon/linux/buffer.cpp')
   ]
   oberon_args += oberon_linux_args
   oberon_deps += oberon_linux_deps
@@ -92,9 +92,9 @@ if host_machine.system() == 'linux'
 endif
 
 
-subdir('shaders')
+#subdir('shaders')
 
 oberon_lib = library('oberon', oberon_srcs, include_directories: oberon_incs, dependencies: oberon_deps)
 oberon_dep = declare_dependency(link_with: oberon_lib, include_directories: oberon_incs)
 
-subdir('examples')
+#subdir('examples')
