@@ -1,3 +1,4 @@
+#define VMA_IMPLEMENTATION
 #include "oberon/internal/vulkan.hpp"
 
 #include <iostream>

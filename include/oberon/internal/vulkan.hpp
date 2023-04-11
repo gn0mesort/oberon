@@ -21,6 +21,12 @@
 
 #define VK_NO_PROTOTYPES 1
 #include <vulkan/vulkan_core.h>
+#ifdef MESON_SYSTEM_LINUX_WSI_TYPE_X11
+  #include <xcb/xcb.h>
+  #include <vulkan/vulkan_xcb.h>
+#endif
+
+#include <vk_mem_alloc.h>
 
 extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char*);
 // This MUST be thread safe.

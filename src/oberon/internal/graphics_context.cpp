@@ -1,4 +1,4 @@
-#include "oberon/internal/vulkan_graphics_context.hpp"
+#include "oberon/internal/graphics_context.hpp"
 
 #include <array>
 
@@ -8,7 +8,7 @@
 
 namespace oberon::internal {
 
-  void vulkan_graphics_context::check_instance_version(const vkfl::loader& dl) {
+  void graphics_context::check_instance_version(const vkfl::loader& dl) {
     auto ver = u32{ };
     VK_DECLARE_PFN(dl, vkEnumerateInstanceVersion);
     VK_SUCCEEDS(vkEnumerateInstanceVersion(&ver));
@@ -18,7 +18,7 @@ namespace oberon::internal {
                            "maximum supported Vulkan instance version is %u.%u", major, minor);
   }
 
-  VkApplicationInfo vulkan_graphics_context::pack_application_info(const cstring application_name,
+  VkApplicationInfo graphics_context::pack_application_info(const cstring application_name,
                                                                    const u32 application_version,
                                                                    const cstring engine_name,
                                                                    const u32 engine_version) {
@@ -32,7 +32,7 @@ namespace oberon::internal {
     return result;
   }
 
-  std::unordered_set<std::string> vulkan_graphics_context::available_layers(const vkfl::loader& dl) {
+  std::unordered_set<std::string> graphics_context::available_layers(const vkfl::loader& dl) {
     auto sz = u32{ };
     VK_DECLARE_PFN(dl, vkEnumerateInstanceLayerProperties);
     VK_SUCCEEDS(vkEnumerateInstanceLayerProperties(&sz, nullptr));
@@ -46,7 +46,7 @@ namespace oberon::internal {
     return result;
   }
 
-  std::vector<cstring> vulkan_graphics_context::select_layers(std::unordered_set<std::string>& available_layers,
+  std::vector<cstring> graphics_context::select_layers(std::unordered_set<std::string>& available_layers,
                                                               const std::unordered_set<std::string>& requested_layers) {
     auto result = std::vector<cstring>{ };
     for (const auto& layer : available_layers)
@@ -59,7 +59,7 @@ namespace oberon::internal {
     return result;
   }
 
-  std::unordered_set<std::string> vulkan_graphics_context::available_extensions(const vkfl::loader& dl,
+  std::unordered_set<std::string> graphics_context::available_extensions(const vkfl::loader& dl,
                                                                                 std::vector<cstring>& selected_layers) {
     auto sz = u32{ };
     VK_DECLARE_PFN(dl, vkEnumerateInstanceExtensionProperties);
@@ -85,7 +85,7 @@ namespace oberon::internal {
   }
 
   std::vector<cstring>
-  vulkan_graphics_context::select_extensions(std::unordered_set<std::string>& available_extensions,
+  graphics_context::select_extensions(std::unordered_set<std::string>& available_extensions,
                                              const std::unordered_set<std::string>& required_extensions,
                                              const std::unordered_set<std::string>& requested_extensions) {
     auto result = std::vector<cstring>{ };
@@ -108,7 +108,7 @@ namespace oberon::internal {
   }
 
   VkInstanceCreateInfo
-  vulkan_graphics_context::pack_instance_info(const readonly_ptr<VkApplicationInfo> application_info,
+  graphics_context::pack_instance_info(const readonly_ptr<VkApplicationInfo> application_info,
                                               const ptr<void> next, const readonly_ptr<cstring> layers,
                                               const u32 layer_count, const readonly_ptr<cstring> extensions,
                                               const u32 extension_count) {
@@ -123,13 +123,13 @@ namespace oberon::internal {
     return result;
   }
 
-  void vulkan_graphics_context::intern_instance_in_loader(vkfl::loader& dl, const VkInstance instance) {
+  void graphics_context::intern_instance_in_loader(vkfl::loader& dl, const VkInstance instance) {
     dl.load(instance);
   }
 
-  vulkan_graphics_context::vulkan_graphics_context(const defer_construction&) { }
+  graphics_context::graphics_context(const defer_construction&) { }
 
-  vulkan_graphics_context::vulkan_graphics_context(const std::unordered_set<std::string>& requested_layers,
+  graphics_context::graphics_context(const std::unordered_set<std::string>& requested_layers,
                                                    const std::unordered_set<std::string>& required_extensions,
                                                    const std::unordered_set<std::string>& requested_extensions) {
     check_instance_version(m_dl);
@@ -146,23 +146,23 @@ namespace oberon::internal {
     intern_instance_in_loader(m_dl, instance);
   }
 
-  vulkan_graphics_context::~vulkan_graphics_context() noexcept {
+  graphics_context::~graphics_context() noexcept {
     VK_DECLARE_PFN(m_dl, vkDestroyInstance);
     vkDestroyInstance(m_dl.loaded_instance(), nullptr);
   }
 
-  VkInstance vulkan_graphics_context::instance() {
+  VkInstance graphics_context::instance() {
     return m_dl.loaded_instance();
   }
 
-  const vkfl::loader& vulkan_graphics_context::dispatch_loader() {
+  const vkfl::loader& graphics_context::dispatch_loader() {
     return m_dl;
   }
 
-  debug_vulkan_graphics_context::debug_vulkan_graphics_context(const std::unordered_set<std::string>& requested_layers,
+  debug_graphics_context::debug_graphics_context(const std::unordered_set<std::string>& requested_layers,
                                                                const std::unordered_set<std::string>& required_extensions,
                                                                const std::unordered_set<std::string>& requested_extensions) :
-  vulkan_graphics_context{ defer_construction{ } } {
+  graphics_context{ defer_construction{ } } {
     check_instance_version(m_dl);
     auto debug_required_extensions = required_extensions;
     debug_required_extensions.insert(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -209,7 +209,7 @@ namespace oberon::internal {
     VK_SUCCEEDS(vkCreateDebugUtilsMessengerEXT(instance, &debug_info, nullptr, &m_debug_messenger));
   }
 
-  debug_vulkan_graphics_context::~debug_vulkan_graphics_context() noexcept {
+  debug_graphics_context::~debug_graphics_context() noexcept {
     VK_DECLARE_PFN(m_dl, vkDestroyDebugUtilsMessengerEXT);
     vkDestroyDebugUtilsMessengerEXT(m_dl.loaded_instance(), m_debug_messenger, nullptr);
   }

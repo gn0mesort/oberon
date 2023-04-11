@@ -1,0 +1,1 @@
+option('linux_wsi_type', type: 'combo', choices: [ 'headless', 'x11' ], value: 'headless')

@@ -12,7 +12,7 @@
 
 namespace oberon::internal {
 
-  class vulkan_graphics_context {
+  class graphics_context {
   protected:
     static void check_instance_version(const vkfl::loader& dl);
     static VkApplicationInfo pack_application_info(const cstring application_name, const u32 application_version,
@@ -34,37 +34,37 @@ namespace oberon::internal {
 
     vkfl::loader m_dl{ vkGetInstanceProcAddr };
 
-    vulkan_graphics_context(const defer_construction&);
+    graphics_context(const defer_construction&);
   public:
-    vulkan_graphics_context(const std::unordered_set<std::string>& requested_layers,
+    graphics_context(const std::unordered_set<std::string>& requested_layers,
                             const std::unordered_set<std::string>& required_extensions,
                             const std::unordered_set<std::string>& requested_extensions);
-    vulkan_graphics_context(const vulkan_graphics_context& other) = delete;
-    vulkan_graphics_context(vulkan_graphics_context&& other) = delete;
+    graphics_context(const graphics_context& other) = delete;
+    graphics_context(graphics_context&& other) = delete;
 
-    virtual ~vulkan_graphics_context() noexcept;
+    virtual ~graphics_context() noexcept;
 
-    vulkan_graphics_context& operator=(const vulkan_graphics_context& rhs) = delete;
-    vulkan_graphics_context& operator=(vulkan_graphics_context&& rhs) = delete;
+    graphics_context& operator=(const graphics_context& rhs) = delete;
+    graphics_context& operator=(graphics_context&& rhs) = delete;
 
     VkInstance instance();
     const vkfl::loader& dispatch_loader();
   };
 
-  class debug_vulkan_graphics_context final : public vulkan_graphics_context {
+  class debug_graphics_context final : public graphics_context {
   private:
     VkDebugUtilsMessengerEXT m_debug_messenger{ };
   public:
-    debug_vulkan_graphics_context(const std::unordered_set<std::string>& requested_layers,
+    debug_graphics_context(const std::unordered_set<std::string>& requested_layers,
                                   const std::unordered_set<std::string>& required_extensions,
                                   const std::unordered_set<std::string>& requested_extensions);
-    debug_vulkan_graphics_context(const debug_vulkan_graphics_context& other) = delete;
-    debug_vulkan_graphics_context(debug_vulkan_graphics_context&& other) = delete;
+    debug_graphics_context(const debug_graphics_context& other) = delete;
+    debug_graphics_context(debug_graphics_context&& other) = delete;
 
-    ~debug_vulkan_graphics_context() noexcept;
+    ~debug_graphics_context() noexcept;
 
-    debug_vulkan_graphics_context& operator=(const debug_vulkan_graphics_context& rhs) = delete;
-    debug_vulkan_graphics_context& operator=(debug_vulkan_graphics_context&& rhs) = delete;
+    debug_graphics_context& operator=(const debug_graphics_context& rhs) = delete;
+    debug_graphics_context& operator=(debug_graphics_context&& rhs) = delete;
   };
 
 }

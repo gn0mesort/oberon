@@ -48,8 +48,9 @@ oberon_incs = [
   include_directories('include')
 ]
 oberon_srcs = [
-  files('src/oberon/debug.cpp', 'src/oberon/errors.cpp'),
-  files('src/oberon/internal/vulkan.cpp', 'src/oberon/internal/vulkan_graphics_context.cpp')
+  files('src/oberon/debug.cpp', 'src/oberon/errors.cpp', 'src/oberon/system.cpp', 'src/oberon/graphics_device.cpp'),
+  files('src/oberon/internal/vulkan.cpp', 'src/oberon/internal/graphics_context.cpp', 'src/oberon/internal/system.cpp',
+        'src/oberon/internal/graphics_device.cpp')
 ]
 
 if cxx.get_id() == 'clang' or cxx.get_id() == 'clang-cl'
@@ -59,20 +60,30 @@ endif
 if host_machine.system() == 'linux'
   oberon_linux_args = [
     '-DMESON_SYSTEM="linux"',
-    '-DMESON_SYSTEM_LINUX=1'
+    '-DMESON_SYSTEM_LINUX=1',
+    '-DMESON_SYSTEM_LINUX_WSI_TYPE="@0@"'.format(get_option('linux_wsi_type'))
   ]
   oberon_linux_deps = [
-    dependency('x11'),
-    dependency('xcb'),
-    dependency('xcb-xkb'),
-    dependency('xcb-xinput'),
-    dependency('xkbcommon'),
-    dependency('xkbcommon-x11'),
-    dependency('x11-xcb'),
     dependency('glm')
   ]
   oberon_linux_srcs = [
+    files('src/oberon/internal/linux/wsi_graphics_device.cpp', 'src/oberon/internal/linux/wsi_system.cpp')
   ]
+  if get_option('linux_wsi_type') == 'x11'
+    oberon_linux_args += [
+      '-DMESON_SYSTEM_LINUX_WSI_TYPE_X11=1'
+    ]
+    oberon_linux_deps += [
+      dependency('xcb'),
+      dependency('xcb-xkb'),
+      dependency('xcb-xinput'),
+      dependency('xkbcommon'),
+      dependency('xkbcommon-x11')
+    ]
+    oberon_linux_srcs += [
+      files('src/oberon/internal/linux/xcb/wsi_context.cpp')
+    ]
+  endif
   oberon_args += oberon_linux_args
   oberon_deps += oberon_linux_deps
   oberon_srcs += oberon_linux_srcs
