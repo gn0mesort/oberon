@@ -1,1 +1,1 @@
-option('linux_wsi_type', type: 'combo', choices: [ 'headless', 'x11' ], value: 'headless')
+option('linux_window_system', type: 'combo', choices: [ 'x11' ], value: 'x11')

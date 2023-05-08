@@ -1,13 +1,5 @@
-/**
- * @file mouse.hpp
- * @brief Mouse related types and values.
- * @author Alexander Rothman <gnomesort@megate.ch>
- * @date 2023
- * @copyright AGPL-3.0+
- */
 #ifndef OBERON_MOUSE_HPP
 #define OBERON_MOUSE_HPP
-
 #include <string>
 
 #include "types.hpp"

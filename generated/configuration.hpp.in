@@ -1,0 +1,153 @@
+/**
+ * @file configuration.hpp
+ * @brief Library configuration.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
+#ifndef CONFIGURATION_HPP
+#define CONFIGURATION_HPP
+
+#include <cinttypes>
+
+#mesondefine CONFIGURATION_VERSION_MAJOR
+#mesondefine CONFIGURATION_VERSION_MINOR
+#mesondefine CONFIGURATION_VERSION_PATCH
+#mesondefine CONFIGURATION_VERSION
+#mesondefine CONFIGURATION_CPU_FAMILY
+#mesondefine CONFIGURATION_CPU_FAMILY_NAME
+#mesondefine CONFIGURATION_CPU_FAMILY_UNKNOWN
+#mesondefine CONFIGURATION_CPU_FAMILY_AMD64
+#mesondefine CONFIGURATION_OPERATING_SYSTEM
+#mesondefine CONFIGURATION_OPERATING_SYSTEM_NAME
+#mesondefine CONFIGURATION_OPERATING_SYSTEM_UNKNOWN
+#mesondefine CONFIGURATION_OPERATING_SYSTEM_LINUX
+#mesondefine CONFIGURATION_WINDOW_SYSTEM
+#mesondefine CONFIGURATION_WINDOW_SYSTEM_NAME
+#mesondefine CONFIGURATION_WINDOW_SYSTEM_UNKNOWN
+#mesondefine CONFIGURATION_WINDOW_SYSTEM_X11
+#mesondefine CONFIGURATION_BUILD_STRING
+
+
+namespace configuration {
+
+  /**
+   * @brief A list of supported microprocessor architectures that may be supported.
+   * @details These should match the Debian architecture names (https://wiki.debian.org/SupportedArchitectures).
+   *          That is, amd64 is the 64-bit AMD/Intel architecture regardless of the hardware vendor.
+   */
+  enum class cpu_family {
+    unknown = 0,
+    amd64
+  };
+
+  /**
+   * @brief A list of operating systems that may be supported.
+   */
+  enum class operating_system {
+    unknown = 0,
+    linux
+  };
+
+  /**
+   * @brief A list of window systems that may be supported.
+   * @details This list may, in the future, include window systems that are obviously mutually exclusive with the
+   *          operating system. That is, this may, in the future, contain a value such as `window_system::windows`
+   *          or `window_system::apple` that are obviously not compatible with some values in `operating_system`.
+   */
+  enum class window_system {
+    unknown = 0,
+    x11
+  };
+
+  /**
+   * @brief Retrieve the current version as a C-style string.
+   * @return The current version (i.e., "1.0.0").
+   */
+  consteval const char* version() {
+    return CONFIGURATION_VERSION;
+  }
+
+  /**
+   * @brief Retrieve the current major version.
+   * @return A 32-bit integer representing the major version.
+   */
+  consteval std::uint32_t version_major() {
+    return CONFIGURATION_VERSION_MAJOR;
+  }
+
+  /**
+   * @brief Retrieve the current minor version.
+   * @return A 32-bit integer representing the minor version.
+   */
+  consteval std::uint32_t version_minor() {
+    return CONFIGURATION_VERSION_MINOR;
+  }
+
+  /**
+   * @brief Retrieve the current patch version.
+   * @return A 32-bit integer representing the patch version.
+   */
+  consteval std::uint32_t version_patch() {
+    return CONFIGURATION_VERSION_PATCH;
+  }
+
+  /**
+   * @brief Retrieve the current instruction set architecture.
+   * @return A `cpu_family` value representing the target architecture.
+   */
+  consteval cpu_family cpu_family() {
+    return CONFIGURATION_CPU_FAMILY;
+  }
+
+  /**
+   * @brief Retrieve the name of the current instruction set architecture as a C-style string.
+   * @return The current instruction set architecture (i.e., "amd64").
+   */
+  consteval const char* cpu_family_name() {
+    return CONFIGURATION_CPU_FAMILY_NAME;
+  }
+
+  /**
+   * @brief Retrieve the current operating system.
+   * @return An `operating_system` value representing the target operating system.
+   */
+  consteval operating_system operating_system() {
+    return CONFIGURATION_OPERATING_SYSTEM;
+  }
+
+  /**
+   * @brief Retrieve the name of the current operating system as a C-style string.
+   * @return The current operating system (i.e., "linux").
+   */
+  consteval const char* operating_syystem_name() {
+    return CONFIGURATION_OPERATING_SYSTEM_NAME;
+  }
+
+  /**
+   * @brief Retrieve the current window system.
+   * @return A `window_system` value representing target window system.
+   */
+  consteval window_system window_system() {
+    return CONFIGURATION_WINDOW_SYSTEM;
+  }
+
+  /**
+   * @brief Retrieve the name of the current window system as a C-style string.
+   * @return The current window system (i.e., "x11").
+   */
+  consteval const char* window_system_name() {
+    return CONFIGURATION_WINDOW_SYSTEM_NAME;
+  }
+
+  /**
+   * @brief Retrieve a string representing application specific build information.
+   * @return The build string.
+   */
+  consteval const char* build_string() {
+    return CONFIGURATION_BUILD_STRING;
+  }
+
+}
+
+#endif

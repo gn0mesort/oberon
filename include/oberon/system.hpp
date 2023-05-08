@@ -1,53 +1,44 @@
 #ifndef OBERON_SYSTEM_HPP
 #define OBERON_SYSTEM_HPP
 
-#include <string>
-#include <vector>
-#include <unordered_set>
+#include <span>
 
-#include "types.hpp"
 #include "memory.hpp"
-#include "implementation_owner.hpp"
 
-namespace oberon::internal {
-  OBERON_OPAQUE_BASE_FWD(system);
-  class wsi_system;
+#include "concepts/has_internal_implementation.hpp"
+
+namespace oberon::internal::base {
+
+  OBERON_OPAQUE_BASE_FWD(system_impl);
+
 }
 
 namespace oberon {
 
-  class system {
+  class graphics_device;
+
+  class system final {
   public:
-    using implementation_type = internal::system;
-    using implementation_reference = implementation_type&;
+    using implementation_type = internal::base::system_impl;
   private:
-    OBERON_OPAQUE_BASE_PTR(internal::system);
+    OBERON_OPAQUE_BASE_PTR(internal::base::system_impl);
   public:
-    system(ptr<internal::system>&& impl);
+    system(ptr<implementation_type>&& impl);
     system(const system& other) = delete;
     system(system&& other) = delete;
 
-    virtual ~system() noexcept = default;
+    ~system() noexcept = default;
 
     system& operator=(const system& rhs) = delete;
     system& operator=(system&& rhs) = delete;
 
-    implementation_reference internal();
+    implementation_type& implementation();
+
+    std::span<graphics_device> graphics_devices();
+    graphics_device& preferred_graphics_device();
   };
 
-  OBERON_ENFORCE_CONCEPT(implementation_owner, system);
-
-  class wsi_system final : public system {
-  public:
-    wsi_system(ptr<internal::wsi_system>&& impl);
-    wsi_system(const wsi_system& other) = delete;
-    wsi_system(wsi_system&& other) = delete;
-
-    ~wsi_system() noexcept = default;
-
-    wsi_system& operator=(const wsi_system& rhs) = delete;
-    wsi_system& operator=(wsi_system&& rhs) = delete;
-  };
+  OBERON_ENFORCE_CONCEPT(has_internal_implementation, system);
 
 }
 

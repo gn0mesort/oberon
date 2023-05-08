@@ -1,56 +1,65 @@
 #ifndef OBERON_GRAPHICS_DEVICE_HPP
 #define OBERON_GRAPHICS_DEVICE_HPP
 
+#include <string>
+
+#include "types.hpp"
 #include "memory.hpp"
-#include "implementation_owner.hpp"
 
-namespace oberon::internal {
+#include "concepts/has_internal_implementation.hpp"
 
-  class graphics_device;
-  class wsi_graphics_device;
+#define OBERON_GRAPHICS_DEVICE_TYPES \
+  OBERON_GRAPHICS_DEVICE_TYPE(other, 0) \
+  OBERON_GRAPHICS_DEVICE_TYPE(integrated, 1) \
+  OBERON_GRAPHICS_DEVICE_TYPE(discrete, 2) \
+  OBERON_GRAPHICS_DEVICE_TYPE(virtualized, 3) \
+  OBERON_GRAPHICS_DEVICE_TYPE(cpu, 4)
+
+namespace oberon::internal::base {
+
+  OBERON_OPAQUE_BASE_FWD(graphics_device_impl);
 
 }
 
 namespace oberon {
 
-  class graphics_device {
-  public:
-    using implementation_type = internal::graphics_device;
-    using implementation_reference = implementation_type&;
-  private:
-    ptr<internal::graphics_device> m_impl{ };
-  public:
-    graphics_device(const ptr<internal::graphics_device> impl);
-    graphics_device(const graphics_device& other) = delete;
-    graphics_device(graphics_device&& other) = default;
+#define OBERON_GRAPHICS_DEVICE_TYPE(name, value) name = (value),
+  enum class graphics_device_type {
+    OBERON_GRAPHICS_DEVICE_TYPES
+  };
+#undef OBERON_GRAPHICS_DEVICE_TYPE
 
-    virtual ~graphics_device() noexcept = default;
+  class graphics_device final {
+  private:
+    OBERON_OPAQUE_BASE_PTR(internal::base::graphics_device_impl);
+  public:
+    using implementation_type = internal::base::graphics_device_impl;
+
+    graphics_device(ptr<internal::base::graphics_device_impl>&& impl);
+    graphics_device(const graphics_device& other) = delete;
+    graphics_device(graphics_device&& other) = delete;
+
+    ~graphics_device() noexcept = default;
 
     graphics_device& operator=(const graphics_device& rhs) = delete;
-    graphics_device& operator=(graphics_device&& rhs) = default;
+    graphics_device& operator=(graphics_device&& rhs) = delete;
 
-    implementation_reference internal();
-    // If the graphics device is empty only the following methods are defined:
-    //  operator=(graphics_device&&)
-    //  ~graphics_device() noexcept
-    //  empty() const
-    bool empty() const;
+    implementation_type& implementation();
+
+    graphics_device_type type() const;
+    std::string name() const;
+    std::string driver_name() const;
+    std::string driver_info() const;
+    u32 vendor_id() const;
+    u32 device_id() const;
+    usize total_memory() const;
+    std::string uuid() const;
+
   };
 
-  OBERON_ENFORCE_CONCEPT(implementation_owner, graphics_device);
+  OBERON_ENFORCE_CONCEPT(has_internal_implementation, graphics_device);
 
-  class wsi_graphics_device final : public graphics_device {
-  public:
-    wsi_graphics_device(const ptr<internal::wsi_graphics_device> impl);
-    wsi_graphics_device(const wsi_graphics_device& other) = delete;
-    wsi_graphics_device(wsi_graphics_device&& other) = default;
-
-    ~wsi_graphics_device() noexcept = default;
-
-    wsi_graphics_device& operator=(const wsi_graphics_device& rhs) = delete;
-    wsi_graphics_device& operator=(wsi_graphics_device&& rhs) = default;
-  };
-
+  std::string to_string(const graphics_device_type type);
 
 }
 

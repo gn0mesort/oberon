@@ -100,6 +100,20 @@
 namespace oberon {
 
   /**
+   * @brief Query whether or not the current build is a debug build.
+   * @details This is the same as checking for `NDEBUG`. This doesn't check whether, for example, the library
+   *          was built with debugging enabled.
+   * @return True if the current build is a debug build. Otherwise false.
+   */
+  consteval bool is_debug_build() {
+#ifndef NDEBUG
+    return true;
+#else
+    return false;
+#endif
+  }
+
+  /**
    * @brief Debug assertion implementation.
    * @param location A `std::source_location` object holding the location that `oberon::debug_assert` was called from.
    * @param condition The condition to assert must be true.
