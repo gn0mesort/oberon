@@ -163,6 +163,7 @@ namespace oberon::internal::linux::x11 {
     }
     initialize_keyboard();
     const auto& dl = parent.dispatch_loader();
+    const auto physical = parent.physical_device().handle();
     // Create Vulkan window surface.
     {
       auto surface_info = VkXcbSurfaceCreateInfoKHR{ };
@@ -170,11 +171,10 @@ namespace oberon::internal::linux::x11 {
       surface_info.connection = connection;
       surface_info.window = m_window;
       VK_DECLARE_PFN(dl, vkCreateXcbSurfaceKHR);
-      VK_SUCCEEDS(vkCreateXcbSurfaceKHR(dl.loaded_instance(), &surface_info, nullptr, &m_surface));
+      VK_SUCCEEDS(vkCreateXcbSurfaceKHR(parent.instance_handle(), &surface_info, nullptr, &m_surface));
       VK_DECLARE_PFN(dl, vkGetPhysicalDeviceSurfaceSupportKHR);
       auto supported = VkBool32{ };
-      VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceSupportKHR(parent.physical_device().handle(), parent.queue_family(),
-                                                       m_surface, &supported));
+      VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceSupportKHR(physical, parent.queue_family(), m_surface, &supported));
       OBERON_CHECK_ERROR_MSG(supported, 1, "The selected device queue family (%u) does not support the "
                              "render_window.", parent.queue_family());
     }
@@ -182,10 +182,9 @@ namespace oberon::internal::linux::x11 {
     {
       VK_DECLARE_PFN(dl, vkGetPhysicalDeviceSurfaceFormatsKHR);
       auto sz = u32{ };
-      VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceFormatsKHR(parent.physical_device().handle(), m_surface, &sz, nullptr));
+      VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceFormatsKHR(physical, m_surface, &sz, nullptr));
       auto surface_formats = std::vector<VkSurfaceFormatKHR>(sz);
-      VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceFormatsKHR(parent.physical_device().handle(), m_surface, &sz,
-                                                       surface_formats.data()));
+      VK_SUCCEEDS(vkGetPhysicalDeviceSurfaceFormatsKHR(physical, m_surface, &sz, surface_formats.data()));
       auto found = false;
       for (auto i = u32{ 0 }; i < surface_formats.size() && !found; ++i)
       {
@@ -209,21 +208,79 @@ namespace oberon::internal::linux::x11 {
     }
     // Initialize Vulkan swapchain
     initialize_swapchain(VK_NULL_HANDLE);
+    // Initialize Vulkan synchronization objects.
+    const auto handle = parent.device_handle();
+    {
+      auto fence_info = VkFenceCreateInfo{ };
+      fence_info.sType = VK_STRUCT(FENCE_CREATE_INFO);
+      fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+      VK_DECLARE_PFN(dl, vkCreateFence);
+      for (auto& fence : m_frame_fences)
+      {
+        VK_SUCCEEDS(vkCreateFence(handle, &fence_info, nullptr, &fence));
+      }
+      auto semaphore_info = VkSemaphoreCreateInfo{ };
+      semaphore_info.sType = VK_STRUCT(SEMAPHORE_CREATE_INFO);
+      VK_DECLARE_PFN(dl, vkCreateSemaphore);
+      for (auto& semaphore : m_frame_semaphores)
+      {
+        VK_SUCCEEDS(vkCreateSemaphore(handle, &semaphore_info, nullptr, &semaphore));
+      }
+    }
+    // Initialize Vulkan command pools and command buffers
+    {
+      auto command_pool_info = VkCommandPoolCreateInfo{ };
+      command_pool_info.sType = VK_STRUCT(COMMAND_POOL_CREATE_INFO);
+      command_pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+      command_pool_info.queueFamilyIndex = parent.queue_family();
+      auto command_buffer_info = VkCommandBufferAllocateInfo{ };
+      command_buffer_info.sType = VK_STRUCT(COMMAND_BUFFER_ALLOCATE_INFO);
+      command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+      command_buffer_info.commandBufferCount = COMMAND_BUFFERS_PER_FRAME;
+      VK_DECLARE_PFN(dl, vkCreateCommandPool);
+      VK_DECLARE_PFN(dl, vkAllocateCommandBuffers);
+      for (auto i = u32{ 0 }; i < FRAME_COUNT; ++i)
+      {
+        VK_SUCCEEDS(vkCreateCommandPool(handle, &command_pool_info, nullptr, &m_frame_command_pools[i]));
+        command_buffer_info.commandPool = m_frame_command_pools[i];
+        const auto command_buffer_addr = &m_frame_command_buffers[i * COMMAND_BUFFERS_PER_FRAME];
+        VK_SUCCEEDS(vkAllocateCommandBuffers(handle, &command_buffer_info, command_buffer_addr));
+      }
+    }
   }
 
   render_window_impl::~render_window_impl() noexcept {
     hide();
     auto& parent = reinterpret_cast<graphics_device_impl&>(m_parent_device->implementation());
     const auto& dl = parent.dispatch_loader();
+    const auto device = parent.device_handle();
+    VK_DECLARE_PFN(dl, vkFreeCommandBuffers);
+    VK_DECLARE_PFN(dl, vkDestroyCommandPool);
+    for (auto i = u32{ 0 }; i < FRAME_COUNT; ++i)
+    {
+      const auto command_buffer_addr = &m_frame_command_buffers[i * COMMAND_BUFFERS_PER_FRAME];
+      vkFreeCommandBuffers(device, m_frame_command_pools[i], COMMAND_BUFFERS_PER_FRAME, command_buffer_addr);
+      vkDestroyCommandPool(device, m_frame_command_pools[i], nullptr);
+    }
+    VK_DECLARE_PFN(dl, vkDestroySemaphore);
+    for (auto& semaphore : m_frame_semaphores)
+    {
+      vkDestroySemaphore(device, semaphore, nullptr);
+    }
+    VK_DECLARE_PFN(dl, vkDestroyFence);
+    for (auto& fence : m_frame_fences)
+    {
+      vkDestroyFence(device, fence, nullptr);
+    }
     VK_DECLARE_PFN(dl, vkDestroyImageView);
     for (auto& image_view : m_swapchain_image_views)
     {
-      vkDestroyImageView(dl.loaded_device(), image_view, nullptr);
+      vkDestroyImageView(device, image_view, nullptr);
     }
     VK_DECLARE_PFN(dl, vkDestroySwapchainKHR);
-    vkDestroySwapchainKHR(dl.loaded_device(), m_swapchain, nullptr);
+    vkDestroySwapchainKHR(device, m_swapchain, nullptr);
     VK_DECLARE_PFN(dl, vkDestroySurfaceKHR);
-    vkDestroySurfaceKHR(dl.loaded_instance(), m_surface, nullptr);
+    vkDestroySurfaceKHR(parent.instance_handle(), m_surface, nullptr);
     deinitialize_keyboard();
     xcb_destroy_window(parent.wsi().connection(), m_window);
     nng_dialer_close(m_dialer);
@@ -240,6 +297,7 @@ namespace oberon::internal::linux::x11 {
   void render_window_impl::initialize_swapchain(const VkSwapchainKHR old) {
     auto& parent = reinterpret_cast<graphics_device_impl&>(m_parent_device->implementation());
     const auto& dl = parent.dispatch_loader();
+    const auto device = parent.device_handle();
     VK_DECLARE_PFN(dl, vkDestroyImageView);
     for (auto& image_view : m_swapchain_image_views)
     {
@@ -284,12 +342,12 @@ namespace oberon::internal::linux::x11 {
     swapchain_info.pQueueFamilyIndices = &queue_family;
     swapchain_info.queueFamilyIndexCount = 1;
     VK_DECLARE_PFN(dl, vkCreateSwapchainKHR);
-    VK_SUCCEEDS(vkCreateSwapchainKHR(dl.loaded_device(), &swapchain_info, nullptr, &m_swapchain));
+    VK_SUCCEEDS(vkCreateSwapchainKHR(device, &swapchain_info, nullptr, &m_swapchain));
     VK_DECLARE_PFN(dl, vkGetSwapchainImagesKHR);
     auto sz = u32{ };
-    VK_SUCCEEDS(vkGetSwapchainImagesKHR(dl.loaded_device(), m_swapchain, &sz, nullptr));
+    VK_SUCCEEDS(vkGetSwapchainImagesKHR(device, m_swapchain, &sz, nullptr));
     m_swapchain_images.resize(sz);
-    VK_SUCCEEDS(vkGetSwapchainImagesKHR(dl.loaded_device(), m_swapchain, &sz, m_swapchain_images.data()));
+    VK_SUCCEEDS(vkGetSwapchainImagesKHR(device, m_swapchain, &sz, m_swapchain_images.data()));
     m_swapchain_image_views.resize(sz);
     auto image_view_info = VkImageViewCreateInfo{ };
     image_view_info.sType = VK_STRUCT(IMAGE_VIEW_CREATE_INFO);
@@ -310,13 +368,13 @@ namespace oberon::internal::linux::x11 {
     {
       image_view_info.image = image;
       auto& image_view = *cur;
-      VK_SUCCEEDS(vkCreateImageView(dl.loaded_device(), &image_view_info, nullptr, &image_view));
+      VK_SUCCEEDS(vkCreateImageView(device, &image_view_info, nullptr, &image_view));
       ++cur;
     }
     if (old)
     {
       VK_DECLARE_PFN(dl, vkDestroySwapchainKHR);
-      vkDestroySwapchainKHR(dl.loaded_device(), old, nullptr);
+      vkDestroySwapchainKHR(device, old, nullptr);
     }
   }
 

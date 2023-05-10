@@ -40,4 +40,17 @@ namespace oberon::internal::base {
     return m_complete_queue_family;
   }
 
+  VkInstance graphics_device_impl::instance_handle() {
+    return m_dl.loaded_instance();
+  }
+
+  VkDevice graphics_device_impl::device_handle() {
+    return m_dl.loaded_device();
+  }
+
+  void graphics_device_impl::wait_for_idle() {
+    VK_DECLARE_PFN(m_dl, vkDeviceWaitIdle);
+    VK_SUCCEEDS(vkDeviceWaitIdle(m_dl.loaded_device()));
+  }
+
 }

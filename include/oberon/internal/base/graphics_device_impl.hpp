@@ -28,7 +28,10 @@ namespace oberon::internal::base {
 
     const physical_graphics_device& physical_device() const;
     const vkfl::loader& dispatch_loader();
+    VkInstance instance_handle();
+    VkDevice device_handle();
     u32 queue_family() const;
+    void wait_for_idle();
   };
 
 }

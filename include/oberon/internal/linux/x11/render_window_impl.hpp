@@ -45,6 +45,14 @@ namespace query_visibility_flag_bits {
       bool pressed{ };
     };
 
+    static constexpr const usize FRAME_COUNT{ 2 };
+    static constexpr const usize SEMAPHORES_PER_FRAME{ 2 };
+    static constexpr const usize IMAGE_ACQUIRED_SEMAPHORE_INDEX{ 0 };
+    static constexpr const usize RENDER_FINISHED_SEMAPHORE_INDEX{ 1 };
+    static constexpr const usize COMMAND_BUFFERS_PER_FRAME{ 2 };
+    static constexpr const usize TRANSFER_COMMAND_BUFFER_INDEX{ 0 };
+    static constexpr const usize GRAPHICS_COMMAND_BUFFER_INDEX{ 1 };
+
     ptr<graphics_device> m_parent_device{ };
     xcb_window_t m_window{ };
     ptr<xkb_keymap> m_keyboard_map{ };
@@ -65,8 +73,16 @@ namespace query_visibility_flag_bits {
     VkExtent2D m_swapchain_extent{ };
     VkSurfaceFormatKHR m_swapchain_surface_format{ };
     VkSwapchainKHR m_swapchain{ };
+    VkFormat m_depth_stencil_format{ };
     std::vector<VkImage> m_swapchain_images{ };
     std::vector<VkImageView> m_swapchain_image_views{ };
+    std::array<VkFence, FRAME_COUNT> m_frame_fences{ };
+    std::array<VkSemaphore, SEMAPHORES_PER_FRAME * FRAME_COUNT> m_frame_semaphores{ };
+    std::array<VkCommandPool, FRAME_COUNT> m_frame_command_pools{ };
+    std::array<VkCommandBuffer, COMMAND_BUFFERS_PER_FRAME * FRAME_COUNT> m_frame_command_buffers{ };
+    std::array<VkImage, FRAME_COUNT> m_frame_depth_stencil_images{ };
+    std::array<VkImageView, FRAME_COUNT> m_frame_depth_image_views{ };
+    std::array<VkImageView, FRAME_COUNT> m_frame_stencil_image_views{ };
 
     void send_client_message(const xcb_window_t destination, const xcb_generic_event_t& message);
     void change_size_hints(const xcb_size_hints_t& hints);
