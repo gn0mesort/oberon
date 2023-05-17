@@ -22,6 +22,8 @@
   #include <getopt.h>
   #include <libgen.h>
 
+  #include "oberon/internal/linux/utility.hpp"
+
   #ifdef CONFIGURATION_WINDOW_SYSTEM_X11
     #include "oberon/internal/linux/x11/xcb.hpp"
     #include "oberon/internal/linux/x11/system_impl.hpp"
@@ -30,6 +32,15 @@
 #endif
 
 namespace oberon {
+
+  void application::enable_exclusive_device_mode(const bool enable) {
+    m_exclusive_device_mode = enable;
+  }
+
+  void application::set_exclusive_device_uuid(const std::string& uuid) {
+    m_exclusive_device_uuid = uuid;
+  }
+
 
   int application::run(const std::function<entry_point>& fn, const i32 argc, const ptr<csequence> argv) {
     // The result *as-if* returned from a standard main procedure.
@@ -124,6 +135,14 @@ namespace oberon {
       auto vk_ctx = new internal::base::graphics_context{ x11_ctx->instance_name(), 0, x11_ctx->application_name(),
                                                           engine_version, requested_layers, required_extensions, { } };
   #endif
+      // Technically this is an array.
+      uuid_t uuid;
+      if (m_exclusive_device_mode)
+      {
+        std::cerr << "Exclusive Device: " << m_exclusive_device_uuid << std::endl;
+        uuid_parse(m_exclusive_device_uuid.data(), uuid);
+        internal::linux::x11::system_impl::initialize_only(uuid);
+      }
       auto sys_impl = new internal::linux::x11::system_impl{ std::move(x11_ctx), std::move(vk_ctx) };
 #else
   #error There must be at least one valid implementation available to the application.

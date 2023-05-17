@@ -98,4 +98,32 @@ namespace oberon {
     return m_impl->is_mouse_button_pressed(mb);
   }
 
+  void render_window::draw_test_image() {
+    m_impl->draw_test_image();
+  }
+
+  void render_window::swap_buffers() {
+    m_impl->swap_buffers();
+  }
+
+  const std::unordered_set<presentation_mode>& render_window::available_presentation_modes() const {
+    return m_impl->available_presentation_modes();
+  }
+
+  void render_window::request_presentation_mode(const presentation_mode mode) {
+    m_impl->request_presentation_mode(mode);
+  }
+
+  presentation_mode render_window::current_presentation_mode() const {
+    return m_impl->current_presentation_mode();
+  }
+
+  void render_window::change_active_camera(camera& cam) {
+    m_impl->change_active_camera(cam);
+  }
+
+  void render_window::draw(mesh& m) {
+    m_impl->draw(m);
+  }
+
 }

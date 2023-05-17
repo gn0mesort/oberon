@@ -9,7 +9,9 @@
 #include "../../../types.hpp"
 
 #include "../../base/vulkan.hpp"
+#include "../../base/graphics_device_impl.hpp"
 #include "../../base/render_window_impl.hpp"
+#include "../../base/camera_impl.hpp"
 
 #include "xcb.hpp"
 #include "keys.hpp"
@@ -32,6 +34,13 @@ namespace query_visibility_flag_bits {
 
 }
 
+namespace renderer_status_flag_bits {
+
+  OBERON_DEFINE_ZERO_BIT(none);
+  OBERON_DEFINE_BIT(dirty, 0);
+
+}
+
   class render_window_impl final : public base::render_window_impl {
   private:
     struct key_state final {
@@ -49,9 +58,15 @@ namespace query_visibility_flag_bits {
     static constexpr const usize SEMAPHORES_PER_FRAME{ 2 };
     static constexpr const usize IMAGE_ACQUIRED_SEMAPHORE_INDEX{ 0 };
     static constexpr const usize RENDER_FINISHED_SEMAPHORE_INDEX{ 1 };
-    static constexpr const usize COMMAND_BUFFERS_PER_FRAME{ 2 };
-    static constexpr const usize TRANSFER_COMMAND_BUFFER_INDEX{ 0 };
-    static constexpr const usize GRAPHICS_COMMAND_BUFFER_INDEX{ 1 };
+    static constexpr const usize COMMAND_BUFFERS_PER_FRAME{ 1 };
+    static constexpr const usize GRAPHICS_COMMAND_BUFFER_INDEX{ 0 };
+    static constexpr const usize DESCRIPTOR_SETS_PER_FRAME{ 2 };
+    static constexpr const usize CAMERA_DESCRIPTOR_SET_INDEX{ 0 };
+    static constexpr const usize MESH_DESCRIPTOR_SET_INDEX{ 1 };
+    static constexpr const usize ATTACHMENTS_PER_FRAME{ 3 };
+    static constexpr const usize COLOR_ATTACHMENT_INDEX{ 0 };
+    static constexpr const usize DEPTH_ATTACHMENT_INDEX{ 1 };
+    static constexpr const usize STENCIL_ATTACHMENT_INDEX{ 2 };
 
     ptr<graphics_device> m_parent_device{ };
     xcb_window_t m_window{ };
@@ -70,19 +85,36 @@ namespace query_visibility_flag_bits {
     nng_dialer m_dialer{ };
 
     VkSurfaceKHR m_surface{ };
+    std::unordered_set<presentation_mode> m_presentation_modes{ };
+    VkPresentModeKHR m_swapchain_present_mode{ VK_PRESENT_MODE_FIFO_KHR };
     VkExtent2D m_swapchain_extent{ };
     VkSurfaceFormatKHR m_swapchain_surface_format{ };
-    VkSwapchainKHR m_swapchain{ };
     VkFormat m_depth_stencil_format{ };
+    VkSwapchainKHR m_swapchain{ };
     std::vector<VkImage> m_swapchain_images{ };
     std::vector<VkImageView> m_swapchain_image_views{ };
     std::array<VkFence, FRAME_COUNT> m_frame_fences{ };
     std::array<VkSemaphore, SEMAPHORES_PER_FRAME * FRAME_COUNT> m_frame_semaphores{ };
     std::array<VkCommandPool, FRAME_COUNT> m_frame_command_pools{ };
     std::array<VkCommandBuffer, COMMAND_BUFFERS_PER_FRAME * FRAME_COUNT> m_frame_command_buffers{ };
-    std::array<VkImage, FRAME_COUNT> m_frame_depth_stencil_images{ };
-    std::array<VkImageView, FRAME_COUNT> m_frame_depth_image_views{ };
-    std::array<VkImageView, FRAME_COUNT> m_frame_stencil_image_views{ };
+    std::array<base::graphics_device_impl::image_iterator, FRAME_COUNT> m_frame_depth_stencil_images{ };
+    std::array<VkImageView, FRAME_COUNT> m_frame_depth_stencil_image_views{ };
+    u32 m_current_frame{ };
+    u32 m_current_image{ };
+    bitmask m_status{ };
+    VkDescriptorSetLayout m_camera_descriptor_layout{ };
+    VkDescriptorSetLayout m_mesh_descriptor_layout{ };
+    VkPipelineLayout m_test_image_pipeline_layout{ };
+    VkPipeline m_test_image_pipeline{ };
+    VkPipelineLayout m_unlit_pc_pipeline_layout{ };
+    VkPipeline m_unlit_pc_pipeline{ };
+    VkDescriptorPool m_frame_descriptor_pool{ };
+    std::array<VkDescriptorSet, DESCRIPTOR_SETS_PER_FRAME * FRAME_COUNT> m_frame_descriptor_sets{ };
+    std::array<VkRenderingAttachmentInfo, 3 * FRAME_COUNT> m_frame_attachments{ };
+    std::array<VkRenderingInfo, FRAME_COUNT> m_frame_rendering_info{ };
+    ptr<base::camera_impl> m_active_camera{ };
+    base::camera_impl::window_iterator m_active_camera_cookie{ };
+
 
     void send_client_message(const xcb_window_t destination, const xcb_generic_event_t& message);
     void change_size_hints(const xcb_size_hints_t& hints);
@@ -92,7 +124,11 @@ namespace query_visibility_flag_bits {
     void change_ewmh_states(const ewmh_state_action action, const xcb_atom_t first, const xcb_atom_t second);
     void change_compositor_mode(const compositor_mode mode);
     void initialize_swapchain(const VkSwapchainKHR old);
-    void deinitialize_swapchain();
+    void initialize_depth_stencil();
+    void deinitialize_depth_stencil();
+
+    void begin_frame();
+    void end_frame();
   public:
     render_window_impl(graphics_device& device, const std::string& title, const rect_2d& bounds);
     render_window_impl(const render_window_impl& other) = delete;
@@ -123,6 +159,17 @@ namespace query_visibility_flag_bits {
     bool is_key_pressed(const oberon::key k) const override;
     bool is_key_echoing(const oberon::key k) const override;
     bool is_mouse_button_pressed(const oberon::mouse_button mb) const override;
+    void draw_test_image() override;
+    void swap_buffers() override;
+    const std::unordered_set<presentation_mode>& available_presentation_modes() const override;
+    void request_presentation_mode(const presentation_mode mode) override;
+    presentation_mode current_presentation_mode() const override;
+    void copy_buffer(VkBuffer from, VkBuffer to, const u32 size) override;
+    void insert_memory_barrier(const VkMemoryBarrier& barrier, const VkPipelineStageFlags src,
+                               const VkPipelineStageFlags dest) override;
+    void change_active_camera(camera& cam) override;
+    void draw(mesh& m) override;
+    void clear_active_camera() override;
   };
 
 }

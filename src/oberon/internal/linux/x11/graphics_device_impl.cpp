@@ -66,6 +66,20 @@ namespace oberon::internal::linux::x11 {
     m_dl.load(device);
     VK_DECLARE_PFN(m_dl, vkGetDeviceQueue);
     vkGetDeviceQueue(m_dl.loaded_device(), m_complete_queue_family, 0, &m_complete_queue);
+    {
+      auto allocator_info = VmaAllocatorCreateInfo{ };
+      allocator_info.instance = m_dl.loaded_instance();
+      allocator_info.physicalDevice = m_physical_device.handle();
+      allocator_info.device = m_dl.loaded_device();
+      auto vk_functions = VmaVulkanFunctions{ };
+#define VKFL_GET(name) (reinterpret_cast<PFN_##name>(m_dl.get(vkfl::command::name)))
+      vk_functions.vkGetInstanceProcAddr = VKFL_GET(vkGetInstanceProcAddr);
+      vk_functions.vkGetDeviceProcAddr = VKFL_GET(vkGetDeviceProcAddr);
+#undef VKFL_GET
+      allocator_info.pVulkanFunctions = &vk_functions;
+      allocator_info.vulkanApiVersion = VK_API_VERSION_1_3;
+      VK_SUCCEEDS(vmaCreateAllocator(&allocator_info, &m_allocator));
+    }
   }
 
   u32 graphics_device_impl::select_queue_family() {

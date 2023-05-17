@@ -57,7 +57,7 @@ namespace oberon {
 
   };
 
-  OBERON_ENFORCE_CONCEPT(has_internal_implementation, graphics_device);
+  OBERON_ENFORCE_CONCEPT(concepts::has_internal_implementation, graphics_device);
 
   std::string to_string(const graphics_device_type type);
 

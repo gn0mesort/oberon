@@ -7,3 +7,4 @@
 #
 test_image = executable('test_image', files('test_image/main.cpp'), dependencies: oberon_dep)
 cube = executable('cube', files('cube/main.cpp'), dependencies: oberon_dep)
+multiwindow = executable('multiwindow', files('multiwindow/main.cpp'), dependencies: oberon_dep)

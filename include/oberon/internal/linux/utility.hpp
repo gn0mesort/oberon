@@ -3,4 +3,6 @@
 
 #include <uuid/uuid.h>
 
+#include "../../utility.hpp"
+
 #endif

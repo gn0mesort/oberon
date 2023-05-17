@@ -2,6 +2,7 @@
 #define OBERON_RENDER_WINDOW_HPP
 
 #include <string>
+#include <unordered_set>
 
 #include "memory.hpp"
 #include "rects.hpp"
@@ -25,7 +26,19 @@ namespace oberon {
     fullscreen_bypass_compositor
   };
 
+  // These values must be kept inline with VkPresentModeKHR.
+  enum class presentation_mode {
+    immediate = 0,
+    mailbox = 1,
+    fifo = 2,
+    fifo_relaxed = 3,
+    shared_demand_refresh = 1000111000,
+    shared_continuous_refresh = 1000111001
+  };
+
   class graphics_device;
+  class camera;
+  class mesh;
 
   class render_window final {
   private:
@@ -65,9 +78,16 @@ namespace oberon {
     bool is_mouse_button_pressed(const mouse_button mb) const;
     mouse_button translate_mouse_buttoncode(const u32 code) const;
     bool is_modifier_pressed(const modifier_key modifier) const;
+    void draw(mesh& m);
+    void draw_test_image();
+    void swap_buffers();
+    const std::unordered_set<presentation_mode>& available_presentation_modes() const;
+    void request_presentation_mode(const presentation_mode mode);
+    presentation_mode current_presentation_mode() const;
+    void change_active_camera(camera& cam);
   };
 
-  OBERON_ENFORCE_CONCEPT(has_internal_implementation, render_window);
+  OBERON_ENFORCE_CONCEPT(concepts::has_internal_implementation, render_window);
 
 }
 

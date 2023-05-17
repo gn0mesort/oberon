@@ -23,6 +23,7 @@ cxx = meson.get_compiler('cpp')
 # glslangValidator doesn't appear to support --option=value syntax.
 glsl = [ find_program('glslangValidator'), '--target-env', 'vulkan1.3', '--client', 'vulkan100', '--quiet', '-o',
          '@OUTPUT@', '@INPUT@' ]
+spv_to_hpp = [ find_program('tools/spv_to_hpp.py'), '@OUTPUT@', '@INPUT@' ]
 
 vkfl_sub = subproject('vkfl', default_options: [ 'build_c=disabled', 'build_examples=disabled',
                                                  'build_tests=disabled'])
@@ -68,8 +69,7 @@ if true
 endif
 
 
-oberon_args = [
-]
+oberon_args = [ ]
 oberon_link_args = [ ]
 oberon_incs = [
   include_directories('include')
@@ -79,10 +79,11 @@ oberon_srcs = [
                  configuration: oberon_config),
   files('src/oberon/debug.cpp', 'src/oberon/errors.cpp', 'src/oberon/application.cpp', 'src/oberon/system.cpp',
         'src/oberon/graphics_device.cpp', 'src/oberon/render_window.cpp', 'src/oberon/keys.cpp',
-        'src/oberon/mouse.cpp'),
+        'src/oberon/mouse.cpp', 'src/oberon/stopwatch.cpp', 'src/oberon/camera.cpp', 'src/oberon/mesh.cpp'),
   files('src/oberon/internal/base/system_impl.cpp', 'src/oberon/internal/base/graphics_context.cpp',
         'src/oberon/internal/base/vulkan.cpp', 'src/oberon/internal/base/physical_graphics_device.cpp',
-        'src/oberon/internal/base/graphics_device_impl.cpp', 'src/oberon/internal/base/render_window_impl.cpp')
+        'src/oberon/internal/base/graphics_device_impl.cpp', 'src/oberon/internal/base/render_window_impl.cpp',
+        'src/oberon/internal/base/camera_impl.cpp', 'src/oberon/internal/base/mesh_impl.cpp')
 ]
 
 if cxx.get_id() == 'clang' or cxx.get_id() == 'clang-cl'
@@ -132,7 +133,7 @@ if host_machine.system() == 'linux'
 endif
 
 
-#subdir('shaders')
+subdir('shaders')
 
 oberon_lib = library('oberon', oberon_srcs, include_directories: oberon_incs, dependencies: oberon_deps)
 oberon_dep = declare_dependency(link_with: oberon_lib, include_directories: oberon_incs)

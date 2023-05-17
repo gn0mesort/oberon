@@ -1,6 +1,8 @@
 #ifndef OBERON_INTERNAL_BASE_VULKAN_HPP
 #define OBERON_INTERNAL_BASE_VULKAN_HPP
 
+#include <limits>
+
 #include "configuration.hpp"
 
 #define VK_NO_PROTOTYPES 1
@@ -12,8 +14,11 @@
   #include <vulkan/vulkan_xcb.h>
 #endif
 
+#include <vk_mem_alloc.h>
+
 #include <vkfl.hpp>
 
+#include "../../types.hpp"
 #include "../../errors.hpp"
 
 #define OBERON_INTERNAL_BASE_VK_STRUCT(name) (VK_STRUCTURE_TYPE_##name)
@@ -39,4 +44,8 @@ extern "C" VKAPI_ATTR VkBool32 VKAPI_CALL
 vkDebugUtilsMessengerCallbackEXT(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                  VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                                  const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
+enum {
+  VK_FOREVER = std::numeric_limits<oberon::u64>::max()
+};
+
 #endif

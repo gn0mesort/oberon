@@ -9,6 +9,6 @@ layout (location = 1) in vec4 i_color;
 layout (location = 0) out vec4 o_color;
 
 void main() {
-  gl_Position = ub.projection * ub.view * ub.model * i_position;
+  gl_Position = camera.projection * camera.view * mesh.model * i_position;
   o_color = i_color;
 }

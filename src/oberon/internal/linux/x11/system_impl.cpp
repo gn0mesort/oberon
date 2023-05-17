@@ -1,12 +1,15 @@
 #include "oberon/internal/linux/x11/system_impl.hpp"
 
 #include <new>
+#include <iostream>
 
 #include "oberon/graphics_device.hpp"
 
 #include "oberon/internal/base/vulkan.hpp"
 #include "oberon/internal/base/graphics_context.hpp"
 #include "oberon/internal/base/physical_graphics_device.hpp"
+
+#include "oberon/internal/linux/utility.hpp"
 
 #include "oberon/internal/linux/x11/xcb.hpp"
 #include "oberon/internal/linux/x11/wsi_context.hpp"
@@ -15,6 +18,14 @@
 #define VK_DECLARE_PFN(dl, name) OBERON_INTERNAL_BASE_VK_DECLARE_PFN(dl, name)
 
 namespace oberon::internal::linux::x11 {
+
+  void system_impl::initialize_only(const basic_readonly_sequence<u8> uuid) {
+    if (!uuid)
+    {
+      return;
+    }
+    uuid_copy(s_exclusive_device_uuid.data(), uuid);
+  }
 
   system_impl::system_impl(ptr<wsi_context>&& wsi, ptr<base::graphics_context>&& gfx) :
   base::system_impl{ std::move(gfx) }, m_wsi_context{ std::exchange(wsi, nullptr) } {
@@ -43,8 +54,12 @@ namespace oberon::internal::linux::x11 {
         bits |= HAS_COMPLETE_QUEUE & -(graphics_transfer_supported && present_supported);
         ++counter;
       }
-      if (bits == IS_COMPLETE)
+      const auto is_exclusive_device_mode = !uuid_is_null(s_exclusive_device_uuid.data());
+      const auto is_exclusive_device = !uuid_compare(s_exclusive_device_uuid.data(),
+                                                     physical_device.properties_1_1().deviceUUID);
+      if (bits == IS_COMPLETE && ((is_exclusive_device_mode && is_exclusive_device) || !is_exclusive_device_mode))
       {
+        std::cerr << physical_device.properties_1_0().deviceName << std::endl;
         available_physical_devices.push_back(physical_device);
       }
     }

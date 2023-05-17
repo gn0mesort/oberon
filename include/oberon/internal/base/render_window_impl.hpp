@@ -1,12 +1,22 @@
 #ifndef OBERON_INTERNAL_BASE_RENDER_WINDOW_HPP
 #define OBERON_INTERNAL_BASE_RENDER_WINDOW_HPP
 
+#include <unordered_set>
 #include <string>
 
 #include "../../events.hpp"
 #include "../../keys.hpp"
 #include "../../mouse.hpp"
 #include "../../render_window.hpp"
+
+#include "vulkan.hpp"
+
+namespace oberon {
+
+  class camera;
+  class mesh;
+
+}
 
 namespace oberon::internal::base {
 
@@ -42,6 +52,17 @@ namespace oberon::internal::base {
     virtual key translate_keycode(const u32 code) const = 0;
     virtual mouse_button translate_mouse_buttoncode(const u32 code) const = 0;
     virtual bool is_modifier_pressed(const modifier_key modifier) const = 0;
+    virtual void draw_test_image() = 0;
+    virtual void swap_buffers() = 0;
+    virtual const std::unordered_set<presentation_mode>& available_presentation_modes() const = 0;
+    virtual void request_presentation_mode(const presentation_mode mode) = 0;
+    virtual presentation_mode current_presentation_mode() const = 0;
+    virtual void copy_buffer(VkBuffer from, VkBuffer to, const u32 size) = 0;
+    virtual void insert_memory_barrier(const VkMemoryBarrier& barrier, const VkPipelineStageFlags src,
+                                       const VkPipelineStageFlags dest) = 0;
+    virtual void change_active_camera(camera& cam) = 0;
+    virtual void draw(mesh& m) = 0;
+    virtual void clear_active_camera() = 0;
   };
 
 }

@@ -3,7 +3,7 @@
 
 #include "../types.hpp"
 
-namespace oberon {
+namespace oberon::concepts {
 
   template <typename Type>
   concept has_internal_implementation = requires (Type t) {

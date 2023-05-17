@@ -7,63 +7,75 @@
  */
 #include "oberon/oberon.hpp"
 
-void toggle_fullscreen(oberon::window& win) {
-  if (win.current_display_style() == oberon::window::display_style::windowed)
+void toggle_fullscreen(oberon::render_window& win) {
+  if (win.current_display_style() == oberon::display_style::windowed)
   {
-    win.change_display_style(oberon::window::display_style::fullscreen_composited);
+    win.change_display_style(oberon::display_style::fullscreen_composited);
   }
-  else if (win.current_display_style() == oberon::window::display_style::fullscreen_composited)
+  else if (win.current_display_style() == oberon::display_style::fullscreen_composited)
   {
-    win.change_display_style(oberon::window::display_style::windowed);
+    win.change_display_style(oberon::display_style::windowed);
   }
 }
 
-void toggle_immediate_present(oberon::graphics& gfx) {
-  if (gfx.current_presentation_mode() == oberon::presentation_mode::fifo)
+void toggle_immediate_present(oberon::render_window& win) {
+  if (win.current_presentation_mode() == oberon::presentation_mode::fifo)
   {
-    gfx.request_presentation_mode(oberon::presentation_mode::immediate);
+    win.request_presentation_mode(oberon::presentation_mode::immediate);
   }
   else
   {
-    gfx.request_presentation_mode(oberon::presentation_mode::fifo);
+    win.request_presentation_mode(oberon::presentation_mode::fifo);
   }
 }
 
-void on_key_press(oberon::platform& plt, const oberon::u32, const oberon::key, const bool) {
-  auto& inpt = plt.input();
-  auto& win = plt.window();
-  auto& gfx = plt.graphics();
-  if (inpt.key_is_pressed(oberon::key::escape))
+bool on_key_press(oberon::render_window& win) {
+  if (win.is_key_just_pressed(oberon::key::escape))
   {
-    win.request_quit();
+    win.hide();
+    return true;
   }
-  if (inpt.key_is_just_pressed(oberon::key::enter) && inpt.modifier_key_is_active(oberon::modifier_key::alt))
+  if (win.is_key_just_pressed(oberon::key::enter) && win.is_modifier_pressed(oberon::modifier_key::alt))
   {
     toggle_fullscreen(win);
   }
-  if (inpt.key_is_just_pressed(oberon::key::insert))
+  if (win.is_key_just_pressed(oberon::key::insert))
   {
-    toggle_immediate_present(gfx);
+    toggle_immediate_present(win);
   }
+  return false;
 }
 
-int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::platform& plt) {
-  auto& win = plt.window();
-  auto& gfx = plt.graphics();
-  plt.attach_key_press_event_callback(on_key_press);
-  win.resize({ 1280, 720 });
+int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::system& sys) {
+  auto& device = sys.preferred_graphics_device();
+  auto win = oberon::render_window{ device, device.name(), { { 0, 0 }, { 1280, 720 } } };
   win.show();
-  while (!win.quit_requested())
+  auto quit = false;
+  auto ev = oberon::event{ };
+  while (!quit)
   {
-    plt.drain_event_queue();
-    gfx.draw_test_image();
-    gfx.submit_and_present_frame();
+    while ((ev = win.poll_events()))
+    {
+      switch (ev.type)
+      {
+      case oberon::event_type::window_close:
+        win.hide();
+        quit = true;
+        break;
+      case oberon::event_type::key_press:
+        quit = on_key_press(win);
+        break;
+      default:
+        break;
+      }
+    }
+    win.draw_test_image();
+    win.swap_buffers();
   }
   return 0;
 }
 
 int main(int argc, char** argv) {
   auto app = oberon::application{ };
-  app.add_initial_search_path(MESON_BUILD_DIRECTORY);
   return app.run(app_run, argc, argv);
 }

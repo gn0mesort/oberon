@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "oberon/errors.hpp"
 #include "oberon/graphics_device.hpp"
 
 #include "oberon/internal/base/system_impl.hpp"
@@ -50,6 +51,7 @@ namespace oberon {
 
   graphics_device& system::preferred_graphics_device() {
     auto devices = m_impl->graphics_devices();
+    OBERON_CHECK_ERROR_MSG(!devices.empty(), 1, "There are no available graphics devices.");
     return *std::max_element(devices.begin(), devices.end(), [](const auto& a, const auto& b) -> bool {
       return score_device(a) < score_device(b);
     });

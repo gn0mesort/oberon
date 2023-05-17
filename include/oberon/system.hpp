@@ -38,7 +38,7 @@ namespace oberon {
     graphics_device& preferred_graphics_device();
   };
 
-  OBERON_ENFORCE_CONCEPT(has_internal_implementation, system);
+  OBERON_ENFORCE_CONCEPT(concepts::has_internal_implementation, system);
 
 }
 
