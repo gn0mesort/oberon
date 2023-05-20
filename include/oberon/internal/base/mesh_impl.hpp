@@ -20,23 +20,14 @@ namespace oberon::internal::base {
 
   class mesh_impl final {
   private:
-    static constexpr const bitmask VERTEX_DIRTY{ 1 };
-    static constexpr const bitmask UNIFORM_DIRTY{ 2 };
-
-    struct mesh_data final {
-      glm::mat4 transform{ glm::identity<glm::mat4>() };
-    };
-
+    glm::mat4 m_transform{ glm::identity<glm::mat4>() };
     ptr<graphics_device> m_parent{ };
     vertex_type m_vertex_type{ };
     usize m_vertex_size{ };
     usize m_size{ };
-    graphics_device_impl::buffer_iterator m_uniform_staging{ };
-    graphics_device_impl::buffer_iterator m_uniform_resident{ };
     graphics_device_impl::buffer_iterator m_staging{ };
     graphics_device_impl::buffer_iterator m_resident{ };
-    mesh_data m_data{ };
-    bitmask m_status{ UNIFORM_DIRTY | VERTEX_DIRTY };
+    bool m_dirty{ true };
   public:
     mesh_impl(graphics_device& device, const vertex_type vertex, const readonly_csequence data, const usize size);
     mesh_impl(const mesh_impl& other) = delete;
@@ -51,8 +42,11 @@ namespace oberon::internal::base {
     usize vertex_size() const;
     usize size() const;
     void flush_to_device(render_window_impl& win);
-    VkBuffer uniform_resident_buffer();
+    const glm::mat4& transform() const;
+    VkBuffer staging_buffer();
     VkBuffer resident_buffer();
+    bool is_dirty() const;
+    void clean();
     void rotate(const f32 radians, const glm::vec3& axis);
   };
 

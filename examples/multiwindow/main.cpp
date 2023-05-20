@@ -11,7 +11,7 @@
 
 #include <oberon/oberon.hpp>
 
-void toggle_fullscreen(oberon::render_window& win) {
+void toggle_fullscreen(oberon::window& win) {
   if (win.current_display_style() == oberon::display_style::windowed)
   {
     win.change_display_style(oberon::display_style::fullscreen_composited);
@@ -22,7 +22,7 @@ void toggle_fullscreen(oberon::render_window& win) {
   }
 }
 
-void toggle_immediate_present(oberon::render_window& win) {
+void toggle_immediate_present(oberon::window& win) {
   if (win.current_presentation_mode() == oberon::presentation_mode::fifo)
   {
     win.request_presentation_mode(oberon::presentation_mode::immediate);
@@ -33,7 +33,7 @@ void toggle_immediate_present(oberon::render_window& win) {
   }
 }
 
-bool on_key_press(oberon::render_window& win) {
+bool on_key_press(oberon::window& win) {
   if (win.is_key_just_pressed(oberon::key::escape))
   {
     win.hide();
@@ -51,11 +51,15 @@ bool on_key_press(oberon::render_window& win) {
 }
 
 int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::system& sys) {
+  using namespace oberon::fundamental_types;
+
   auto& device = sys.preferred_graphics_device();
-  auto win = oberon::render_window{ device, device.name(), { { 0, 0 }, { 1920, 1080 } } };
-  auto win2 = oberon::render_window{ device, device.name(), { { 0, 0 }, { 640, 360 } } };
+  auto win = oberon::window{ device, device.name(), { { 0, 0 }, { 1920, 1080 } } };
+  auto win2 = oberon::window{ device, device.name(), { { 0, 0 }, { 640, 360 } } };
   win.show();
   win2.show();
+  auto render = oberon::renderer{ device, win };
+  auto render2 = oberon::renderer{ device, win2 };
   auto vertices = std::array<float, 288>{
      0.5, -0.5, -0.5, 1.0,  1.0, 0.0, 0.0, 1.0,
      0.5,  0.5, -0.5, 1.0,  1.0, 0.0, 0.0, 1.0,
@@ -101,19 +105,15 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::system& sys
   };
   auto cube = oberon::mesh{ device, oberon::vertex_type::position_color, vertices };
   const auto proj = oberon::glm::perspective(oberon::glm::radians(106.0f), 16.0f / 9.0f, 0.1f, 100.0f);
-  {
-  auto cam = oberon::camera{ device, proj, { 0, 0, 0 } };
-  auto cam2 = oberon::camera{ device, proj, { 0, 0, 0 } };
-
+  auto cam = oberon::camera{ proj };
+  auto cam2 = oberon::camera{ proj };
   auto sw = oberon::stopwatch{ };
   auto dt = oberon::stopwatch::duration{ };
   auto quit = false;
   auto ev = oberon::event{ };
   auto cam_pos = oberon::glm::vec3{ 0.0f, 0.0f, 5.0f };
   cam.look_at(cam_pos, { 0.0f, 0.0f, 0.0f });
-  cam2.look_at({ 0.0f, 0.0f, 2.0f }, { 0.0f, 0.0f, 0.0f });
-  win.change_active_camera(cam);
-  win2.change_active_camera(cam2);
+  cam2.look_at({ 0.0f, -1.0f, 2.0f }, { 0.0f, 0.0f, 0.0f });
   constexpr auto MOVE_SPEED = 5.0f;
   while (!quit)
   {
@@ -143,6 +143,9 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::system& sys
         {
           cam_pos.z += MOVE_SPEED * dt.count();
         }
+        if (win.is_key_just_pressed(oberon::key::tab))
+        {
+        }
         cam.look_at(cam_pos, { 0.0f, 0.0f, 0.0f });
         break;
       default:
@@ -163,13 +166,14 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::system& sys
         break;
       }
     }
+    auto frame = render.begin_frame(win);
+    auto frame2 = render2.begin_frame(win2);
     cube.rotate(oberon::glm::radians(30.0f) * dt.count(), { 0.0f, 1.0f, 0.0f });
-    win.draw(cube);
-    win2.draw(cube);
-    win.swap_buffers();
-    win2.swap_buffers();
+    frame.draw(cam, cube);
+    frame2.draw(cam2, cube);
+    render.end_frame(std::move(frame));
+    render2.end_frame(std::move(frame2));
     dt = sw.reset();
-  }
   }
   return 0;
 }

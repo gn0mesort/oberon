@@ -55,24 +55,13 @@ namespace oberon::internal::base {
     allocation_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
     allocation_info.flags = 0;
     m_resident = parent.create_buffer(buffer_info, allocation_info);
-    buffer_info.size = sizeof(mesh_data);
-    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    allocation_info.usage = VMA_MEMORY_USAGE_AUTO;
-    allocation_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-    m_uniform_staging = parent.create_buffer(buffer_info, allocation_info);
-    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    allocation_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-    allocation_info.flags = 0;
-    m_uniform_resident = parent.create_buffer(buffer_info, allocation_info);
     std::memcpy(m_staging->info.pMappedData, data, size);
-    parent.flush_buffer(m_staging);
+    VK_SUCCEEDS(vmaFlushAllocation(parent.allocator(), m_staging->allocation, 0, VK_WHOLE_SIZE));
   }
 
   mesh_impl::~mesh_impl() noexcept {
     auto& parent = m_parent->implementation();
     parent.wait_for_idle();
-    parent.destroy_buffer(m_uniform_resident);
-    parent.destroy_buffer(m_uniform_staging);
     parent.destroy_buffer(m_resident);
     parent.destroy_buffer(m_staging);
   }
@@ -83,43 +72,48 @@ namespace oberon::internal::base {
   }
 
   void mesh_impl::rotate(const f32 radians, const glm::vec3& axis) {
-    m_data.transform = glm::rotate(m_data.transform, radians, axis);
-    std::memcpy(m_uniform_staging->info.pMappedData, &m_data, sizeof(mesh_data));
-    m_parent->implementation().flush_buffer(m_uniform_staging);
-    m_status |= UNIFORM_DIRTY;
+    m_transform = glm::rotate(m_transform, radians, axis);
   }
 
   usize mesh_impl::size() const {
     return m_size;
   }
 
-  void mesh_impl::flush_to_device(render_window_impl& win) {
-    auto barrier = VkMemoryBarrier{ };
-    barrier.sType = VK_STRUCT(MEMORY_BARRIER);
-    if (UNIFORM_DIRTY)
-    {
-      barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-      win.copy_buffer(m_uniform_staging->buffer, m_uniform_resident->buffer, sizeof(mesh_data));
-      win.insert_memory_barrier(barrier, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT);
-    }
-    if (VERTEX_DIRTY)
-    {
-      barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-      win.copy_buffer(m_staging->buffer, m_resident->buffer, m_size * m_vertex_size);
-      win.insert_memory_barrier(barrier, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
-    }
-    m_status &= ~(VERTEX_DIRTY | UNIFORM_DIRTY);
+  usize mesh_impl::vertex_size() const {
+    return m_vertex_size;
   }
 
-  VkBuffer mesh_impl::uniform_resident_buffer() {
-    return m_uniform_resident->buffer;
+  //void mesh_impl::flush_to_device(render_window_impl& win) {
+  //  auto barrier = VkMemoryBarrier{ };
+  //  barrier.sType = VK_STRUCT(MEMORY_BARRIER);
+  //  if (VERTEX_DIRTY)
+  //  {
+  //    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  //    barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+  //    win.copy_buffer(m_staging->buffer, m_resident->buffer, m_size * m_vertex_size);
+  //    win.insert_memory_barrier(barrier, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
+  //  }
+  //  m_status &= ~VERTEX_DIRTY;
+  //}
+
+  bool mesh_impl::is_dirty() const {
+    return m_dirty;
+  }
+
+  void mesh_impl::clean() {
+    m_dirty = false;
+  }
+
+  VkBuffer mesh_impl::staging_buffer() {
+    return m_staging->buffer;
   }
 
   VkBuffer mesh_impl::resident_buffer() {
     return m_resident->buffer;
   }
 
+  const glm::mat4& mesh_impl::transform() const {
+    return m_transform;
+  }
 }
 

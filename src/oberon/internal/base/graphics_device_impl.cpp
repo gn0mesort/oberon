@@ -57,6 +57,10 @@ namespace oberon::internal::base {
     return m_dl.loaded_device();
   }
 
+  VmaAllocator graphics_device_impl::allocator() {
+    return m_allocator;
+  }
+
   VkQueue graphics_device_impl::queue() {
     return m_complete_queue;
   }

@@ -1,18 +1,14 @@
 #include "oberon/camera.hpp"
 
-#include "oberon/internal/base/camera_impl.hpp"
-
 namespace oberon {
 
-  camera::camera(graphics_device& device, const glm::mat4& projection, const glm::vec3& position) :
-  m_impl{ new internal::base::camera_impl{ device, projection, position } } { }
-
-  void camera::look_at(const glm::vec3& position, const glm::vec3& target) {
-    m_impl->look_at(position, target);
+  camera::camera(const glm::mat4& projection) :
+  m_projection{ projection } {
+    look_at({ 0, 0, 0 }, { 0, 0, 1 });
   }
 
-  camera::implementation_type& camera::implementation() {
-    return *m_impl;
+  void camera::look_at(const glm::vec3& position, const glm::vec3& target) {
+    m_view = glm::lookAt(position, target, { 0, 1, 0 });
   }
 
 }

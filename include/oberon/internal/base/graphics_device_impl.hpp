@@ -54,6 +54,7 @@ namespace oberon::internal::base {
     const vkfl::loader& dispatch_loader();
     VkInstance instance_handle();
     VkDevice device_handle();
+    VmaAllocator allocator();
     u32 queue_family() const;
     VkQueue queue();
     void wait_for_idle();

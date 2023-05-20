@@ -78,12 +78,14 @@ oberon_srcs = [
   configure_file(input: files('generated/configuration.hpp.in'), output: 'configuration.hpp',
                  configuration: oberon_config),
   files('src/oberon/debug.cpp', 'src/oberon/errors.cpp', 'src/oberon/application.cpp', 'src/oberon/system.cpp',
-        'src/oberon/graphics_device.cpp', 'src/oberon/render_window.cpp', 'src/oberon/keys.cpp',
-        'src/oberon/mouse.cpp', 'src/oberon/stopwatch.cpp', 'src/oberon/camera.cpp', 'src/oberon/mesh.cpp'),
+        'src/oberon/graphics_device.cpp', 'src/oberon/window.cpp', 'src/oberon/keys.cpp',
+        'src/oberon/mouse.cpp', 'src/oberon/stopwatch.cpp', 'src/oberon/camera.cpp', 'src/oberon/mesh.cpp',
+        'src/oberon/renderer.cpp', 'src/oberon/frame.cpp'),
   files('src/oberon/internal/base/system_impl.cpp', 'src/oberon/internal/base/graphics_context.cpp',
         'src/oberon/internal/base/vulkan.cpp', 'src/oberon/internal/base/physical_graphics_device.cpp',
-        'src/oberon/internal/base/graphics_device_impl.cpp', 'src/oberon/internal/base/render_window_impl.cpp',
-        'src/oberon/internal/base/camera_impl.cpp', 'src/oberon/internal/base/mesh_impl.cpp')
+        'src/oberon/internal/base/graphics_device_impl.cpp', 'src/oberon/internal/base/window_impl.cpp',
+        'src/oberon/internal/base/mesh_impl.cpp', 'src/oberon/internal/base/renderer_impl.cpp',
+        'src/oberon/internal/base/frame_impl.cpp')
 ]
 
 if cxx.get_id() == 'clang' or cxx.get_id() == 'clang-cl'
@@ -111,7 +113,7 @@ if host_machine.system() == 'linux'
     oberon_linux_srcs += [
       files('src/oberon/internal/linux/x11/system_impl.cpp', 'src/oberon/internal/linux/x11/wsi_context.cpp',
             'src/oberon/internal/linux/x11/graphics_device_impl.cpp', 'src/oberon/internal/linux/x11/wsi_worker.cpp',
-            'src/oberon/internal/linux/x11/render_window_impl.cpp')
+            'src/oberon/internal/linux/x11/window_impl.cpp')
     ]
   endif
   oberon_args += oberon_linux_args

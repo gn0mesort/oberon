@@ -14,9 +14,11 @@
 #include "oberon/vertices.hpp"
 #include "oberon/stopwatch.hpp"
 #include "oberon/application.hpp"
-#include "oberon/render_window.hpp"
 #include "oberon/graphics_device.hpp"
 #include "oberon/camera.hpp"
 #include "oberon/mesh.hpp"
+#include "oberon/renderer.hpp"
+#include "oberon/frame.hpp"
+#include "oberon/window.hpp"
 
 #endif

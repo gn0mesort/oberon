@@ -7,7 +7,7 @@
  */
 #include "oberon/oberon.hpp"
 
-void toggle_fullscreen(oberon::render_window& win) {
+void toggle_fullscreen(oberon::window& win) {
   if (win.current_display_style() == oberon::display_style::windowed)
   {
     win.change_display_style(oberon::display_style::fullscreen_composited);
@@ -18,7 +18,7 @@ void toggle_fullscreen(oberon::render_window& win) {
   }
 }
 
-void toggle_immediate_present(oberon::render_window& win) {
+void toggle_immediate_present(oberon::window& win) {
   if (win.current_presentation_mode() == oberon::presentation_mode::fifo)
   {
     win.request_presentation_mode(oberon::presentation_mode::immediate);
@@ -29,7 +29,7 @@ void toggle_immediate_present(oberon::render_window& win) {
   }
 }
 
-bool on_key_press(oberon::render_window& win) {
+bool on_key_press(oberon::window& win) {
   if (win.is_key_just_pressed(oberon::key::escape))
   {
     win.hide();
@@ -48,8 +48,9 @@ bool on_key_press(oberon::render_window& win) {
 
 int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::system& sys) {
   auto& device = sys.preferred_graphics_device();
-  auto win = oberon::render_window{ device, device.name(), { { 0, 0 }, { 1280, 720 } } };
+  auto win = oberon::window{ device, device.name(), { { 0, 0 }, { 1280, 720 } } };
   win.show();
+  auto render = oberon::renderer{ device, win };
   auto quit = false;
   auto ev = oberon::event{ };
   while (!quit)
@@ -69,13 +70,20 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::system& sys
         break;
       }
     }
-    win.draw_test_image();
-    win.swap_buffers();
+    auto frame = render.begin_frame(win);
+    frame.draw_test_image();
+    render.end_frame(std::move(frame));
   }
   return 0;
 }
 
 int main(int argc, char** argv) {
   auto app = oberon::application{ };
+  const auto renderdoc_device_uuid = std::getenv("RENDERDOC_DEVICE_UUID");
+  if (renderdoc_device_uuid)
+  {
+    app.set_exclusive_device_uuid(renderdoc_device_uuid);
+    app.enable_exclusive_device_mode(true);
+  }
   return app.run(app_run, argc, argv);
 }
