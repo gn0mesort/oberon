@@ -25,7 +25,7 @@ namespace oberon::internal::base {
     delete p;
   }
 
-  renderer_impl::renderer_impl(graphics_device_impl& device, const extent_2d& resolution) :
+  renderer_impl::renderer_impl(graphics_device_impl& device, const extent_2d& resolution, const u32 samples) :
   m_parent{ &device }, m_extent{ resolution.width, resolution.height, 1 } {
     constexpr auto color_features = VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_TRANSFER_SRC_BIT |
                                     VK_FORMAT_FEATURE_BLIT_SRC_BIT;
@@ -51,16 +51,16 @@ namespace oberon::internal::base {
       rendering_info.pColorAttachmentFormats = &m_color_format;
       rendering_info.depthAttachmentFormat = m_depth_stencil_format;
       rendering_info.stencilAttachmentFormat = m_depth_stencil_format;
-      create_test_image_pipeline(rendering_info);
-      create_unlit_pc_pipeline(rendering_info);
+      create_test_image_pipeline(rendering_info, static_cast<VkSampleCountFlagBits>(samples));
+      create_unlit_pc_pipeline(rendering_info, static_cast<VkSampleCountFlagBits>(samples));
     }
     for (auto& frame : m_frames)
     {
-      frame = new frame_impl{ *m_parent, m_color_format, m_depth_stencil_format, m_extent, m_pipeline_layouts,
-                              m_pipelines };
+      frame = new frame_impl{ *m_parent, m_color_format, m_depth_stencil_format, m_extent,
+                              static_cast<VkSampleCountFlagBits>(samples), m_pipeline_layouts, m_pipelines };
     }
   }
-  renderer_impl::renderer_impl(graphics_device_impl& device, window_impl& win) :
+  renderer_impl::renderer_impl(graphics_device_impl& device, window_impl& win, const u32 samples) :
   m_parent{ &device } {
     const auto swap_extent = win.swapchain_extent();
     m_extent = { swap_extent.width, swap_extent.height, 1 };
@@ -89,13 +89,13 @@ namespace oberon::internal::base {
       rendering_info.pColorAttachmentFormats = &m_color_format;
       rendering_info.depthAttachmentFormat = m_depth_stencil_format;
       rendering_info.stencilAttachmentFormat = m_depth_stencil_format;
-      create_test_image_pipeline(rendering_info);
-      create_unlit_pc_pipeline(rendering_info);
+      create_test_image_pipeline(rendering_info, static_cast<VkSampleCountFlagBits>(samples));
+      create_unlit_pc_pipeline(rendering_info, static_cast<VkSampleCountFlagBits>(samples));
     }
     for (auto& frame : m_frames)
     {
-      frame = new frame_impl{ *m_parent, m_color_format, m_depth_stencil_format, m_extent, m_pipeline_layouts,
-                              m_pipelines };
+      frame = new frame_impl{ *m_parent, m_color_format, m_depth_stencil_format, m_extent,
+                              static_cast<VkSampleCountFlagBits>(samples), m_pipeline_layouts, m_pipelines };
     }
   }
 
@@ -121,7 +121,8 @@ namespace oberon::internal::base {
     }
   }
 
-  void renderer_impl::create_test_image_pipeline(const VkPipelineRenderingCreateInfo& rendering_info) {
+  void renderer_impl::create_test_image_pipeline(const VkPipelineRenderingCreateInfo& rendering_info,
+                                                 const VkSampleCountFlagBits samples) {
     auto module_info = VkShaderModuleCreateInfo{ };
     module_info.sType = VK_STRUCT(SHADER_MODULE_CREATE_INFO);
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkCreateShaderModule);
@@ -173,7 +174,7 @@ namespace oberon::internal::base {
       graphics_pipeline_info.pRasterizationState = &rasterization;
       auto multisample = VkPipelineMultisampleStateCreateInfo{ };
       multisample.sType = VK_STRUCT(PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
-      multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+      multisample.rasterizationSamples = samples;
       multisample.minSampleShading = 1.0f;
       graphics_pipeline_info.pMultisampleState = &multisample;
       auto depth_stencil = VkPipelineDepthStencilStateCreateInfo{ };
@@ -220,7 +221,8 @@ namespace oberon::internal::base {
     }
   }
 
-  void renderer_impl::create_unlit_pc_pipeline(const VkPipelineRenderingCreateInfo& rendering_info) {
+  void renderer_impl::create_unlit_pc_pipeline(const VkPipelineRenderingCreateInfo& rendering_info,
+                                               const VkSampleCountFlagBits samples) {
     auto module_info = VkShaderModuleCreateInfo{ };
     module_info.sType = VK_STRUCT(SHADER_MODULE_CREATE_INFO);
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkCreateShaderModule);
@@ -293,7 +295,7 @@ namespace oberon::internal::base {
     graphics_pipeline_info.pRasterizationState = &rasterization;
     auto multisample = VkPipelineMultisampleStateCreateInfo{ };
     multisample.sType = VK_STRUCT(PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
-    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisample.rasterizationSamples = samples;
     multisample.minSampleShading = 1.0f;
     graphics_pipeline_info.pMultisampleState = &multisample;
     auto depth_stencil = VkPipelineDepthStencilStateCreateInfo{ };

@@ -36,7 +36,7 @@ namespace oberon {
      * @param device The `graphics_device` to derive the `renderer` from.
      * @param resolution The resolution of rendered images produced the `renderer`.
      */
-    renderer(graphics_device& device, const extent_2d& resolution);
+    renderer(graphics_device& device, const extent_2d& resolution, const u32 samples);
 
     /**
      * @brief Create a renderer matched to a window.
@@ -45,7 +45,7 @@ namespace oberon {
      * @param device The `graphics_device` to derive the `renderer` from.
      * @param win The `window` to match.
      */
-    renderer(graphics_device& device, window& win);
+    renderer(graphics_device& device, window& win, const u32 samples);
 
     renderer(const renderer& other) = delete;
     renderer(renderer&& other) = delete;

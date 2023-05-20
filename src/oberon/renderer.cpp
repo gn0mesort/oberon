@@ -10,11 +10,11 @@
 
 namespace oberon {
 
-  renderer::renderer(graphics_device& device, const extent_2d& resolution) :
-  m_impl{ new internal::base::renderer_impl{ device.implementation(), resolution } } { }
+  renderer::renderer(graphics_device& device, const extent_2d& resolution, const u32 samples) :
+  m_impl{ new internal::base::renderer_impl{ device.implementation(), resolution, samples } } { }
 
-  renderer::renderer(graphics_device& device, window& win) :
-  m_impl{ new internal::base::renderer_impl{ device.implementation(), win.implementation() } } { }
+  renderer::renderer(graphics_device& device, window& win, const u32 samples) :
+  m_impl{ new internal::base::renderer_impl{ device.implementation(), win.implementation(), samples } } { }
 
   renderer::implementation_type& renderer::implementation() {
     return *m_impl;

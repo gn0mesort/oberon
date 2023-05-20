@@ -17,6 +17,7 @@ namespace oberon::internal::base {
 
   frame_impl::frame_impl(graphics_device_impl& device, const VkFormat color_format,
                          const VkFormat depth_stencil_format, const VkExtent3D& extent,
+                         const VkSampleCountFlagBits samples,
                          std::array<VkPipelineLayout, PIPELINE_COUNT>& layouts,
                          std::array<VkPipeline, PIPELINE_COUNT>& pipelines) :
   m_parent{ &device },
@@ -51,7 +52,7 @@ namespace oberon::internal::base {
     command_buffer_info.commandBufferCount = m_command_buffers.size();
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkAllocateCommandBuffers);
     VK_SUCCEEDS(vkAllocateCommandBuffers(m_parent->device_handle(), &command_buffer_info, m_command_buffers.data()));
-    create_images(color_format, depth_stencil_format, extent);
+    create_images(color_format, depth_stencil_format, extent, samples);
   }
 
   frame_impl::~frame_impl() noexcept {
@@ -75,14 +76,14 @@ namespace oberon::internal::base {
   }
 
   void frame_impl::create_images(const VkFormat color_format, const VkFormat depth_stencil_format,
-                                 const VkExtent3D& extent) {
+                                 const VkExtent3D& extent, const VkSampleCountFlagBits samples) {
     auto image_info = VkImageCreateInfo{ };
     image_info.sType = VK_STRUCT(IMAGE_CREATE_INFO);
     image_info.extent = extent;
     image_info.format = color_format;
     image_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    image_info.samples = samples;
     image_info.imageType = VK_IMAGE_TYPE_2D;
     image_info.mipLevels = 1;
     image_info.arrayLayers = 1;
@@ -118,6 +119,11 @@ namespace oberon::internal::base {
     image_view_info.subresourceRange.baseMipLevel = 0;
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkCreateImageView);
     VK_SUCCEEDS(vkCreateImageView(m_parent->device_handle(), &image_view_info, nullptr, &m_color_view));
+    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    VK_SUCCEEDS(vmaCreateImage(m_parent->allocator(), &image_info, &allocation_info, &m_resolve_attachment,
+                               &m_resolve_allocation, nullptr));
+    image_view_info.image = m_resolve_attachment;
+    VK_SUCCEEDS(vkCreateImageView(m_parent->device_handle(), &image_view_info, nullptr, &m_resolve_view));
     m_color_attachment_info.sType = VK_STRUCT(RENDERING_ATTACHMENT_INFO);
     m_color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     m_color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -125,7 +131,11 @@ namespace oberon::internal::base {
                                                    to_linear_color(0.2f) } };
     m_color_attachment_info.imageView = m_color_view;
     m_color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    m_color_attachment_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+    m_color_attachment_info.resolveImageView = m_resolve_view;
+    m_color_attachment_info.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     image_info.format = depth_stencil_format;
+    image_info.samples = samples;
     image_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     VK_SUCCEEDS(vmaCreateImage(m_parent->allocator(), &image_info, &allocation_info, &m_depth_stencil_attachment,
                                &m_depth_stencil_allocation, nullptr));
@@ -155,8 +165,10 @@ namespace oberon::internal::base {
   void frame_impl::destroy_images() {
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkDestroyImageView);
     vkDestroyImageView(m_parent->device_handle(), m_depth_stencil_view, nullptr);
+    vkDestroyImageView(m_parent->device_handle(), m_resolve_view, nullptr);
     vkDestroyImageView(m_parent->device_handle(), m_color_view, nullptr);
     vmaDestroyImage(m_parent->allocator(), m_depth_stencil_attachment, m_depth_stencil_allocation);
+    vmaDestroyImage(m_parent->allocator(), m_resolve_attachment, m_resolve_allocation);
     vmaDestroyImage(m_parent->allocator(), m_color_attachment, m_color_allocation);
   }
 
@@ -181,7 +193,7 @@ namespace oberon::internal::base {
     {
       VK_SUCCEEDS(vkBeginCommandBuffer(command_buffer, &begin_info));
     }
-    auto image_memory_barriers = std::array<VkImageMemoryBarrier, 2>{ };
+    auto image_memory_barriers = std::array<VkImageMemoryBarrier, 3>{ };
     {
       auto& color_barrier = image_memory_barriers[0];
       color_barrier.sType = VK_STRUCT(IMAGE_MEMORY_BARRIER);
@@ -211,6 +223,21 @@ namespace oberon::internal::base {
       depth_stencil_barrier.subresourceRange.levelCount = std::numeric_limits<u32>::max();
       depth_stencil_barrier.subresourceRange.baseArrayLayer = 0;
       depth_stencil_barrier.subresourceRange.layerCount = std::numeric_limits<u32>::max();
+    }
+    {
+      auto& color_barrier = image_memory_barriers[2];
+      color_barrier.sType = VK_STRUCT(IMAGE_MEMORY_BARRIER);
+      color_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      color_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      color_barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      color_barrier.srcQueueFamilyIndex = -1;
+      color_barrier.dstQueueFamilyIndex = -1;
+      color_barrier.image = m_resolve_attachment;
+      color_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      color_barrier.subresourceRange.baseMipLevel = 0;
+      color_barrier.subresourceRange.levelCount = std::numeric_limits<u32>::max();
+      color_barrier.subresourceRange.baseArrayLayer = 0;
+      color_barrier.subresourceRange.layerCount = std::numeric_limits<u32>::max();
     }
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkCmdPipelineBarrier);
     vkCmdPipelineBarrier(m_command_buffers[RENDER_COMMAND_BUFFER_INDEX], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -251,7 +278,7 @@ namespace oberon::internal::base {
       src_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
       src_barrier.srcQueueFamilyIndex = -1;
       src_barrier.dstQueueFamilyIndex = -1;
-      src_barrier.image = m_color_attachment;
+      src_barrier.image = m_resolve_attachment;
       src_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
       src_barrier.subresourceRange.baseMipLevel = 0;
       src_barrier.subresourceRange.levelCount = std::numeric_limits<u32>::max();
@@ -293,7 +320,7 @@ namespace oberon::internal::base {
       copy_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
       copy_region.extent = extent;
       VK_DECLARE_PFN(m_parent->dispatch_loader(), vkCmdCopyImage);
-      vkCmdCopyImage(m_command_buffers[COPY_BLIT_COMMAND_BUFFER_INDEX], m_color_attachment,
+      vkCmdCopyImage(m_command_buffers[COPY_BLIT_COMMAND_BUFFER_INDEX], m_resolve_attachment,
                      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, target, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
                      &copy_region);
     }
@@ -316,7 +343,7 @@ namespace oberon::internal::base {
       blit_region.dstSubresource.mipLevel = 0;
       blit_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
       VK_DECLARE_PFN(m_parent->dispatch_loader(), vkCmdBlitImage);
-      vkCmdBlitImage(m_command_buffers[COPY_BLIT_COMMAND_BUFFER_INDEX], m_color_attachment,
+      vkCmdBlitImage(m_command_buffers[COPY_BLIT_COMMAND_BUFFER_INDEX], m_resolve_attachment,
                      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, target, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
                      &blit_region, VK_FILTER_NEAREST);
     }

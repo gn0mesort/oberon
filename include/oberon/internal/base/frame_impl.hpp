@@ -41,10 +41,13 @@ namespace oberon::internal::base {
     std::array<VkSemaphore, SEMAPHORE_COUNT> m_semaphores{ };
     VkCommandPool m_command_pool{ };
     VkImage m_color_attachment{ };
+    VkImage m_resolve_attachment{ };
     VkImage m_depth_stencil_attachment{ };
     VmaAllocation m_color_allocation{ };
+    VmaAllocation m_resolve_allocation{ };
     VmaAllocation m_depth_stencil_allocation{ };
     VkImageView m_color_view{ };
+    VkImageView m_resolve_view{ };
     VkImageView m_depth_stencil_view{ };
     VkRenderingAttachmentInfo m_color_attachment_info{ };
     VkRenderingAttachmentInfo m_depth_stencil_attachment_info{ };
@@ -53,11 +56,13 @@ namespace oberon::internal::base {
     VkFormat m_current_depth_stencil_format{ };
     VkExtent3D m_current_extent{ };
 
-    void create_images(const VkFormat color_format, const VkFormat depth_stencil_format, const VkExtent3D& extent);
+    void create_images(const VkFormat color_format, const VkFormat depth_stencil_format, const VkExtent3D& extent,
+                       const VkSampleCountFlagBits samples);
     void destroy_images();
   public:
     frame_impl(graphics_device_impl& device, const VkFormat color_format, const VkFormat depth_stencil_format,
-               const VkExtent3D& extent, std::array<VkPipelineLayout, PIPELINE_COUNT>& layouts,
+               const VkExtent3D& extent, const VkSampleCountFlagBits samples,
+               std::array<VkPipelineLayout, PIPELINE_COUNT>& layouts,
                std::array<VkPipeline, PIPELINE_COUNT>& pipelines);
     frame_impl(const frame_impl& other) = delete;
     frame_impl(frame_impl&& other) = delete;

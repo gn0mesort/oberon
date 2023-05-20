@@ -42,11 +42,13 @@ namespace oberon::internal::base {
     std::array<VkPipelineLayout, PIPELINE_COUNT> m_pipeline_layouts{ };
     std::array<VkPipeline, PIPELINE_COUNT> m_pipelines{ };
 
-    void create_test_image_pipeline(const VkPipelineRenderingCreateInfo& rendering_info);
-    void create_unlit_pc_pipeline(const VkPipelineRenderingCreateInfo& rendering_info);
+    void create_test_image_pipeline(const VkPipelineRenderingCreateInfo& rendering_info,
+                                    const VkSampleCountFlagBits samples);
+    void create_unlit_pc_pipeline(const VkPipelineRenderingCreateInfo& rendering_info,
+                                  const VkSampleCountFlagBits samples);
   public:
-    renderer_impl(graphics_device_impl& device, const extent_2d& resolution);
-    renderer_impl(graphics_device_impl& device, window_impl& win);
+    renderer_impl(graphics_device_impl& device, const extent_2d& resolution, const u32 samples);
+    renderer_impl(graphics_device_impl& device, window_impl& win, const u32 samples);
     renderer_impl(const renderer_impl& other) = delete;
     renderer_impl(renderer_impl&& other) = delete;
 

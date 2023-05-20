@@ -58,8 +58,8 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::system& sys
   auto win2 = oberon::window{ device, device.name(), { { 0, 0 }, { 640, 360 } } };
   win.show();
   win2.show();
-  auto render = oberon::renderer{ device, win };
-  auto render2 = oberon::renderer{ device, win2 };
+  auto render = oberon::renderer{ device, win, 4 };
+  auto render2 = oberon::renderer{ device, win2, 4 };
   auto vertices = std::array<float, 288>{
      0.5, -0.5, -0.5, 1.0,  1.0, 0.0, 0.0, 1.0,
      0.5,  0.5, -0.5, 1.0,  1.0, 0.0, 0.0, 1.0,

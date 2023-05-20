@@ -50,7 +50,7 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::system& sys
   auto& device = sys.preferred_graphics_device();
   auto win = oberon::window{ device, device.name(), { { 0, 0 }, { 1280, 720 } } };
   win.show();
-  auto render = oberon::renderer{ device, win };
+  auto render = oberon::renderer{ device, win, 4 };
   auto quit = false;
   auto ev = oberon::event{ };
   while (!quit)
