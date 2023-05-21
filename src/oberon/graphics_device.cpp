@@ -1,3 +1,10 @@
+/**
+ * @file graphics_device.cpp
+ * @brief Graphics device object implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/graphics_device.hpp"
 
 #include <array>

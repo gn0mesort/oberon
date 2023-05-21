@@ -1,8 +1,15 @@
+/**
+ * @file stopwatch.cpp
+ * @brief Stopwatch object implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/stopwatch.hpp"
 
 namespace oberon {
 
-  stopwatch::time_point stopwatch::start() const {
+  stopwatch::time_point stopwatch::start_time() const {
     return m_start;
   }
 

@@ -1,3 +1,10 @@
+/**
+ * @file glm.hpp
+ * @brief Linear algebra header.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #ifndef OBERON_GLM_HPP
 #define OBERON_GLM_HPP
 

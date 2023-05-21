@@ -1,3 +1,10 @@
+/**
+ * @file window.hpp
+ * @brief Window system window object implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/window.hpp"
 
 #include "configuration.hpp"
@@ -39,20 +46,20 @@ namespace oberon {
     return m_impl->is_minimized();
   }
 
-  void window::change_display_style(const display_style style) {
-    return m_impl->change_display_style(style);
+  void window::display_style(const enum display_style style) {
+    return m_impl->display_style(style);
   }
 
-  display_style window::current_display_style() const {
-    return m_impl->current_display_style();
+  display_style window::display_style() const {
+    return m_impl->display_style();
   }
 
-  rect_2d window::current_drawable_rect() const {
-    return m_impl->current_drawable_rect();
+  rect_2d window::drawable_rect() const {
+    return m_impl->drawable_rect();
   }
 
-  rect_2d window::current_rect() const {
-    return m_impl->current_rect();
+  rect_2d window::screen_rect() const {
+    return m_impl->screen_rect();
   }
 
   void window::move_to(const offset_2d& offset) {
@@ -63,8 +70,8 @@ namespace oberon {
     m_impl->resize(extent);
   }
 
-  void window::change_title(const std::string& title) {
-    m_impl->change_title(title);
+  void window::title(const std::string& title) {
+    m_impl->title(title);
   }
 
   std::string window::title() const {
@@ -83,8 +90,8 @@ namespace oberon {
     return m_impl->translate_mouse_buttoncode(code);
   }
 
-  bool window::is_modifier_pressed(const modifier_key modifier) const {
-    return m_impl->is_modifier_pressed(modifier);
+  bool window::is_modifier_key_active(const modifier_key modifier) const {
+    return m_impl->is_modifier_key_active(modifier);
   }
 
   bool window::is_key_pressed(const key k) const {
@@ -107,12 +114,12 @@ namespace oberon {
     return m_impl->available_presentation_modes();
   }
 
-  void window::request_presentation_mode(const presentation_mode mode) {
-    m_impl->request_presentation_mode(mode);
+  void window::presentation_mode(const enum presentation_mode mode) {
+    m_impl->presentation_mode(mode);
   }
 
-  presentation_mode window::current_presentation_mode() const {
-    return m_impl->current_presentation_mode();
+  presentation_mode window::presentation_mode() const {
+    return m_impl->presentation_mode();
   }
 
 }

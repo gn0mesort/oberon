@@ -1,3 +1,10 @@
+/**
+ * @file utility.hpp
+ * @brief Utility functions.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #ifndef OBERON_UTILITY_HPP
 #define OBERON_UTILITY_HPP
 
@@ -8,6 +15,12 @@
 
 namespace oberon {
 
+  /**
+   * @brief Convert a linear color value to sRGB.
+   * @tparam Float A floating-point type.
+   * @param color A color value in linear space.
+   * @return The color value converted into sRGB.
+   */
   template <std::floating_point Float>
   constexpr Float to_srgb_color(Float&& color) {
     if (color <= 0.0031308)
@@ -20,6 +33,12 @@ namespace oberon {
     }
   }
 
+  /**
+   * @brief Convert an sRGB color to linear space.
+   * @tparam Float A floating-point type.
+   * @param color An sRGB color value.
+   * @return The color value converted into linear space.
+   */
   template <std::floating_point Float>
   constexpr Float to_linear_color(Float&& color) {
     if (color <= 0.04045)

@@ -112,6 +112,7 @@
 namespace oberon {
 
   /**
+   * @class error
    * @brief Abstract base error type.
    */
   class error : public std::exception {
@@ -158,11 +159,13 @@ namespace oberon {
   };
 
   /**
+   * @class not_implemented_error
    * @brief An error caused by attempting to invoke functionality that hasn't been implemented.
    */
   OBERON_STATIC_EXCEPTION_TYPE(not_implemented_error, "This functionality is not implemented.", 1);
 
   /**
+   * @class check_failed_error
    * @brief An error caused by failing a runtime check.
    */
   OBERON_DYNAMIC_EXCEPTION_TYPE(check_failed_error);

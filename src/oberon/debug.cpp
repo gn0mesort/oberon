@@ -18,13 +18,15 @@ namespace oberon {
   void debug_assert(const std::source_location& location, const bool condition, const cstring message_format, ...) {
     if (!condition)
     {
-      // va_lists require this declaration style specifically
+      // va_lists require this declaration style specifically.
       std::va_list args;
       // Calculate and allocate space for message.
       va_start(args, message_format);
       std::va_list args_cp;
-      va_copy(args_cp, args); // The next call will destroy args so we need another copy.
-      auto sz = std::vsnprintf(nullptr, 0, message_format, args) + 1; // length + \0
+      // The next call will destroy args so we need another copy.
+      va_copy(args_cp, args);
+      // length + \0
+      auto sz = std::vsnprintf(nullptr, 0, message_format, args) + 1;
       va_end(args);
       auto message = std::string(sz, '\0');
       std::vsnprintf(std::data(message), std::size(message), message_format, args_cp);

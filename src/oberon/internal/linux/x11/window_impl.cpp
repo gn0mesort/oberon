@@ -114,7 +114,7 @@ namespace oberon::internal::linux::x11 {
       xcb_change_property(connection, XCB_PROP_MODE_REPLACE, m_window, protocols_atom, XCB_ATOM_ATOM, 32, 2,
                           atoms.data());
     }
-    change_title(title);
+    this->title(title);
     // Set WM_NORMAL_HINTS
     {
       auto hints = xcb_size_hints_t{ };
@@ -216,7 +216,7 @@ namespace oberon::internal::linux::x11 {
                                                             modes.data()));
       for (const auto& mode : modes)
       {
-        m_presentation_modes.insert(static_cast<presentation_mode>(mode));
+        m_presentation_modes.insert(static_cast<enum presentation_mode>(mode));
       }
     }
     // Initialize Vulkan swapchain
@@ -462,8 +462,8 @@ namespace oberon::internal::linux::x11 {
                           m_parent->wsi().atom_by_name(NET_WM_BYPASS_COMPOSITOR_ATOM), XCB_ATOM_CARDINAL, 32, 1, &mode);
   }
 
-  void window_impl::change_display_style(const display_style style) {
-    if (style == current_display_style())
+  void window_impl::display_style(const enum display_style style) {
+    if (style == this->display_style())
     {
       return;
     }
@@ -495,7 +495,7 @@ namespace oberon::internal::linux::x11 {
     xcb_flush(m_parent->wsi().connection());
   }
 
-  display_style window_impl::current_display_style() const {
+  enum display_style window_impl::display_style() const {
     const auto connection = m_parent->wsi().connection();
     auto net_wm_state_req = XCB_SEND_REQUEST(xcb_get_property, connection, false, m_window,
                                              m_parent->wsi().atom_by_name(NET_WM_STATE_ATOM), XCB_ATOM_ATOM, 0,
@@ -539,7 +539,7 @@ namespace oberon::internal::linux::x11 {
     }
   }
 
-  rect_2d window_impl::current_drawable_rect() const {
+  rect_2d window_impl::drawable_rect() const {
     const auto connection = m_parent->wsi().connection();
     auto geometry_rep = ptr<xcb_get_geometry_reply_t>{ };
     XCB_SEND_REQUEST_SYNC(geometry_rep, xcb_get_geometry, connection, m_window);
@@ -554,12 +554,12 @@ namespace oberon::internal::linux::x11 {
     return result;
   }
 
-  rect_2d window_impl::current_rect() const {
+  rect_2d window_impl::screen_rect() const {
     const auto connection = m_parent->wsi().connection();
     // The size of 1 CARD32 value is 1 X11 word (32 bits). Therefore the length is 4.
     auto request = XCB_SEND_REQUEST(xcb_get_property, connection, false, m_window,
                                     m_parent->wsi().atom_by_name(NET_FRAME_EXTENTS_ATOM), XCB_ATOM_CARDINAL, 0, 4);
-    auto result = current_drawable_rect();
+    auto result = drawable_rect();
     auto error = ptr<xcb_generic_error_t>{ };
     auto reply = XCB_AWAIT_REPLY(xcb_get_property, connection, request, &error);
     XCB_HANDLE_ERROR(reply, error, "Failed to retrieve EWMH frame extents.");
@@ -586,7 +586,7 @@ namespace oberon::internal::linux::x11 {
     xcb_send_event(m_parent->wsi().connection(), false, destination, MASK, reinterpret_cast<cstring>(&message));
   }
 
-  void window_impl::change_title(const std::string& title) {
+  void window_impl::title(const std::string& title) {
     const auto connection = m_parent->wsi().connection();
     // The encoding of WM_NAME is ambiguous.
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, m_window, m_parent->wsi().atom_by_name(WM_NAME_ATOM),
@@ -751,7 +751,7 @@ namespace oberon::internal::linux::x11 {
     return static_cast<oberon::mouse_button>(code);
   }
 
-  bool window_impl::is_modifier_pressed(const oberon::modifier_key modifier) const {
+  bool window_impl::is_modifier_key_active(const oberon::modifier_key modifier) const {
     if (modifier == oberon::modifier_key::none)
     {
       return false;
@@ -788,7 +788,7 @@ namespace oberon::internal::linux::x11 {
     return m_presentation_modes;
   }
 
-  void window_impl::request_presentation_mode(const presentation_mode mode) {
+  void window_impl::presentation_mode(const enum presentation_mode mode) {
     if (m_presentation_modes.contains(mode))
     {
       m_swapchain_present_mode = static_cast<VkPresentModeKHR>(mode);
@@ -800,8 +800,8 @@ namespace oberon::internal::linux::x11 {
     m_status |= renderer_status_flag_bits::dirty_bit;
   }
 
-  presentation_mode window_impl::current_presentation_mode() const {
-    return static_cast<presentation_mode>(m_swapchain_present_mode);
+  enum presentation_mode window_impl::presentation_mode() const {
+    return static_cast<enum presentation_mode>(m_swapchain_present_mode);
   }
 
   u32 window_impl::acquire_next_image(const VkSemaphore acquired) {

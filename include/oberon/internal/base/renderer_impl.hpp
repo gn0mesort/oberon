@@ -22,11 +22,6 @@ namespace oberon::internal::base {
   class frame_impl;
 
 
-  struct frame_info {
-    VkSemaphore target_acquired{ };
-    ptr<window_impl> window{ };
-  };
-
   class renderer_impl final {
   private:
     static constexpr usize FRAME_COUNT{ 2 };
@@ -37,8 +32,6 @@ namespace oberon::internal::base {
     VkFormat m_depth_stencil_format{ };
     VkExtent3D m_extent{ };
     std::array<ptr<frame_impl>, FRAME_COUNT> m_frames{ };
-    std::array<frame_info, FRAME_COUNT> m_infos{ };
-    std::array<VkSemaphore, FRAME_COUNT> m_target_acquired_semaphores{ };
     std::array<VkPipelineLayout, PIPELINE_COUNT> m_pipeline_layouts{ };
     std::array<VkPipeline, PIPELINE_COUNT> m_pipelines{ };
 
@@ -57,7 +50,7 @@ namespace oberon::internal::base {
     renderer_impl& operator=(const renderer_impl& rhs) = delete;
     renderer_impl& operator=(renderer_impl&& rhs) = delete;
 
-    frame next_frame(window_impl& window);
+    frame next_frame();
   };
 
 }

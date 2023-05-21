@@ -37,13 +37,6 @@ namespace oberon::internal::base {
                                                               VK_FORMAT_D16_UNORM_S8_UINT };
     m_depth_stencil_format = m_parent->select_image_format(depth_stencil_formats, VK_IMAGE_TILING_OPTIMAL,
                                                            depth_stencil_features);
-    auto semaphore_info = VkSemaphoreCreateInfo{ };
-    semaphore_info.sType = VK_STRUCT(SEMAPHORE_CREATE_INFO);
-    VK_DECLARE_PFN(m_parent->dispatch_loader(), vkCreateSemaphore);
-    for (auto& semaphore : m_target_acquired_semaphores)
-    {
-      VK_SUCCEEDS(vkCreateSemaphore(m_parent->device_handle(), &semaphore_info, nullptr, &semaphore));
-    }
     {
       auto rendering_info = VkPipelineRenderingCreateInfo{ };
       rendering_info.sType = VK_STRUCT(PIPELINE_RENDERING_CREATE_INFO);
@@ -75,13 +68,6 @@ namespace oberon::internal::base {
                                                               VK_FORMAT_D16_UNORM_S8_UINT };
     m_depth_stencil_format = m_parent->select_image_format(depth_stencil_formats, VK_IMAGE_TILING_OPTIMAL,
                                                            depth_stencil_features);
-    auto semaphore_info = VkSemaphoreCreateInfo{ };
-    semaphore_info.sType = VK_STRUCT(SEMAPHORE_CREATE_INFO);
-    VK_DECLARE_PFN(m_parent->dispatch_loader(), vkCreateSemaphore);
-    for (auto& semaphore : m_target_acquired_semaphores)
-    {
-      VK_SUCCEEDS(vkCreateSemaphore(m_parent->device_handle(), &semaphore_info, nullptr, &semaphore));
-    }
     {
       auto rendering_info = VkPipelineRenderingCreateInfo{ };
       rendering_info.sType = VK_STRUCT(PIPELINE_RENDERING_CREATE_INFO);
@@ -113,11 +99,6 @@ namespace oberon::internal::base {
     for (auto& layout : m_pipeline_layouts)
     {
       vkDestroyPipelineLayout(m_parent->device_handle(), layout, nullptr);
-    }
-    VK_DECLARE_PFN(m_parent->dispatch_loader(), vkDestroySemaphore);
-    for (auto& semaphore : m_target_acquired_semaphores)
-    {
-      vkDestroySemaphore(m_parent->device_handle(), semaphore, nullptr);
     }
   }
 
@@ -348,15 +329,12 @@ namespace oberon::internal::base {
     }
   }
 
-  frame renderer_impl::next_frame(window_impl& window) {
+  frame renderer_impl::next_frame() {
     const auto fr = m_frames[m_current_frame];
     fr->wait_for_availability();
     fr->begin_rendering();
-    auto& info = m_infos[m_current_frame];
-    info.target_acquired = m_target_acquired_semaphores[m_current_frame];
-    info.window = &window;
     m_current_frame = (m_current_frame + 1) & (FRAME_COUNT - 1);
-    return frame{ *fr, info };
+    return frame{ *fr };
   }
 
 }

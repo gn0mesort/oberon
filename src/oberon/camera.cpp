@@ -1,3 +1,10 @@
+/**
+ * @file camera.cpp
+ * @brief 3D camera object implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/camera.hpp"
 
 namespace oberon {

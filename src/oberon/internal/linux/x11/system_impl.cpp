@@ -1,7 +1,6 @@
 #include "oberon/internal/linux/x11/system_impl.hpp"
 
 #include <new>
-#include <iostream>
 
 #include "oberon/graphics_device.hpp"
 
@@ -59,7 +58,6 @@ namespace oberon::internal::linux::x11 {
                                                      physical_device.properties_1_1().deviceUUID);
       if (bits == IS_COMPLETE && ((is_exclusive_device_mode && is_exclusive_device) || !is_exclusive_device_mode))
       {
-        std::cerr << physical_device.properties_1_0().deviceName << std::endl;
         available_physical_devices.push_back(physical_device);
       }
     }

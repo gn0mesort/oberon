@@ -8,24 +8,24 @@
 #include "oberon/oberon.hpp"
 
 void toggle_fullscreen(oberon::window& win) {
-  if (win.current_display_style() == oberon::display_style::windowed)
+  if (win.display_style() == oberon::display_style::windowed)
   {
-    win.change_display_style(oberon::display_style::fullscreen_composited);
+    win.display_style(oberon::display_style::fullscreen_composited);
   }
-  else if (win.current_display_style() == oberon::display_style::fullscreen_composited)
+  else if (win.display_style() == oberon::display_style::fullscreen_composited)
   {
-    win.change_display_style(oberon::display_style::windowed);
+    win.display_style(oberon::display_style::windowed);
   }
 }
 
 void toggle_immediate_present(oberon::window& win) {
-  if (win.current_presentation_mode() == oberon::presentation_mode::fifo)
+  if (win.presentation_mode() == oberon::presentation_mode::fifo)
   {
-    win.request_presentation_mode(oberon::presentation_mode::immediate);
+    win.presentation_mode(oberon::presentation_mode::immediate);
   }
   else
   {
-    win.request_presentation_mode(oberon::presentation_mode::fifo);
+    win.presentation_mode(oberon::presentation_mode::fifo);
   }
 }
 
@@ -35,7 +35,7 @@ bool on_key_press(oberon::window& win) {
     win.hide();
     return true;
   }
-  if (win.is_key_just_pressed(oberon::key::enter) && win.is_modifier_pressed(oberon::modifier_key::alt))
+  if (win.is_key_just_pressed(oberon::key::enter) && win.is_modifier_key_active(oberon::modifier_key::alt))
   {
     toggle_fullscreen(win);
   }
@@ -70,9 +70,9 @@ int app_run(const int, const oberon::ptr<oberon::csequence>, oberon::system& sys
         break;
       }
     }
-    auto frame = render.begin_frame(win);
+    auto frame = render.begin_frame();
     frame.draw_test_image();
-    render.end_frame(std::move(frame));
+    render.end_frame(win, std::move(frame));
   }
   return 0;
 }
@@ -82,8 +82,7 @@ int main(int argc, char** argv) {
   const auto renderdoc_device_uuid = std::getenv("RENDERDOC_DEVICE_UUID");
   if (renderdoc_device_uuid)
   {
-    app.set_exclusive_device_uuid(renderdoc_device_uuid);
-    app.enable_exclusive_device_mode(true);
+    return app.run_device_exclusive(renderdoc_device_uuid, app_run, argc, argv);
   }
   return app.run(app_run, argc, argv);
 }

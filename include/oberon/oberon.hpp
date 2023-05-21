@@ -1,3 +1,10 @@
+/**
+ * @file oberon.hpp
+ * @brief Single include file for the public Oberon API.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #ifndef OBERON_OBERON_HPP
 #define OBERON_OBERON_HPP
 

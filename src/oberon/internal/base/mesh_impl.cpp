@@ -6,7 +6,6 @@
 #include "oberon/mesh.hpp"
 
 #include "oberon/internal/base/vulkan.hpp"
-#include "oberon/internal/base/render_window_impl.hpp"
 
 #define VK_STRUCT(name) \
   OBERON_INTERNAL_BASE_VK_STRUCT(name)
@@ -82,19 +81,6 @@ namespace oberon::internal::base {
   usize mesh_impl::vertex_size() const {
     return m_vertex_size;
   }
-
-  //void mesh_impl::flush_to_device(render_window_impl& win) {
-  //  auto barrier = VkMemoryBarrier{ };
-  //  barrier.sType = VK_STRUCT(MEMORY_BARRIER);
-  //  if (VERTEX_DIRTY)
-  //  {
-  //    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  //    barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-  //    win.copy_buffer(m_staging->buffer, m_resident->buffer, m_size * m_vertex_size);
-  //    win.insert_memory_barrier(barrier, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
-  //  }
-  //  m_status &= ~VERTEX_DIRTY;
-  //}
 
   bool mesh_impl::is_dirty() const {
     return m_dirty;

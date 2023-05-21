@@ -76,7 +76,8 @@ namespace oberon::internal::base {
     void make_unavailable();
     void begin_rendering();
     void end_rendering(const VkImage target, const VkFormat format, const VkExtent3D& extent,
-                       const VkImageLayout layout, const VkSemaphore acquired);
+                       const VkImageLayout layout, const bool target_must_be_acquired);
+    VkSemaphore target_acquired_semaphore() const;
     VkSemaphore copy_blit_finished_semaphore() const;
     void draw_test_image();
     void draw(camera& c, mesh& m);

@@ -71,7 +71,7 @@ namespace renderer_status_flag_bits {
     nng_dialer m_dialer{ };
 
     VkSurfaceKHR m_surface{ };
-    std::unordered_set<presentation_mode> m_presentation_modes{ };
+    std::unordered_set<enum presentation_mode> m_presentation_modes{ };
     VkPresentModeKHR m_swapchain_present_mode{ VK_PRESENT_MODE_FIFO_KHR };
     VkExtent2D m_swapchain_extent{ };
     VkSurfaceFormatKHR m_swapchain_surface_format{ };
@@ -109,24 +109,24 @@ namespace renderer_status_flag_bits {
     void hide() override;
     bool is_shown() const override;
     bool is_minimized() const override;
-    void change_display_style(const display_style style) override;
-    display_style current_display_style() const override;
-    rect_2d current_drawable_rect() const override;
-    rect_2d current_rect() const override;
-    void change_title(const std::string& title) override;
+    void display_style(const enum display_style style) override;
+    enum display_style display_style() const override;
+    rect_2d drawable_rect() const override;
+    rect_2d screen_rect() const override;
+    void title(const std::string& title) override;
     std::string title() const override;
     void resize(const extent_2d& extent) override;
     void move_to(const offset_2d& offset) override;
     event poll_events() override;
     oberon::key translate_keycode(const u32 code) const override;
     oberon::mouse_button translate_mouse_buttoncode(const u32 code) const override;
-    bool is_modifier_pressed(const oberon::modifier_key modifier) const override;
+    bool is_modifier_key_active(const oberon::modifier_key modifier) const override;
     bool is_key_pressed(const oberon::key k) const override;
     bool is_key_echoing(const oberon::key k) const override;
     bool is_mouse_button_pressed(const oberon::mouse_button mb) const override;
-    const std::unordered_set<presentation_mode>& available_presentation_modes() const override;
-    void request_presentation_mode(const presentation_mode mode) override;
-    presentation_mode current_presentation_mode() const override;
+    const std::unordered_set<enum presentation_mode>& available_presentation_modes() const override;
+    void presentation_mode(const enum presentation_mode mode) override;
+    enum presentation_mode presentation_mode() const override;
   };
 
 }

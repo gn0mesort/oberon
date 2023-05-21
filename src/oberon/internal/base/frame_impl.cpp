@@ -34,9 +34,8 @@ namespace oberon::internal::base {
     auto semaphore_info = VkSemaphoreCreateInfo{ };
     semaphore_info.sType = VK_STRUCT(SEMAPHORE_CREATE_INFO);
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkCreateSemaphore);
-    for (auto cur = m_semaphores.begin() + 1; cur != m_semaphores.end(); ++cur)
+    for (auto& semaphore : m_semaphores)
     {
-      auto& semaphore = *cur;
       VK_SUCCEEDS(vkCreateSemaphore(m_parent->device_handle(), &semaphore_info, nullptr, &semaphore));
     }
     auto command_pool_info = VkCommandPoolCreateInfo{ };
@@ -64,9 +63,9 @@ namespace oberon::internal::base {
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkDestroyCommandPool);
     vkDestroyCommandPool(m_parent->device_handle(), m_command_pool, nullptr);
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkDestroySemaphore);
-    for (auto cur = m_semaphores.begin() + 1; cur != m_semaphores.end(); ++cur)
+    for (auto& semaphore : m_semaphores)
     {
-      vkDestroySemaphore(m_parent->device_handle(), *cur, nullptr);
+      vkDestroySemaphore(m_parent->device_handle(), semaphore, nullptr);
     }
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkDestroyFence);
     for (auto& fence : m_fences)
@@ -263,7 +262,7 @@ namespace oberon::internal::base {
   }
 
   void frame_impl::end_rendering(const VkImage target, const VkFormat format, const VkExtent3D& extent,
-                                 const VkImageLayout layout, const VkSemaphore acquired) {
+                                 const VkImageLayout layout, const bool target_must_be_acquired) {
     m_current_render.flags = VK_RENDERING_RESUMING_BIT;
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkCmdBeginRendering);
     vkCmdBeginRendering(m_command_buffers[RENDER_COMMAND_BUFFER_INDEX], &m_current_render);
@@ -383,9 +382,8 @@ namespace oberon::internal::base {
       auto& submit_info = submit_infos[COPY_BLIT_COMMAND_BUFFER_INDEX];
       submit_info.sType = VK_STRUCT(SUBMIT_INFO);
       submit_info.pWaitDstStageMask = &copy_blit_wait_stage;
-      if (acquired)
+      if (target_must_be_acquired)
       {
-        m_semaphores[TARGET_ACQUIRED_SEMAPHORE_INDEX] = acquired;
         submit_info.waitSemaphoreCount = 2;
         submit_info.pWaitSemaphores = &m_semaphores[TARGET_ACQUIRED_SEMAPHORE_INDEX];
       }
@@ -404,7 +402,10 @@ namespace oberon::internal::base {
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkQueueSubmit);
     VK_SUCCEEDS(vkQueueSubmit(m_parent->queue(), submit_infos.size(), submit_infos.data(),
                               m_fences[SUBMISSION_COMPLETE_FENCE_INDEX]));
-    m_semaphores[TARGET_ACQUIRED_SEMAPHORE_INDEX] = VK_NULL_HANDLE;
+  }
+
+  VkSemaphore frame_impl::target_acquired_semaphore() const {
+    return m_semaphores[TARGET_ACQUIRED_SEMAPHORE_INDEX];
   }
 
   VkSemaphore frame_impl::copy_blit_finished_semaphore() const {

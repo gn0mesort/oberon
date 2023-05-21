@@ -1,3 +1,10 @@
+/**
+ * @file renderer.cpp
+ * @brief 3D renderer object implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/renderer.hpp"
 
 #include "oberon/graphics_device.hpp"
@@ -20,23 +27,20 @@ namespace oberon {
     return *m_impl;
   }
 
-  frame renderer::begin_frame(window& win) {
-    return m_impl->next_frame(win.implementation());
+  frame renderer::begin_frame() {
+    return m_impl->next_frame();
   }
 
-  void renderer::end_frame(frame&& fr) {
+  void renderer::end_frame(window& win, frame&& fr) {
+    // Retire the external frame.
     auto submission = frame{ std::move(fr) };
-    auto& info = submission.information();
-    if (info.window)
-    {
-      const auto image_index = info.window->acquire_next_image(info.target_acquired);
-      const auto swap_extent = info.window->swapchain_extent();
-      submission.implementation().end_rendering(info.window->swapchain_images()[image_index],
-                                                info.window->surface_format(),
-                                                { swap_extent.width, swap_extent.height, 1 },
-                                                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, info.target_acquired);
-      info.window->present_image(image_index, submission.implementation().copy_blit_finished_semaphore());
-    }
+    auto& impl = submission.implementation();
+    auto& win_impl = win.implementation();
+    const auto image_index = win_impl.acquire_next_image(impl.target_acquired_semaphore());
+    const auto swap_extent = win_impl.swapchain_extent();
+    impl.end_rendering(win_impl.swapchain_images()[image_index], win_impl.surface_format(),
+                       { swap_extent.width, swap_extent.height, 1 }, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, true);
+    win_impl.present_image(image_index, submission.implementation().copy_blit_finished_semaphore());
   }
 
 }

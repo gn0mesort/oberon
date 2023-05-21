@@ -17,6 +17,10 @@
 #include <concepts>
 #include <utility>
 
+/**
+ * @def OBERON_ENFORCE_CONCEPT(concept, type)
+ * @brief Require that `type` fulfills `concept` or generate a compiler error.
+ */
 #define OBERON_ENFORCE_CONCEPT(concept, type) static_assert(requires { requires concept<type>; })
 
 /**

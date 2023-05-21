@@ -1,3 +1,10 @@
+/**
+ * @file mesh.cpp
+ * @brief 3D mesh object implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/mesh.hpp"
 
 #include "oberon/internal/base/mesh_impl.hpp"

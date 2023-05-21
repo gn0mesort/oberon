@@ -1,3 +1,10 @@
+/**
+ * @file mouse.hpp
+ * @brief Mouse button enumerations.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #ifndef OBERON_MOUSE_HPP
 #define OBERON_MOUSE_HPP
 #include <string>
@@ -36,21 +43,6 @@
   OBERON_MOUSE_BUTTON_ALIAS(scroll_down, button_5)
 
 namespace oberon {
-
-  /**
-   * @brief A structure representing the (x, y) coordinates of the mouse pointer.
-   */
-  struct mouse_offset final {
-    /**
-     * @brief The X-axis offset of the mouse pointer.
-     */
-    i16 x{ };
-
-    /**
-     * @brief The Y-axis offset of the mouse pointer.
-     */
-    i16 y{ };
-  };
 
 /// @cond
 #define OBERON_MOUSE_BUTTON(name) name,
