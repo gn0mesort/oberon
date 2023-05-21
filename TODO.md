@@ -61,7 +61,7 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
     + *MUST* support US layout keyboard via events
     + *MUST* support mice via events
     - *SHOULD* support non-US keyboard layouts
-    - *MUST* support checking for the minimized state
+    + *MUST* support checking for the minimized state
     - *MUST* support checking for the maximized state
 
 - *SHOULD* support Win32
@@ -82,9 +82,9 @@ A `+` indicates a requirement that I think is currently met. A `-` indicates som
         + *MUST* support rendering to XCB surfaces
         - *SHOULD* support rendering to Win32 surfaces
     + *MUST* support VkSwapchainKHR
-    - *SHOULD* support rendering to off screen images
-        - *SHOULD* support rendering to off screen images with different resolutions from swapchain images
+    + *SHOULD* support rendering to off screen images
+        + *SHOULD* support rendering to off screen images with different resolutions from swapchain images
     + *MUST* support rendering to color attachments
-    - *MUST* support rendering to depth attachments
+    + *MUST* support rendering to depth attachments
     - *MUST* support device memory allocation
         - *SHOULD* provide a custom device memory allocator
