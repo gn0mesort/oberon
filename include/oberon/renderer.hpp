@@ -44,6 +44,8 @@ namespace oberon {
      * @brief Create a renderer.
      * @param device The `graphics_device` to derive the `renderer` from.
      * @param resolution The resolution of rendered images produced the `renderer`.
+     * @param samples The number of MSAA samples this renderer should use. This must be a power of 2 and it must be
+     *                greater than 0. To disable MSAA pass 1.
      */
     renderer(graphics_device& device, const extent_2d& resolution, const u32 samples);
 
@@ -53,6 +55,8 @@ namespace oberon {
      *          `window` is created. That is to say, you may still call `begin_frame()` on another `window`.
      * @param device The `graphics_device` to derive the `renderer` from.
      * @param win The `window` to match.
+     * @param samples The number of MSAA samples this renderer should use. This must be a power of 2 and it must be
+     *                greater than 0. To disable MSAA pass 1.
      */
     renderer(graphics_device& device, window& win, const u32 samples);
 

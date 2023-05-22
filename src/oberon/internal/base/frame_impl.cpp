@@ -1,3 +1,10 @@
+/**
+ * @file frame_impl.cpp
+ * @brief Internal frame object API implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/internal/base/frame_impl.hpp"
 
 #include "oberon/errors.hpp"
@@ -174,11 +181,6 @@ namespace oberon::internal::base {
   void frame_impl::wait_for_availability() {
     VK_DECLARE_PFN(m_parent->dispatch_loader(), vkWaitForFences);
     VK_SUCCEEDS(vkWaitForFences(m_parent->device_handle(), m_fences.size(), m_fences.data(), true, VK_FOREVER));
-  }
-
-  void frame_impl::make_unavailable() {
-    VK_DECLARE_PFN(m_parent->dispatch_loader(), vkResetFences);
-    VK_SUCCEEDS(vkResetFences(m_parent->device_handle(), m_fences.size(), m_fences.data()));
   }
 
   void frame_impl::begin_rendering() {

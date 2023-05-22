@@ -1,3 +1,10 @@
+/**
+ * @file physical_graphics_device.cpp
+ * @brief Internal physical_graphics_device object implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/internal/base/physical_graphics_device.hpp"
 
 #define VK_STRUCT(name) OBERON_INTERNAL_BASE_VK_STRUCT(name)

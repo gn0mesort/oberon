@@ -1,3 +1,10 @@
+/**
+ * @file graphics_context.cpp
+ * @brief Internal graphics_context objects implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/internal/base/graphics_context.hpp"
 
 #include <array>
@@ -154,7 +161,7 @@ namespace oberon::internal::base {
     vkDestroyInstance(m_dl.loaded_instance(), nullptr);
   }
 
-  VkInstance graphics_context::instance() {
+  VkInstance graphics_context::instance_handle() {
     return m_dl.loaded_instance();
   }
 

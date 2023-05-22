@@ -1,3 +1,10 @@
+/**
+ * @file mesh_impl.cpp
+ * @brief Internal mesh API implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/internal/base/mesh_impl.hpp"
 
 #include <cstring>

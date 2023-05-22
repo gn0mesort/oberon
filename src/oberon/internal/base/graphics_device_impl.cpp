@@ -1,3 +1,10 @@
+/**
+ * @file graphics_device_impl.cpp
+ * @brief Internal graphics_device API implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/internal/base/graphics_device_impl.hpp"
 
 #include "oberon/graphics_device.hpp"

@@ -1,3 +1,10 @@
+/**
+ * @file renderer_impl.cpp
+ * @brief Internal renderer API implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/internal/base/renderer_impl.hpp"
 
 #include <vector>
