@@ -14,7 +14,7 @@
 #include "oberon/internal/base/graphics_device_impl.hpp"
 
 #ifdef CONFIGURATION_OPERATING_SYSTEM_LINUX
-  #include "oberon/internal/linux/utility.hpp"
+  #include <uuid/uuid.h>
 #endif
 
 namespace oberon {

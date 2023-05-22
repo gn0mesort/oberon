@@ -29,7 +29,7 @@
   #include <getopt.h>
   #include <libgen.h>
 
-  #include "oberon/internal/linux/utility.hpp"
+  #include <uuid/uuid.h>
 
   #ifdef CONFIGURATION_WINDOW_SYSTEM_X11
     #include "oberon/internal/linux/x11/xcb.hpp"

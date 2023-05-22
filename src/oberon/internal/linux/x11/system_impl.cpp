@@ -2,13 +2,13 @@
 
 #include <new>
 
+#include <uuid/uuid.h>
+
 #include "oberon/graphics_device.hpp"
 
 #include "oberon/internal/base/vulkan.hpp"
 #include "oberon/internal/base/graphics_context.hpp"
 #include "oberon/internal/base/physical_graphics_device.hpp"
-
-#include "oberon/internal/linux/utility.hpp"
 
 #include "oberon/internal/linux/x11/xcb.hpp"
 #include "oberon/internal/linux/x11/wsi_context.hpp"
