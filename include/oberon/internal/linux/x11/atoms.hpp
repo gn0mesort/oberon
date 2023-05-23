@@ -1,3 +1,10 @@
+/**
+ * @file atoms.hpp
+ * @brief X11 atom related symbols.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #ifndef OBERON_INTERNAL_LINUX_X11_ATOMS_HPP
 #define OBERON_INTERNAL_LINUX_X11_ATOMS_HPP
 
@@ -40,19 +47,38 @@
   OBERON_INTERNAL_LINUX_X11_ATOM_NAME(NET_FRAME_EXTENTS, "_NET_FRAME_EXTENTS") \
   OBERON_INTERNAL_LINUX_X11_ATOM_NAME(OBERON_SYSTEM_SIGNAL, "_OBERON_SYSTEM_SIGNAL")
 
+/**
+ * @def OBERON_INTERNAL_LINUX_X11_SYSTEM_SIGNALS
+ * @brief Signal constants that might be associated with the `OBERON_SYSTEM_SIGNAL` atom.
+ */
 #define OBERON_INTERNAL_LINUX_X11_SYSTEM_SIGNALS \
   OBERON_INTERNAL_LINUX_X11_SYSTEM_SIGNAL(QUIT)
 
 namespace oberon::internal::linux::x11 {
 
+/// @cond
 #define OBERON_INTERNAL_LINUX_X11_ATOM_NAME(name, str) name##_ATOM,
+/// @endcond
+
+  /**
+   * @enum atom
+   * @brief Symbolic constants for X11 atoms.
+   */
   enum atom {
     OBERON_INTERNAL_LINUX_X11_ATOMS
     MAX_ATOM
   };
+
 #undef OBERON_INTERNAL_LINUX_X11_ATOM_NAME
 
+/// @cond
 #define OBERON_INTERNAL_LINUX_X11_SYSTEM_SIGNAL(name) name##_SYSTEM_SIGNAL,
+/// @endcond
+
+  /**
+   * @enum system_signal
+   * @brief Symbolic constants for Oberon's internal signals.
+   */
   enum system_signal {
     OBERON_INTERNAL_LINUX_X11_SYSTEM_SIGNALS
     MAX_SYSTEM_SIGNAL

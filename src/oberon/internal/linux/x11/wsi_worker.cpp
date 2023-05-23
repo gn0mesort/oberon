@@ -1,3 +1,10 @@
+/**
+ * @file wsi_worker.cpp
+ * @brief Internal Linux+X11 WSI worker thread implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/internal/linux/x11/wsi_worker.hpp"
 
 #include <iostream>

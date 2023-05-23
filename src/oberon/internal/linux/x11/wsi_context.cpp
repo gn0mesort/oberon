@@ -1,3 +1,10 @@
+/**
+ * @file wsi_context.cpp
+ * @brief Internal Linux+X11 wsi_context object implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/internal/linux/x11/wsi_context.hpp"
 
 #include <cstdlib>

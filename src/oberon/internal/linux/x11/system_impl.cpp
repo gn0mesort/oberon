@@ -1,3 +1,10 @@
+/**
+ * @file system_impl.cpp
+ * @brief Internal Linux+X11 system API implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/internal/linux/x11/system_impl.hpp"
 
 #include <new>

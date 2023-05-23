@@ -1,3 +1,10 @@
+/**
+ * @file window_impl.hpp
+ * @brief Internal Linux+X11 window API.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #ifndef OBERON_INTERNAL_LINUX_X11_WINDOW_IMPL_HPP
 #define OBERON_INTERNAL_LINUX_X11_WINDOW_IMPL_HPP
 
@@ -41,6 +48,10 @@ namespace renderer_status_flag_bits {
 
 }
 
+  /**
+   * @class window_impl
+   * @brief The Linux+X11 window implementation.
+   */
   class window_impl final : public base::window_impl {
   private:
     struct key_state final {
@@ -90,42 +101,209 @@ namespace renderer_status_flag_bits {
     void change_compositor_mode(const compositor_mode mode);
     void initialize_swapchain(const VkSwapchainKHR old);
   public:
+    /**
+     * @brief Create a `window_impl`.
+     * @param device The `graphics_device` on which the `window` will be based.
+     * @param title  The title of the `window`.
+     * @param bounds The bounds of the `window`.
+     */
     window_impl(graphics_device& device, const std::string& title, const rect_2d& bounds);
+
+    /// @cond
     window_impl(const window_impl& other) = delete;
     window_impl(window_impl&& other) = delete;
+    /// @endcond
 
+    /**
+     * @brief Destroy a `window_impl`.
+     */
     ~window_impl() noexcept;
 
+    /// @cond
     window_impl& operator=(const window_impl& other) = delete;
     window_impl& operator=(window_impl&& other) = delete;
+    /// @endcond
 
+    /**
+     * @brief Acquire a `VkImage` from the `window`'s `VkSwapchainKHR`.
+     * @details Although an image is acquired it may still be pending use (i.e., reads) so it is important to await
+     *          the signalling of the `acquired` semaphore before writing to the acquired image.
+     * @param acquired A `VkSemaphore` to signal when the acquired `VkImage` is ready to render to.
+     * @return The 32-bit index of the newly acquired image.
+     */
     u32 acquire_next_image(const VkSemaphore acquired) override;
+
+    /**
+     * @brief Retrieve the list of swapchain images.
+     * @return A reference to a list of `VkImage`s that belong to the `window`'s `VkSwapchainKHR`.
+     */
     const std::vector<VkImage>& swapchain_images() override;
+
+    /**
+     * @brief Retrieve the format of the `window`'s `VkSwapchainKHR`.
+     * @return The current `VkFormat` of the swapchain.
+     */
     VkFormat surface_format() const override;
+
+    /**
+     * @brief Retrieve the 2D extent of the `window`'s `VkSwapchainKHR`.
+     * @return The extent of the swapchain.
+     */
     VkExtent2D swapchain_extent() const override;
+
+    /**
+     * @brief Present the `VkImage` with the given index to the `window`.
+     * @param index The index of the `VkImage` to present in the `VkSwapchainKHR`.
+     * @param ready_to_present A `VkSemaphore` that should be waited upon before presenting.
+     */
     void present_image(const u32 index, const VkSemaphore ready_to_present) override;
+
+    /**
+     * @brief Retrieve the `window`'s unique id.
+     * @return A unique 32-bit integer representing the `window`.
+     */
     u32 id() const override;
+
+    /**
+     * @brief Show the `window`.
+     */
     void show() override;
+
+    /**
+     * @brief Hide the `window`.
+     */
     void hide() override;
+
+    /**
+     * @brief Determine if the `window` is shown or hidden.
+     * @return True if the `window` is shown. False if the `window` is hidden.
+     */
     bool is_shown() const override;
+
+    /**
+     * @brief Determine if the `window` is shown but minimized.
+     * @detail This is slightly different from the `window` being shown. A shown `window` is potentially visible on
+     *         the screen but is definitely known to the window manager.
+     * @return True if the `window` is minimized. False if the `window` is not minimized.
+     */
     bool is_minimized() const override;
+
+    /**
+     * @brief Change the current `display_style`.
+     * @param style The new `display_style`.
+     */
     void display_style(const enum display_style style) override;
+
+    /**
+     * @brief Retrieve the current `display_style`.
+     * @return The current `display_style`.
+     */
     enum display_style display_style() const override;
+
+    /**
+     * @brief Retrieve the geometry of the `window`'s drawable region.
+     * @return A `rect_2d` describing the drawable region.
+     */
     rect_2d drawable_rect() const override;
+
+    /**
+     * @brief Retrieve the geometry of the `window`'s total screen region.
+     * @return A `rect_2d` describing the screen region.
+     */
     rect_2d screen_rect() const override;
+
+    /**
+     * @brief Change the `window`'s title.
+     * @param title The new `window` title.
+     */
     void title(const std::string& title) override;
+
+    /**
+     * @brief Retrieve the `window`'s title.
+     * @return The `window`'s title.
+     */
     std::string title() const override;
+
+    /**
+     * @brief Resize the `window`.
+     * @param extent The new `window` size.
+     */
     void resize(const extent_2d& extent) override;
+
+    /**
+     * @brief Move the `window`.
+     * @param offset The new position of the `window`.
+     */
     void move_to(const offset_2d& offset) override;
+
+    /**
+     * @brief Poll for window system events.
+     * @detail If there are no pending events this returns immediately.
+     * @return The next available `window` event or an empty event if none are available.
+     */
     event poll_events() override;
+
+    /**
+     * @brief Translate a keycode into a `key` value.
+     * @param code The keycode to translate.
+     * @return The corresponding `key` value.
+     */
     oberon::key translate_keycode(const u32 code) const override;
+
+    /**
+     * @brief Translate a buttoncode into a `mouse_button`.
+     * @param code The code to translate.
+     * @return The corresponding `mouse_button`.
+     */
     oberon::mouse_button translate_mouse_buttoncode(const u32 code) const override;
+
+    /**
+     * @brief Determine if a `modifier_key` is active.
+     * @param modifier The `modifier_key` to determine the state of.
+     * @return True if the `modifier_key` is active (i.e., pressed, locked, or latched). False if the `modifer_key` is
+     *         not active.
+     */
     bool is_modifier_key_active(const oberon::modifier_key modifier) const override;
+
+    /**
+     * @brief Determine whether or not the given `key` is pressed.
+     * @param k The `key` to determine the state of.
+     * @return True if the `key` is pressed. False if the `key` is not pressed.
+     */
     bool is_key_pressed(const oberon::key k) const override;
+
+    /**
+     * @brief Determine whether or not the given `key` is sending echo press events.
+     * @param k The `key` to determine the state of.
+     * @return True if the `key` is echoing. False if the `key` is not echoing.
+     */
     bool is_key_echoing(const oberon::key k) const override;
+
+    /**
+     * @brief Determine whether or not a `mouse_button` is pressed.
+     * @param mb The `mouse_button` to determine the state of.
+     * @return True if the `mouse_button` is pressed. False if the `mouse_button` is not pressed.
+     */
     bool is_mouse_button_pressed(const oberon::mouse_button mb) const override;
+
+    /**
+     * @brief Retrieve a set of `presentation_mode`s available to the `window`.
+     * @return A set of `presentation_mode`s available to the `window`.
+     */
     const std::unordered_set<enum presentation_mode>& available_presentation_modes() const override;
+
+    /**
+     * @brief Request a change in the `window`'s `presentation_mode`.
+     * @detail A `window` may reject the client's chosen mode. In this case the mode will be changed to
+     *        `presentation_mode::fifo`.
+     * @param mode The `presentation_mode` to request.
+     */
     void presentation_mode(const enum presentation_mode mode) override;
+
+    /**
+     * @brief Retrieve the current `presentation_mode` of the `window`.
+     * @return The current `presentation_mode`.
+     */
     enum presentation_mode presentation_mode() const override;
   };
 

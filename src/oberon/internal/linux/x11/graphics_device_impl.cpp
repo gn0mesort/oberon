@@ -1,3 +1,10 @@
+/**
+ * @file graphics_device_impl.hpp
+ * @brief Internal Linux+X11 graphics_device API implementation.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #include "oberon/internal/linux/x11/graphics_device_impl.hpp"
 
 #include "oberon/errors.hpp"

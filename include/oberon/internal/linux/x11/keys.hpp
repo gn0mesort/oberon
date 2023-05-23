@@ -1,3 +1,10 @@
+/**
+ * @file keys.hpp
+ * @brief Internal Linux+X11 key mappings.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #ifndef OBERON_INTERNAL_LINUX_X11_KEYS_HPP
 #define OBERON_INTERNAL_LINUX_X11_KEYS_HPP
 
@@ -5,6 +12,10 @@
 
 #include "../../../keys.hpp"
 
+/**
+ * @def OBERON_INTERNAL_LINUX_X11_KEYCODES
+ * @brief A list of integer keycodes and their corresponding key names.
+ */
 #define OBERON_INTERNAL_LINUX_X11_KEYCODES \
   OBERON_INTERNAL_LINUX_X11_KEYCODE(0x00, "") \
   OBERON_INTERNAL_LINUX_X11_KEYCODE(0x01, "") \
@@ -263,6 +274,10 @@
   OBERON_INTERNAL_LINUX_X11_KEYCODE(0xfe, "I254") \
   OBERON_INTERNAL_LINUX_X11_KEYCODE(0xff, "I255")
 
+/**
+ * @def OBERON_INTERNAL_LINUX_X11_KEYCODE_MAP
+ * @brief A mapping of `oberon::key`s to key names.
+ */
 #define OBERON_INTERNAL_LINUX_X11_KEYCODE_MAP \
   OBERON_INTERNAL_LINUX_X11_KEYCODE_MAPPING(escape, "ESC") \
   OBERON_INTERNAL_LINUX_X11_KEYCODE_MAPPING(function_01, "FK01") \
@@ -369,6 +384,10 @@
   OBERON_INTERNAL_LINUX_X11_KEYCODE_MAPPING(key_pad_add, "KPAD") \
   OBERON_INTERNAL_LINUX_X11_KEYCODE_MAPPING(key_pad_enter, "KPEN")
 
+/**
+ * @def OBERON_INTERNAL_LINUX_X11_MODIFIER_KEY_MAP
+ * @brief A mapping of `oberon::modifier_key`s to XKB modifier names.
+ */
 #define OBERON_INTERNAL_LINUX_X11_MODIFIER_KEY_MAP \
   OBERON_INTERNAL_LINUX_X11_MODIFIER_KEY_MAPPING(shift, XKB_MOD_NAME_SHIFT) \
   OBERON_INTERNAL_LINUX_X11_MODIFIER_KEY_MAPPING(caps_lock, XKB_MOD_NAME_CAPS) \
@@ -379,18 +398,34 @@
 
 namespace oberon::internal::linux::x11 {
 
+/// @cond
 #define OBERON_INTERNAL_LINUX_X11_KEYCODE_MAPPING(name, str) name##_KEY,
+/// @endcond
+
+  /**
+   * @enum key
+   * @brief Symbolic keycode constants.
+   */
   enum key {
     OBERON_INTERNAL_LINUX_X11_KEYCODE_MAP
     MAX_KEY
   };
+
 #undef OBERON_INTERNAL_LINUX_X11_KEYCODE_MAPPING
 
+/// @cond
 #define OBERON_INTERNAL_LINUX_X11_MODIFIER_KEY_MAPPING(name, str) name##_MODIFIER_KEY,
+/// @endcond
+
+  /**
+   * @enum modifier
+   * @brief Symbolic modifier key constants.
+   */
   enum modifier {
     OBERON_INTERNAL_LINUX_X11_MODIFIER_KEY_MAP
     MAX_MODIFIER_KEY
   };
+
 #undef OBERON_INTERNAL_LINUX_X11_MODIFIER_KEY_MAPPING
 
 }

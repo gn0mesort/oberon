@@ -1,3 +1,10 @@
+/**
+ * @file wsi_worker.cpp
+ * @brief Internal Linux+X11 XCB header.
+ * @author Alexander Rothman <gnomesort@megate.ch>
+ * @date 2023
+ * @copyright AGPL-3.0+
+ */
 #ifndef OBERON_INTERNAL_LINUX_X11_XCB_HPP
 #define OBERON_INTERNAL_LINUX_X11_XCB_HPP
 
@@ -24,10 +31,34 @@
 #include "../../../errors.hpp"
 #include "../../../memory.hpp"
 
+/**
+ * @def OBERON_INTERNAL_LINUX_X11_XCB_SEND_REQUEST(request, connection, ...)
+ * @brief Send an XCB request and return the reply cookie.
+ * @param request The name of the request.
+ * @param connection The X11 connection.
+ * @param ... The request parameters.
+ */
 #define OBERON_INTERNAL_LINUX_X11_XCB_SEND_REQUEST(request, connection, ...) \
   (request((connection) __VA_OPT__(, __VA_ARGS__)))
+
+/**
+ * @def OBERON_INTERNAL_LINUX_X11_XCB_AWAIT_REPLY(request, connection, cookie, error)
+ * @brief Block until a reply is received for the specified XCB request.
+ * @param request The name of the request.
+ * @param connection The X11 connection.
+ * @param cookie The reply cookie for the request.
+ * @param error A pointer to a pointer to an `xcb_generic_error_t`.
+ */
 #define OBERON_INTERNAL_LINUX_X11_XCB_AWAIT_REPLY(request, connection, cookie, error) \
   (request##_reply((connection), (cookie), (error)))
+
+/**
+ * @def OBERON_INTERNAL_LINUX_X11_XCB_HANDLE_ERROR(reply, error, msg)
+ * @brief Handle an XCB error generated from a request.
+ * @param reply The reply pointer.
+ * @param error A pointer to an `xcb_generic_error_t` containing an error, if any.
+ * @param msg A message to provide if an error has occured.
+ */
 #define OBERON_INTERNAL_LINUX_X11_XCB_HANDLE_ERROR(reply, error, msg) \
   do \
   { \
@@ -39,6 +70,15 @@
     } \
   } \
   while (0)
+
+/**
+ * @def OBERON_INTERNAL_LINUX_X11_XCB_SEND_REQUEST_SYNC(reply, request, connection, ...)
+ * @brief Send an XCB request and immediately await the response.
+ * @param reply A pointer to a corresponding XCB reply.
+ * @param request The name of the XCB request.
+ * @param connection The X11 connection.
+ * @param ... Other request parameters, if any.
+ */
 #define OBERON_INTERNAL_LINUX_X11_XCB_SEND_REQUEST_SYNC(reply, request, connection, ...) \
   do \
   { \
@@ -49,6 +89,11 @@
   } \
   while (0)
 
+/**
+ * @def XCB_ERROR
+ * @brief The response type for XCB errors.
+ * @details The XCB headers don't actually define this.
+ */
 #define XCB_ERROR 0
 
 /**
@@ -178,6 +223,10 @@ struct xcb_size_hints_t final {
   oberon::i32 win_gravity{ };
 };
 
+/**
+ * @class xcb_hints_t
+ * @brief A structure representing the WM_HINTS window property.
+ */
 struct xcb_hints_t final {
   oberon::u32 flags{ };
   oberon::u32 input{ };
@@ -190,6 +239,11 @@ struct xcb_hints_t final {
   xcb_window_t window_group{ };
 };
 
+/**
+ * @class xcb_wm_state_t
+ * @brief A structure representing the WM_STATE window property.
+ *
+ */
 struct xcb_wm_state_t final {
   oberon::u32 state{ };
   xcb_window_t icon{ };
@@ -197,24 +251,40 @@ struct xcb_wm_state_t final {
 
 namespace oberon::internal::linux::x11 {
 
+  /**
+   * @enum source_indication
+   * @brief Symbolic constants representing EWMH source indicators.
+   */
   enum source_indication : u32 {
     UNSUPPORTED_SOURCE = 0,
     APPLICATION_SOURCE = 1,
     PAGER_SOURCE = 2
   };
 
+  /**
+   * @enum ewmh_state_action
+   * @brief Symbolic constants representing EWMH _NET_WM_STATE actions.
+   */
   enum ewmh_state_action : u32 {
     REMOVE_WM_STATE_ACTION = 0,
     ADD_WM_STATE_ACTION = 1,
     TOGGLE_WM_STATE_ACTION = 2
   };
 
+  /**
+   * @enum compositor_mode
+   * @brief Symbolic constants representing EWMH compositor modes.
+   */
   enum compositor_mode : u32 {
     NO_PREFERENCE_COMPOSITOR = 0,
     DISABLE_COMPOSITOR = 1,
     ENABLE_COMPOSITOR = 2
   };
 
+  /**
+   * @enum window_state
+   * @brief Symbolic constants representing ICCCM window states.
+   */
   enum window_state : u32 {
     WITHDRAWN_STATE = 0,
     NORMAL_STATE = 1,
