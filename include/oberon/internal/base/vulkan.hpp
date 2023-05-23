@@ -31,12 +31,15 @@
 /**
  * @def OBERON_INTERNAL_BASE_VK_STRUCT(name)
  * @brief Alias macro for shortening VK_STRUCTURE_TYPE names.
+ * @param name The a name to be appended to `VK_STRUCTURE_TYPE`. For example, `INSTANCE_CREATE_INFO`.
  */
 #define OBERON_INTERNAL_BASE_VK_STRUCT(name) (VK_STRUCTURE_TYPE_##name)
 
 /**
  * @def OBERON_INTERNAL_BASE_VK_DECLARE_PFN(dl, pfn)
  * @brief Declare the Vulkan command `pfn` using the loader `dl`.
+ * @param dl A `vkfl::loader`.
+ * @param pfn The name of a Vulkan command. For example, `vkCmdDraw`.
  */
 #define OBERON_INTERNAL_BASE_VK_DECLARE_PFN(dl, pfn) \
   auto pfn = (reinterpret_cast<PFN_##pfn>((dl).get(vkfl::command::pfn)))
@@ -45,6 +48,7 @@
  * @def OBERON_INTERNAL_BASE_VK_SUCCEEDS(exp)
  * @brief Check if `exp` returns `VK_SUCCESS`.
  * @details If `exp` fails then this throws an error.
+ * @param exp An expression that resolves to a `VkResult` value.
  */
 #define OBERON_INTERNAL_BASE_VK_SUCCEEDS(exp) \
   do \
