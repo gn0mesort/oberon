@@ -17,7 +17,7 @@ namespace oberon::concepts {
    * @tparam Type The type that must satisfy this concept.
    */
   template <typename Type>
-  concept has_internal_implementation = requires (Type t) {
+  concept has_internal_implementation = requires (Type&& t) {
     requires std::destructible<Type>;
     typename Type::implementation_type;
     { t.implementation() } -> std::same_as<typename Type::implementation_type&>;
