@@ -201,7 +201,7 @@ namespace oberon::internal::linux::x11 {
             // Weird handling is required because XKB does not use GE_GENERIC events.
             if (type == params.xkb_first_event)
             {
-              // XKB events are sent to all windows (i.e., window == XCB_NONE).
+              // XKB events are sent to all windows (i.e., window == params.leader).
               const auto xkb_event = reinterpret_cast<ptr<xcb_xkb_generic_event_t>>(ev);
               message.window = params.leader;
               message.data.type = event_type::platform;
