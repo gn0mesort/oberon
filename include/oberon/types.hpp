@@ -240,6 +240,196 @@ namespace oberon::inline fundamental_types {
    */
   using bitmask = u64;
 
+  /**
+   * @brief A type representing a namespaced integer handle.
+   * @detail Handles are values that work *like* pointers. They are arbitrary unsigned 64-bit integers wrapped in a
+   *         type that prevents them from being treated as regular unsigned integers. Handles can be compared to other
+   *         handles within the same space. Handles can be implicitly created from integer values. However, handles
+   *         cannot be implicitly converted back to integers.
+   * @tparam Spaces A set of namespace types that differentiate handles from eachother. Handles with the same `Spaces`
+   *         value can be compared. Handles with different `Spaces` values cannot be compared. Essentially:
+   *
+   *         auto hnd_1 = basic_handle<space_a>{ 1 };
+   *         auto hnd_2 = basic_handle<space_b>{ 1 };
+   *         if (hnd_1 == hnd_2)
+   *         {
+   *          // Do something.
+   *         }
+   *
+   *         should not compile even though the two handles use the same underlying data type.
+   */
+  template <typename... Spaces>
+  class basic_handle final {
+  public:
+    /**
+     * @brief The handle's value type. An unsigned 64-bit integer.
+     */
+    using value_type = u64;
+  private:
+    value_type m_handle{ 0 };
+  public:
+    /**
+     * @brief Initialize a default handle.
+     */
+    basic_handle() noexcept = default;
+
+    /**
+     * @brief Initialize a handle with a specific underlying value.
+     * @param handle The value of the created handle.
+     */
+    basic_handle(const value_type handle) noexcept : m_handle{ handle } { }
+
+    /**
+     * @brief Copy a basic_handle.
+     * @param other The handle to copy.
+     */
+    basic_handle(const basic_handle& other) noexcept = default;
+
+    /**
+     * @brief Move a basic_handle.
+     * @param other The handle to move.
+     */
+    basic_handle(basic_handle&& other) noexcept = default;
+
+    /**
+     * @brief Destroy a basic_handle.
+     */
+    ~basic_handle() noexcept = default;
+
+    /**
+     * @brief Assign the basic_handle by copying from another basic_handle.
+     * @param rhs The basic_handle to copy.
+     * @return A reference back to the basic_handle.
+     */
+    basic_handle& operator=(const basic_handle& rhs) noexcept = default;
+
+    /**
+     * @brief Assign the basic_handle by moving from another basic_handle.
+     * @param rhs The basic_handle to move.
+     * @return A reference back to the basic_handle.
+     */
+    basic_handle& operator=(basic_handle& rhs) noexcept = default;
+
+    /**
+     * @brief Convert a basic_handle to its underlying integer value.
+     * @return The underlying unsigned 64-bit integer representing the handle.
+     */
+    explicit operator value_type() const noexcept { return m_handle; }
+
+    /**
+     * @brief Compare two basic_handles for equality.
+     * @param rhs The handle to compare to the current handle.
+     * @return True if the two handles are the same. Otherwise the result is always false.
+     */
+    bool operator==(const basic_handle& rhs) const noexcept { return m_handle == rhs.m_handle; }
+
+    /**
+     * @brief Compare two basic_handles for inequality.
+     * @param rhs The handle to compare to the current handle.
+     * @return True if the two handles are the different. Otherwise the result is always false.
+     */
+    bool operator!=(const basic_handle& rhs) const noexcept { return !(m_handle == rhs.m_handle); }
+  };
+
+  /**
+   * @brief A read-only type representing a namespaced integer handle.
+   * @detail Handles are values that work *like* pointers. They are arbitrary unsigned 64-bit integers wrapped in a
+   *         type that prevents them from being treated as regular unsigned integers. Handles can be compared to other
+   *         handles within the same space. Handles can be implicitly created from integer values. However, handles
+   *         cannot be implicitly converted back to integers.
+   * @tparam Spaces A set of namespace types that differentiate handles from eachother. Handles with the same `Spaces`
+   *         value can be compared. Handles with different `Spaces` values cannot be compared. Essentially:
+   *
+   *         auto hnd_1 = basic_handle<space_a>{ 1 };
+   *         auto hnd_2 = basic_handle<space_b>{ 1 };
+   *         if (hnd_1 == hnd_2)
+   *         {
+   *          // Do something.
+   *         }
+   *
+   *         should not compile even though the two handles use the same underlying data type.
+   */
+  template <typename... Spaces>
+  class readonly_basic_handle final {
+  public:
+    /**
+     * @brief The handle's value type. An unsigned 64-bit integer.
+     */
+    using value_type = u64;
+  private:
+    value_type m_handle{ 0 };
+  public:
+    /**
+     * @brief Initialize a default handle.
+     */
+    readonly_basic_handle() noexcept = default;
+
+    /**
+     * @brief Initialize a handle with a specific underlying value.
+     * @param handle The value of the created handle.
+     */
+    readonly_basic_handle(const value_type handle) noexcept : m_handle{ handle } { }
+
+    /**
+     * @brief Initialize a readonly_basic_handle from an compatible basic_handle.
+     * @detail This is essentially the same as making the basic_handle read-only. The two handle types must share
+     *         a `Spaces` value to be compatible.
+     * @param handle The basic_handle to create a readonly_basic_handle from.
+     */
+    readonly_basic_handle(const basic_handle<Spaces...> handle) : m_handle{ static_cast<uptr>(handle) } { }
+
+    /**
+     * @brief Copy a readonly_basic_handle.
+     * @param other The handle to copy.
+     */
+    readonly_basic_handle(const readonly_basic_handle& other) noexcept = default;
+
+    /**
+     * @brief Move a readonly_basic_handle.
+     * @param other The handle to move.
+     */
+    readonly_basic_handle(readonly_basic_handle&& other) noexcept = default;
+
+    /**
+     * @brief Destroy a readonly_basic_handle.
+     */
+    ~readonly_basic_handle() noexcept = default;
+
+    /**
+     * @brief Assign the readonly_basic_handle by copying from another readonly_basic_handle.
+     * @param rhs The readonly_basic_handle to copy.
+     * @return A reference back to the readonly_basic_handle.
+     */
+    readonly_basic_handle& operator=(const readonly_basic_handle& rhs) noexcept = default;
+
+    /**
+     * @brief Assign the readonly_basic_handle by moving from another readonly_basic_handle.
+     * @param rhs The readonly_basic_handle to move.
+     * @return A reference back to the readonly_basic_handle.
+     */
+    readonly_basic_handle& operator=(readonly_basic_handle& rhs) noexcept = default;
+
+    /**
+     * @brief Convert a readonly_basic_handle to its underlying integer value.
+     * @return The underlying unsigned 64-bit integer representing the handle.
+     */
+    explicit operator value_type() const noexcept { return m_handle; }
+
+    /**
+     * @brief Compare two readonly_basic_handles for equality.
+     * @param rhs The handle to compare to the current handle.
+     * @return True if the two handles are the same. Otherwise the result is always false.
+     */
+    bool operator==(const readonly_basic_handle& rhs) const noexcept { return m_handle == rhs.m_handle; }
+
+    /**
+     * @brief Compare two readonly_basic_handles for inequality.
+     * @param rhs The handle to compare to the current handle.
+     * @return True if the two handles are the different. Otherwise the result is always false.
+     */
+    bool operator!=(const readonly_basic_handle& rhs) const noexcept { return !(m_handle == rhs.m_handle); }
+  };
+
 }
 
 #endif
