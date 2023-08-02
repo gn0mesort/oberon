@@ -16,6 +16,7 @@
 #include <type_traits>
 #include <concepts>
 #include <utility>
+#include <functional>
 
 /**
  * @def OBERON_ENFORCE_CONCEPT(concept, type)
@@ -429,7 +430,22 @@ namespace oberon::inline fundamental_types {
      */
     bool operator!=(const readonly_basic_handle& rhs) const noexcept { return !(m_handle == rhs.m_handle); }
   };
-
 }
+
+template <typename... Spaces>
+struct std::hash<oberon::basic_handle<Spaces...>> final {
+  std::size_t operator()(const oberon::basic_handle<Spaces...>& handle) const noexcept {
+    using value_type = typename oberon::basic_handle<Spaces...>::value_type;
+    return std::hash<value_type>{}(static_cast<value_type>(handle));
+  }
+};
+
+template <typename... Spaces>
+struct std::hash<oberon::readonly_basic_handle<Spaces...>> final {
+  std::size_t operator()(const oberon::readonly_basic_handle<Spaces...>& handle) const noexcept {
+    using value_type = typename oberon::basic_handle<Spaces...>::value_type;
+    return std::hash<value_type>{}(static_cast<value_type>(handle));
+  }
+};
 
 #endif
